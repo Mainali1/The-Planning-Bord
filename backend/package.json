@@ -1,0 +1,44 @@
+{
+  "name": "planning-bord-backend",
+  "version": "1.0.0",
+  "description": "Backend API for The Planning Bord - Business Management Software",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "test": "jest",
+    "migrate": "knex migrate:latest",
+    "seed": "knex seed:run"
+  },
+  "dependencies": {
+    "@azure/msal-node": "^2.3.1",
+    "@microsoft/microsoft-graph-client": "^3.0.7",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-rate-limit": "^6.10.0",
+    "express-validator": "^7.0.1",
+    "g": "^2.0.1",
+    "helmet": "^7.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "knex": "^2.5.1",
+    "multer": "^1.4.5-lts.1",
+    "node-cron": "^3.0.2",
+    "nodemailer": "^6.9.4",
+    "pg": "^8.11.3"
+  },
+  "devDependencies": {
+    "jest": "^29.6.2",
+    "nodemon": "^3.0.1",
+    "supertest": "^6.3.3"
+  },
+  "keywords": [
+    "business-management",
+    "inventory",
+    "employee-management",
+    "planning-bord"
+  ],
+  "author": "Planning Bord Team",
+  "license": "MIT"
+}
