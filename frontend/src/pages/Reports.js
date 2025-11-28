@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery } from 'react-query';
-import { BarChart3, Download, Calendar, Filter, DollarSign } from 'lucide-react';
+import { BarChart3, Download, Calendar, Filter, DollarSign, AlertCircle, RefreshCw, Info, TrendingUp } from 'lucide-react';
 import Chart from '../components/Chart';
 import { dashboardService } from '../services/api';
 
