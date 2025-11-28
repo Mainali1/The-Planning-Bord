@@ -7,7 +7,8 @@ import {
   DollarSign, 
   FileText, 
   Settings,
-  LogOut
+  LogOut,
+  Microsoft
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -21,6 +22,7 @@ const Layout = ({ children }) => {
     { path: '/employees', icon: Users, label: 'Employees' },
     { path: '/payments', icon: DollarSign, label: 'Payments' },
     { path: '/reports', icon: FileText, label: 'Reports' },
+    { path: '/microsoft365', icon: Microsoft, label: 'Microsoft 365' },
     { path: '/settings', icon: Settings, label: 'Settings' },
   ];
 

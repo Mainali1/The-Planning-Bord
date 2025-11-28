@@ -11,6 +11,7 @@ import Reports from './pages/Reports';
 import Settings from './pages/Settings';
 import Login from './pages/Login';
 import ProtectedRoute from './components/ProtectedRoute';
+import Microsoft365 from './pages/Microsoft365';
 
 const queryClient = new QueryClient();
 
@@ -61,6 +62,13 @@ function App() {
                 <ProtectedRoute>
                   <Layout>
                     <Settings />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/microsoft365" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Microsoft365 />
                   </Layout>
                 </ProtectedRoute>
               } />

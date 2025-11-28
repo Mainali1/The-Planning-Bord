@@ -37,11 +37,17 @@ A comprehensive business management system that integrates inventory tracking, e
 - Secure password policies
 - Session management
 
-### 📧 Communication
+### 📧 Communication & Integration
 - Automated email notifications
 - Auto-restock alerts
 - Task assignment notifications
-- Microsoft 365 integration (planned)
+- **Microsoft 365 Integration**:
+  - Outlook email sending
+  - Calendar event creation
+  - OneDrive file uploads
+  - SharePoint list management
+  - Teams messaging
+  - Business data synchronization
 
 ## Tech Stack
 
@@ -52,6 +58,7 @@ A comprehensive business management system that integrates inventory tracking, e
 - **JWT** authentication
 - **Nodemailer** for email notifications
 - **Cron** jobs for automated tasks
+- **Microsoft Graph API** for 365 integration
 
 ### Frontend
 - **React** with functional components
@@ -135,10 +142,12 @@ EMAIL_PORT=587
 EMAIL_USER=your_email@gmail.com
 EMAIL_PASSWORD=your_app_password
 
-# Microsoft 365 (Optional)
-MS_CLIENT_ID=your_microsoft_client_id
-MS_CLIENT_SECRET=your_microsoft_client_secret
-MS_TENANT_ID=your_tenant_id
+# Microsoft 365 Integration
+MICROSOFT_CLIENT_ID=your_microsoft_client_id
+MICROSOFT_CLIENT_SECRET=your_microsoft_client_secret
+MICROSOFT_TENANT_ID=your_microsoft_tenant_id
+MICROSOFT_USER_ID=your_microsoft_user_id
+SHAREPOINT_SITE_ID=your_sharepoint_site_id
 ```
 
 ### Frontend (.env)
@@ -236,6 +245,53 @@ REACT_APP_API_URL=http://localhost:5000/api
 - **Headers**: `Authorization: Bearer <token>`
 - **Query Params**: `?start_date=2024-01-01&end_date=2024-01-31`
 
+### Microsoft 365 Integration
+
+#### Send Outlook Email
+- **POST** `/api/microsoft/send-email`
+- **Headers**: `Authorization: Bearer <token>`
+- **Body**: `{ "to": "recipient@example.com", "subject": "Test Email", "body": "<h1>Hello</h1>", "importance": "normal" }`
+
+#### Create Calendar Event
+- **POST** `/api/microsoft/create-calendar-event`
+- **Headers**: `Authorization: Bearer <token>`
+- **Body**: `{ "subject": "Meeting", "start": "2024-01-15T10:00:00Z", "end": "2024-01-15T11:00:00Z", "attendees": ["attendee@example.com"], "body": "Meeting description" }`
+
+#### Upload File to OneDrive
+- **POST** `/api/microsoft/upload-file`
+- **Headers**: `Authorization: Bearer <token>`
+- **Form Data**: File upload with optional `folderPath`
+
+#### Get OneDrive Files
+- **GET** `/api/microsoft/files`
+- **Headers**: `Authorization: Bearer <token>`
+- **Query Params**: `?folderPath=/BusinessApp`
+
+#### Create SharePoint List Item
+- **POST** `/api/microsoft/create-sharepoint-item`
+- **Headers**: `Authorization: Bearer <token>`
+- **Body**: `{ "listName": "Inventory", "itemData": { "Title": "Product A", "Quantity": 100 } }`
+
+#### Send Teams Message
+- **POST** `/api/microsoft/send-teams-message`
+- **Headers**: `Authorization: Bearer <token>`
+- **Body**: `{ "teamId": "team_id", "channelId": "channel_id", "messageContent": "Hello from Planning Bord!" }`
+
+#### Sync Inventory to SharePoint
+- **POST** `/api/microsoft/sync-inventory`
+- **Headers**: `Authorization: Bearer <token>`
+- **Body**: `{ "inventoryItems": [{ "name": "Product A", "quantity": 100, "price": 25.50, "category": "Electronics", "low_stock_threshold": 20, "supplier": "Supplier A" }] }`
+
+#### Sync Employees to SharePoint
+- **POST** `/api/microsoft/sync-employees`
+- **Headers**: `Authorization: Bearer <token>`
+- **Body**: `{ "employees": [{ "first_name": "John", "last_name": "Doe", "email": "john@example.com", "position": "Manager", "department": "Sales", "salary": 50000, "hire_date": "2024-01-15" }] }`
+
+#### Get Microsoft 365 Status
+- **GET** `/api/microsoft/status`
+- **Headers**: `Authorization: Bearer <token>`
+- **Response**: `{ "connected": true, "features": ["outlook-email", "calendar-events", "onedrive-storage", "sharepoint-lists", "teams-messaging", "business-sync"] }`
+
 ### Dashboard Analytics
 
 #### Get Dashboard Stats
@@ -327,10 +383,43 @@ cd backend
 npm start
 ```
 
-### Docker Deployment (Optional)
+### Docker Deployment
 ```bash
 # Build and run with Docker Compose
 docker-compose up -d
+```
+
+## Microsoft 365 Integration Setup
+
+### 1. Azure App Registration
+1. Go to [Azure Portal](https://portal.azure.com)
+2. Navigate to "Azure Active Directory" > "App registrations"
+3. Click "New registration"
+4. Set redirect URI to: `http://localhost:5000/auth/microsoft/callback`
+5. Note down the Application (client) ID and Directory (tenant) ID
+
+### 2. API Permissions
+Add the following Microsoft Graph permissions:
+- `Mail.Send` (Application)
+- `Calendars.ReadWrite` (Application)
+- `Files.ReadWrite.All` (Application)
+- `Sites.ReadWrite.All` (Application)
+- `Team.ReadBasic.All` (Application)
+- `ChannelMessage.Send` (Application)
+
+### 3. Client Secret
+1. Go to "Certificates & secrets"
+2. Create a new client secret
+3. Note down the secret value
+
+### 4. Environment Configuration
+Update your `.env` file with the Microsoft 365 credentials:
+```env
+MICROSOFT_CLIENT_ID=your_application_client_id
+MICROSOFT_CLIENT_SECRET=your_client_secret
+MICROSOFT_TENANT_ID=your_directory_tenant_id
+MICROSOFT_USER_ID=your_user_object_id
+SHAREPOINT_SITE_ID=your_sharepoint_site_id
 ```
 
 ## Contributing
@@ -357,19 +446,21 @@ For support and questions, please contact: admin@planningbord.com
 - ✅ Payment tracking
 - ✅ Dashboard analytics
 - ✅ Authentication system
+- ✅ Microsoft 365 integration
 
 ### Phase 2 (In Progress)
-- 🔄 Microsoft 365 integration
 - 🔄 Advanced reporting
 - 🔄 Mobile responsive design
 - 🔄 API rate limiting improvements
+- 🔄 Multi-language support
 
 ### Phase 3 (Planned)
 - 📋 Multi-tenant support
 - 📋 Advanced analytics
 - 📋 Mobile app
 - 📋 AI-powered insights
+- 📋 Advanced Microsoft 365 features
 
 ---
 
-**The Planning Bord** - Your comprehensive business management solution.
+**The Planning Bord** - Your comprehensive business management solution with Microsoft 365 integration.
