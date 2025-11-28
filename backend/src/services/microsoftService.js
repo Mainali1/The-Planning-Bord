@@ -1,36 +1,57 @@
 const { Client } = require('@microsoft/microsoft-graph-client');
-const { AuthProvider } = require('@azure/msal-node');
+const { ConfidentialClientApplication } = require('@azure/msal-node');
 
 class MicrosoftService {
   constructor() {
     this.client = null;
+    this.isConfigured = false;
     this.initializeClient();
   }
 
   initializeClient() {
-    const config = {
-      auth: {
-        clientId: process.env.MICROSOFT_CLIENT_ID,
-        clientSecret: process.env.MICROSOFT_CLIENT_SECRET,
-        authority: `https://login.microsoftonline.com/${process.env.MICROSOFT_TENANT_ID}`
-      }
-    };
+    // Check if all required Microsoft credentials are present
+    if (!process.env.MICROSOFT_CLIENT_ID || 
+        !process.env.MICROSOFT_CLIENT_SECRET || 
+        !process.env.MICROSOFT_TENANT_ID) {
+      console.log('Microsoft 365 integration not configured - credentials missing');
+      return;
+    }
 
-    const cca = new AuthProvider(config);
-    
-    this.client = Client.initWithMiddleware({
-      authProvider: {
-        getAccessToken: async () => {
-          const result = await cca.acquireTokenByClientCredential({
-            scopes: ['https://graph.microsoft.com/.default']
-          });
-          return result.accessToken;
+    try {
+      const config = {
+        auth: {
+          clientId: process.env.MICROSOFT_CLIENT_ID,
+          clientSecret: process.env.MICROSOFT_CLIENT_SECRET,
+          authority: `https://login.microsoftonline.com/${process.env.MICROSOFT_TENANT_ID}`
         }
-      }
-    });
+      };
+
+      const cca = new ConfidentialClientApplication(config);
+      
+      this.client = Client.initWithMiddleware({
+        authProvider: {
+          getAccessToken: async () => {
+            const result = await cca.acquireTokenByClientCredential({
+              scopes: ['https://graph.microsoft.com/.default']
+            });
+            return result.accessToken;
+          }
+        }
+      });
+      
+      this.isConfigured = true;
+      console.log('Microsoft 365 integration initialized successfully');
+    } catch (error) {
+      console.error('Failed to initialize Microsoft 365 integration:', error.message);
+      this.isConfigured = false;
+    }
   }
 
   async sendEmail(to, subject, body, importance = 'normal') {
+    if (!this.isConfigured) {
+      return { success: false, message: 'Microsoft 365 integration not configured' };
+    }
+    
     try {
       const message = {
         subject: subject,
@@ -59,6 +80,10 @@ class MicrosoftService {
   }
 
   async createCalendarEvent(subject, start, end, attendees = [], body = '') {
+    if (!this.isConfigured) {
+      return { success: false, message: 'Microsoft 365 integration not configured' };
+    }
+    
     try {
       const event = {
         subject: subject,

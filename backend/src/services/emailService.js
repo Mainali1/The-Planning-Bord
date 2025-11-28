@@ -1,16 +1,36 @@
 const nodemailer = require('nodemailer');
 
-const transporter = nodemailer.createTransporter({
-  host: process.env.EMAIL_HOST,
-  port: process.env.EMAIL_PORT,
-  secure: false,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
+let transporter = null;
+let isEmailConfigured = false;
+
+// Initialize email transporter only if all required credentials are present
+if (process.env.EMAIL_HOST && process.env.EMAIL_PORT && process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+  try {
+    transporter = nodemailer.createTransport({
+      host: process.env.EMAIL_HOST,
+      port: process.env.EMAIL_PORT,
+      secure: false,
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+      }
+    });
+    isEmailConfigured = true;
+    console.log('Email service initialized successfully');
+  } catch (error) {
+    console.error('Failed to initialize email service:', error.message);
+    isEmailConfigured = false;
   }
-});
+} else {
+  console.log('Email service not configured - credentials missing');
+}
 
 const sendRestockEmail = async (product) => {
+  if (!isEmailConfigured) {
+    console.log('📧 Email service not configured - skipping restock email');
+    return { success: false, message: 'Email service not configured' };
+  }
+  
   try {
     const businessName = process.env.BUSINESS_NAME || 'Your Business';
     const businessEmail = process.env.EMAIL_USER;
@@ -73,6 +93,11 @@ const sendRestockEmail = async (product) => {
 };
 
 const sendTaskNotification = async (employee, task) => {
+  if (!isEmailConfigured) {
+    console.log('📧 Email service not configured - skipping task notification');
+    return { success: false, message: 'Email service not configured' };
+  }
+  
   try {
     const mailOptions = {
       from: `"${process.env.BUSINESS_NAME || 'Your Business'}" <${process.env.EMAIL_USER}>`,

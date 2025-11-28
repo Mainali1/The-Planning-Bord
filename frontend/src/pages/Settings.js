@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Save, User, Bell, Shield, Mail, Database } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Save, User, Bell, Shield, Mail, Database, Briefcase, Settings as SettingsIcon } from 'lucide-react';
 
 const Settings = () => {
   const [activeTab, setActiveTab] = useState('profile');
@@ -21,10 +21,95 @@ const Settings = () => {
     passwordExpiry: 90,
     sessionTimeout: 30
   });
+  const [businessSettings, setBusinessSettings] = useState({
+    businessName: '',
+    businessEmail: '',
+    businessPhone: '',
+    businessAddress: ''
+  });
+  const [emailSettings, setEmailSettings] = useState({
+    host: '',
+    port: '587',
+    user: '',
+    pass: '',
+    secure: false
+  });
+  const [microsoftSettings, setMicrosoftSettings] = useState({
+    clientId: '',
+    clientSecret: '',
+    tenantId: '',
+    userId: ''
+  });
+  const [settingsStatus, setSettingsStatus] = useState({
+    emailConfigured: false,
+    microsoftConfigured: false
+  });
 
-  const handleSave = (section) => {
-    // Save functionality will be implemented here
-    alert(`${section} settings saved successfully!`);
+  useEffect(() => {
+    // Fetch current settings
+    fetchSettings();
+  }, []);
+
+  const fetchSettings = async () => {
+    try {
+      const response = await fetch('/api/settings');
+      const data = await response.json();
+      if (data.success) {
+        setSettingsStatus({
+          emailConfigured: data.data.emailConfigured,
+          microsoftConfigured: data.data.microsoftConfigured
+        });
+        setBusinessSettings({
+          businessName: data.data.businessName || '',
+          businessEmail: data.data.businessEmail || '',
+          businessPhone: data.data.businessPhone || '',
+          businessAddress: data.data.businessAddress || ''
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching settings:', error);
+    }
+  };
+
+  const handleSave = async (section) => {
+    try {
+      let data = {};
+      
+      switch (section) {
+        case 'business':
+          data = { businessSettings };
+          break;
+        case 'email':
+          data = { emailSettings };
+          break;
+        case 'microsoft':
+          data = { microsoftSettings };
+          break;
+        default:
+          data = { profileData, notifications, security };
+      }
+      
+      const response = await fetch('/api/settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        alert(`${section} settings saved successfully!`);
+        // Refresh settings after save
+        fetchSettings();
+      } else {
+        alert(`Failed to save ${section} settings: ${result.message}`);
+      }
+    } catch (error) {
+      console.error(`Error saving ${section} settings:`, error);
+      alert(`Error saving ${section} settings`);
+    }
   };
 
   const renderTabContent = () => {

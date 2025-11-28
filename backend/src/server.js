@@ -1,5 +1,3 @@
-import dotenv from "dotenv";
-dotenv.config();
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -12,6 +10,7 @@ const employeeRoutes = require('./routes/employee');
 const paymentRoutes = require('./routes/payment');
 const dashboardRoutes = require('./routes/dashboard');
 const microsoftRoutes = require('./routes/microsoft');
+const settingsRoutes = require('./routes/settings');
 
 const { errorHandler } = require('./middleware/errorHandler');
 const { startCronJobs } = require('./services/cronService');
@@ -37,6 +36,7 @@ app.use('/api/employees', employeeRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/microsoft', microsoftRoutes);
+app.use('/api', settingsRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ 
