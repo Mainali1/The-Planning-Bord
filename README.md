@@ -1,5 +1,14 @@
 # The Planning Bord
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node.js](https://img.shields.io/badge/Node.js-18.x-green.svg)](https://nodejs.org/)
+[![React](https://img.shields.io/badge/React-18.x-blue.svg)](https://reactjs.org/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14+-blue.svg)](https://postgresql.org/)
+[![TailwindCSS](https://img.shields.io/badge/TailwindCSS-3.x-38B2AC.svg)](https://tailwindcss.com/)
+[![Dependencies](https://img.shields.io/badge/dependencies-updated-green.svg)](.github/dependabot.yml)
+[![Security](https://img.shields.io/badge/security-scanned-green.svg)](.github/workflows/codeql.yml)
+[![Accessibility](https://img.shields.io/badge/accessibility-WCAG%202.1%20AA-blue.svg)](frontend/accessibility.config.yml)
+
 A comprehensive business management system that integrates inventory tracking, employee management, payment processing, and Microsoft 365 integration.
 
 ## Features
@@ -36,11 +45,22 @@ A comprehensive business management system that integrates inventory tracking, e
 - Role-based access control
 - Secure password policies
 - Session management
+- **Security Scanning**: CodeQL analysis and secret scanning
+- **Dependency Updates**: Automated Dependabot alerts
+
+### ♿ Accessibility & Quality
+- **WCAG 2.1 AA Compliance**: Full accessibility support
+- **Responsive Design**: Mobile-first, tablet-friendly interface
+- **Screen Reader Support**: ARIA labels, semantic HTML
+- **Keyboard Navigation**: Full keyboard accessibility
+- **Color Contrast**: High contrast ratios for readability
 
 ### 📧 Communication & Integration
-- Automated email notifications
-- Auto-restock alerts
-- Task assignment notifications
+- **Automated Email Notifications**: Welcome emails, password resets, low-stock alerts
+- **Background Job Processing**: Redis queue system for reliable email delivery
+- **Queue Monitoring**: Bull Board dashboard for job monitoring and management
+- **Auto-restock Alerts**: Automated notifications for low inventory
+- **Task Assignment Notifications**: Email alerts for new task assignments
 - **Microsoft 365 Integration**:
   - Outlook email sending
   - Calendar event creation
@@ -57,6 +77,7 @@ A comprehensive business management system that integrates inventory tracking, e
 - **Knex.js** query builder
 - **JWT** authentication
 - **Nodemailer** for email notifications
+- **Bull + Redis** for background job processing
 - **Cron** jobs for automated tasks
 - **Microsoft Graph API** for 365 integration
 
@@ -66,6 +87,31 @@ A comprehensive business management system that integrates inventory tracking, e
 - **React Query** for data fetching
 - **React Router** for navigation
 - **Recharts** for data visualization
+
+## Quick Start
+
+### Demo Data
+We provide demo data for easy testing. Run the seed script to populate your database:
+
+```bash
+# Make the script executable
+chmod +x scripts/seed_demo_data.sh
+
+# Run the seed script
+./scripts/seed_demo_data.sh
+
+# Apply the demo data to your database
+psql -d planning_bord -f seed_data.sql
+```
+
+**Demo Credentials:**
+- Admin: `admin@demo.com` / `password`
+- Demo: `demo@demo.com` / `password`
+
+### API Documentation
+- **Postman Collection**: [docs/API_POSTMAN_COLLECTION.json](docs/API_POSTMAN_COLLECTION.json)
+- **Curl Commands**: [docs/API_CURL_COMMANDS.md](docs/API_CURL_COMMANDS.md)
+- **Database Schema**: [docs/DATABASE_SCHEMA.md](docs/DATABASE_SCHEMA.md)
 
 ## Installation
 
@@ -107,7 +153,29 @@ cd ../frontend
 npm install
 ```
 
-### 6. Start the Application
+### 6. Start Redis (for background jobs)
+```bash
+# Option 1: Using Docker (recommended)
+cd backend
+npm run redis:up
+
+# Option 2: Local Redis installation
+redis-server ../redis.conf
+```
+
+### 7. Start Workers (for background jobs)
+```bash
+# Start all workers with PM2
+npm run workers:start
+
+# Or start individual workers
+npm run worker:email &
+npm run worker:inventory &
+npm run worker:report &
+npm run worker:file &
+```
+
+### 8. Start the Application
 
 Backend:
 ```bash
@@ -120,6 +188,9 @@ Frontend:
 cd frontend
 npm start
 ```
+
+### 9. Access Queue Monitoring
+Visit `http://localhost:5000/admin/queues` to monitor background job processing.
 
 ## Environment Variables
 
@@ -141,6 +212,13 @@ EMAIL_HOST=smtp.gmail.com
 EMAIL_PORT=587
 EMAIL_USER=your_email@gmail.com
 EMAIL_PASSWORD=your_app_password
+
+# Redis Queue System
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=
+REDIS_DB=0
+QUEUE_PREFIX=planning-bord
 
 # Microsoft 365 Integration
 MICROSOFT_CLIENT_ID=your_microsoft_client_id
@@ -389,6 +467,46 @@ npm start
 docker-compose up -d
 ```
 
+## Redis Queue System
+
+The Planning Bord uses **Bull** (Redis-based queue) for background job processing, providing reliable and scalable task execution.
+
+### Features
+- **Background Email Processing**: Welcome emails, password resets, low-stock alerts
+- **Inventory Synchronization**: External system sync, bulk updates, stock checks
+- **Report Generation**: Automated business reports with PDF/CSV export
+- **File Processing**: CSV imports/exports with validation and error handling
+- **Queue Monitoring**: Bull Board dashboard for job inspection and management
+
+### Queue Types
+- **Email Queue**: High-priority email notifications
+- **Inventory Queue**: Inventory sync and bulk operations
+- **Report Queue**: Business report generation
+- **File Queue**: Import/export file processing
+
+### Monitoring
+Access the Bull Board monitoring dashboard at: `http://localhost:5000/admin/queues`
+
+### Management Commands
+```bash
+# Start Redis (Docker)
+npm run redis:up
+
+# Start all workers
+npm run workers:start
+
+# Check worker status
+pm2 status
+
+# View worker logs
+pm2 logs
+
+# Stop workers
+npm run workers:stop
+```
+
+For detailed implementation guide, see [REDIS_QUEUE_IMPLEMENTATION.md](REDIS_QUEUE_IMPLEMENTATION.md).
+
 ## Microsoft 365 Integration Setup
 
 ### 1. Azure App Registration
@@ -447,18 +565,20 @@ For support and questions, please contact: admin@planningbord.com
 - ✅ Dashboard analytics
 - ✅ Authentication system
 - ✅ Microsoft 365 integration
+- ✅ **Redis Queue System**: Background job processing for emails, inventory sync, reports
+- ✅ **Bull Board Monitoring**: Web-based queue monitoring dashboard
+- ✅ **WCAG 2.1 AA Accessibility**: Full accessibility compliance
+- ✅ **Responsive Design**: Mobile-first, tablet-friendly interface
 
 ### Phase 2 (In Progress)
-- 🔄 Advanced reporting
-- 🔄 Mobile responsive design
-- 🔄 API rate limiting improvements
+- 🔄 Advanced reporting with PDF generation
 - 🔄 Multi-language support
+- 🔄 Advanced analytics and insights
 
 ### Phase 3 (Planned)
 - 📋 Multi-tenant support
-- 📋 Advanced analytics
-- 📋 Mobile app
-- 📋 AI-powered insights
+- 📋 Mobile app development
+- 📋 AI-powered business insights
 - 📋 Advanced Microsoft 365 features
 
 ---

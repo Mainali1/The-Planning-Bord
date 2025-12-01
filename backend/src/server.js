@@ -21,6 +21,12 @@ const databaseAdminRoutes = require('./routes/admin/database');
 const { errorHandler } = require('./middleware/errorHandler');
 const { startCronJobs } = require('./services/cronService');
 
+// Queue monitoring with Bull Board
+const { createBullBoard } = require('@bull-board/api');
+const { BullAdapter } = require('@bull-board/api/bullAdapter');
+const { ExpressAdapter } = require('@bull-board/express');
+const { emailQueue, inventoryQueue, reportQueue, fileQueue } = require('./config/queue');
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -63,6 +69,31 @@ app.get('/api/health/ready', readinessCheck);
 app.get('/api/health/live', livenessCheck);
 app.get('/api/metrics', metrics);
 
+// Bull Board - Queue monitoring dashboard
+const serverAdapter = new ExpressAdapter();
+serverAdapter.setBasePath('/admin/queues');
+
+const { addQueue, removeQueue, setQueues, replaceQueues } = createBullBoard({
+  queues: [
+    new BullAdapter(emailQueue),
+    new BullAdapter(inventoryQueue),
+    new BullAdapter(reportQueue),
+    new BullAdapter(fileQueue)
+  ],
+  serverAdapter: serverAdapter,
+  options: {
+    uiConfig: {
+      boardTitle: 'Planning Bord Queue Dashboard',
+      boardLogo: {
+        alt: 'Planning Bord Logo',
+        path: 'https://via.placeholder.com/150x50?text=Planning+Bord'
+      }
+    }
+  }
+});
+
+app.use('/admin/queues', serverAdapter.getRouter());
+
 app.use(errorHandler);
 
 app.use((req, res) => {
@@ -79,6 +110,10 @@ app.listen(PORT, () => {
   
   startCronJobs();
   logger.info('⏰ Cron jobs started');
+  
+  logger.info('📊 Bull Board queue monitoring available at', {
+    url: `http://localhost:${PORT}/admin/queues`
+  });
 });
 
 module.exports = app;
