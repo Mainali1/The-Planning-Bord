@@ -14,9 +14,13 @@ import {
   User,
   ChevronDown,
   X,
-  Info
+  Info,
+  Menu,
+  X as CloseIcon
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { SkipLink } from '../components/Accessibility/A11yUtils';
+import { useResponsive, ResponsiveNav, TouchFriendlyButton } from '../components/Responsive/ResponsiveUtils';
 
 const Layout = ({ children }) => {
   const location = useLocation();
@@ -24,10 +28,12 @@ const Layout = ({ children }) => {
   const [showHelp, setShowHelp] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const helpRef = React.useRef(null);
   const notificationsRef = React.useRef(null);
   const userMenuRef = React.useRef(null);
+  const { isMobile, isTablet, isDesktop } = useResponsive();
 
   const menuItems = [
     { path: '/', icon: BarChart3, label: 'Dashboard', description: 'View business overview and key metrics' },
@@ -67,8 +73,40 @@ const Layout = ({ children }) => {
 
   return (
     <div className="flex h-screen bg-gray-50">
+      {/* Skip to main content link for screen readers */}
+      <SkipLink href="#main-content" />
+      
+      {/* Mobile menu overlay */}
+      {(isMobile || isTablet) && sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+          aria-hidden="true"
+        />
+      )}
       {/* Sidebar */}
-      <div className="w-64 bg-white shadow-lg flex flex-col">
+      <ResponsiveNav
+        isOpen={sidebarOpen}
+        onToggle={() => setSidebarOpen(!sidebarOpen)}
+        className={`${(isMobile || isTablet) ? (sidebarOpen ? 'translate-x-0' : '-translate-x-full') : ''} ${isDesktop ? 'w-64' : 'fixed inset-y-0 left-0 w-64 z-50'}`}
+      >
+        <div className="h-full bg-white shadow-lg flex flex-col">
+          {/* Mobile menu button */}
+          {(isMobile || isTablet) && (
+            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+              <h1 className="text-lg font-bold text-gray-800">Planning Bord</h1>
+              <TouchFriendlyButton
+                onClick={() => setSidebarOpen(false)}
+                aria-label="Close menu"
+                className="p-2"
+              >
+                <CloseIcon className="h-5 w-5" />
+              </TouchFriendlyButton>
+            </div>
+      </ResponsiveNav>
+          )}
+          
+          <div className="p-6 flex-1">
         <div className="p-6 flex-1">
           <h1 className="text-2xl font-bold text-gray-800 mb-8">
             Planning Bord
@@ -89,8 +127,10 @@ const Layout = ({ children }) => {
                       : 'text-gray-600 hover:bg-gray-100'
                   }`}
                   title={item.description}
+                  aria-current={isActive ? 'page' : undefined}
+                  onClick={() => (isMobile || isTablet) && setSidebarOpen(false)}
                 >
-                  <Icon className="mr-3 h-5 w-5" />
+                  <Icon className="mr-3 h-5 w-5" aria-hidden="true" />
                   {item.label}
                 </Link>
               );
@@ -99,13 +139,14 @@ const Layout = ({ children }) => {
         </div>
         
         <div className="p-6 border-t border-gray-200">
-          <button
+          <TouchFriendlyButton
             onClick={logout}
             className="flex items-center px-4 py-3 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg w-full transition-colors"
+            aria-label="Sign out of your account"
           >
-            <LogOut className="mr-3 h-5 w-5" />
+            <LogOut className="mr-3 h-5 w-5" aria-hidden="true" />
             Logout
-          </button>
+          </TouchFriendlyButton>
         </div>
       </div>
 
@@ -113,7 +154,17 @@ const Layout = ({ children }) => {
       <div className="flex-1 flex flex-col">
         {/* Header */}
         <header className="bg-white shadow-sm border-b border-gray-200">
-          <div className="flex items-center justify-between px-8 py-4">
+          <div className="flex items-center justify-between px-4 py-4 lg:px-8">
+            {/* Mobile menu button */}
+            {(isMobile || isTablet) && (
+              <TouchFriendlyButton
+                onClick={() => setSidebarOpen(true)}
+                aria-label="Open menu"
+                className="p-2 lg:hidden"
+              >
+                <Menu className="h-6 w-6" />
+              </TouchFriendlyButton>
+            )}
             <div className="flex items-center space-x-4">
               <h2 className="text-xl font-semibold text-gray-900">
                 {menuItems.find(item => item.path === location.pathname)?.label || 'Dashboard'}
@@ -131,25 +182,28 @@ const Layout = ({ children }) => {
             <div className="flex items-center space-x-4">
               {/* Help Button */}
               <div className="relative" ref={helpRef}>
-                <button
+                <TouchFriendlyButton
                   onClick={() => setShowHelp(!showHelp)}
                   className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
-                  title="Help & Support"
+                  aria-label="Help & Support"
+                  aria-expanded={showHelp}
+                  aria-haspopup="true"
                 >
-                  <HelpCircle className="h-5 w-5" />
-                </button>
+                  <HelpCircle className="h-5 w-5" aria-hidden="true" />
+                </TouchFriendlyButton>
                 
                 {showHelp && (
-                  <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+                  <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50" role="dialog" aria-labelledby="help-title">
                     <div className="p-4">
                       <div className="flex items-center justify-between mb-3">
-                        <h3 className="font-semibold text-gray-900">Help & Support</h3>
-                        <button
+                        <h3 id="help-title" className="font-semibold text-gray-900">Help & Support</h3>
+                        <TouchFriendlyButton
                           onClick={() => setShowHelp(false)}
                           className="text-gray-400 hover:text-gray-600"
+                          aria-label="Close help"
                         >
                           <X className="h-4 w-4" />
-                        </button>
+                        </TouchFriendlyButton>
                       </div>
                       <div className="space-y-3 text-sm text-gray-600">
                         <div className="flex items-start space-x-2">
@@ -174,28 +228,31 @@ const Layout = ({ children }) => {
 
               {/* Notifications */}
               <div className="relative" ref={notificationsRef}>
-                <button
+                <TouchFriendlyButton
                   onClick={() => setShowNotifications(!showNotifications)}
                   className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors relative"
-                  title="Notifications"
+                  aria-label="Notifications (3 unread)"
+                  aria-expanded={showNotifications}
+                  aria-haspopup="true"
                 >
-                  <Bell className="h-5 w-5" />
-                  <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 rounded-full text-xs text-white flex items-center justify-center">
+                  <Bell className="h-5 w-5" aria-hidden="true" />
+                  <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 rounded-full text-xs text-white flex items-center justify-center" aria-hidden="true">
                     3
                   </span>
-                </button>
+                </TouchFriendlyButton>
                 
                 {showNotifications && (
-                  <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+                  <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50" role="dialog" aria-labelledby="notifications-title">
                     <div className="p-4">
                       <div className="flex items-center justify-between mb-3">
-                        <h3 className="font-semibold text-gray-900">Notifications</h3>
-                        <button
+                        <h3 id="notifications-title" className="font-semibold text-gray-900">Notifications</h3>
+                        <TouchFriendlyButton
                           onClick={() => setShowNotifications(false)}
                           className="text-gray-400 hover:text-gray-600"
+                          aria-label="Close notifications"
                         >
                           <X className="h-4 w-4" />
-                        </button>
+                        </TouchFriendlyButton>
                       </div>
                       <div className="space-y-3 text-sm">
                         <div className="p-3 bg-yellow-50 rounded-lg border border-yellow-200">
@@ -216,22 +273,26 @@ const Layout = ({ children }) => {
 
               {/* User Menu */}
               <div className="relative" ref={userMenuRef}>
-                <button
+                <TouchFriendlyButton
                   onClick={() => setShowUserMenu(!showUserMenu)}
                   className="flex items-center space-x-2 p-2 text-gray-700 hover:text-gray-900 rounded-lg hover:bg-gray-100 transition-colors"
+                  aria-label={`User menu for ${user?.email || 'User'}`}
+                  aria-expanded={showUserMenu}
+                  aria-haspopup="true"
                 >
-                  <User className="h-5 w-5" />
-                  <span className="text-sm font-medium">{user?.email || 'User'}</span>
-                  <ChevronDown className="h-4 w-4" />
-                </button>
+                  <User className="h-5 w-5" aria-hidden="true" />
+                  <span className="text-sm font-medium hidden sm:inline">{user?.email || 'User'}</span>
+                  <ChevronDown className="h-4 w-4" aria-hidden="true" />
+                </TouchFriendlyButton>
                 
                 {showUserMenu && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-50" role="menu" aria-labelledby="user-menu">
                     <div className="py-1">
                       <Link
                         to="/settings"
                         className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                         onClick={() => setShowUserMenu(false)}
+                        role="menuitem"
                       >
                         Account Settings
                       </Link>
@@ -241,6 +302,7 @@ const Layout = ({ children }) => {
                           setShowUserMenu(false);
                         }}
                         className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        role="menuitem"
                       >
                         Sign Out
                       </button>
@@ -253,7 +315,7 @@ const Layout = ({ children }) => {
         </header>
 
         {/* Main Content Area */}
-        <main className="flex-1 overflow-auto p-8">
+        <main id="main-content" className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8" tabIndex="-1">
           {children}
         </main>
       </div>

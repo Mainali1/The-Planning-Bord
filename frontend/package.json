@@ -35,7 +35,9 @@
     "audit:fix": "npm audit fix",
     "security:check": "npm audit && npm run lint",
     "docker:build": "docker build -t planning-bord-frontend .",
-    "docker:run": "docker run -p 3000:80 planning-bord-frontend"
+    "docker:run": "docker run -p 3000:80 planning-bord-frontend",
+    "prepare": "cd .. && husky install frontend/.husky",
+    "postinstall": "husky install"
   },
   "eslintConfig": {
     "extends": [
@@ -58,9 +60,14 @@
   "devDependencies": {
     "eslint": "^8.45.0",
     "eslint-config-react-app": "^7.0.1",
+    "eslint-plugin-jsx-a11y": "^6.7.1",
     "prettier": "^3.0.0",
     "tailwindcss": "^3.3.3",
     "autoprefixer": "^10.4.15",
-    "postcss": "^8.4.29"
+    "postcss": "^8.4.29",
+    "axe-core": "^4.8.0",
+    "jest-axe": "^8.0.0",
+    "@axe-core/react": "^4.8.0",
+    "react-axe": "^3.5.4"
   }
 }
