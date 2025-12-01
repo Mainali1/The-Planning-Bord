@@ -22,8 +22,20 @@
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "test": "react-scripts test --coverage --watchAll=false",
+    "test:watch": "react-scripts test",
+    "test:coverage": "react-scripts test --coverage --watchAll=false",
+    "test:ci": "react-scripts test --ci --coverage --watchAll=false",
+    "eject": "react-scripts eject",
+    "lint": "eslint src/ --ext .js,.jsx",
+    "lint:fix": "eslint src/ --ext .js,.jsx --fix",
+    "format": "prettier --write src/**/*.{js,jsx,css}",
+    "format:check": "prettier --check src/**/*.{js,jsx,css}",
+    "audit": "npm audit --audit-level=moderate",
+    "audit:fix": "npm audit fix",
+    "security:check": "npm audit && npm run lint",
+    "docker:build": "docker build -t planning-bord-frontend .",
+    "docker:run": "docker run -p 3000:80 planning-bord-frontend"
   },
   "eslintConfig": {
     "extends": [
@@ -44,6 +56,9 @@
     ]
   },
   "devDependencies": {
+    "eslint": "^8.45.0",
+    "eslint-config-react-app": "^7.0.1",
+    "prettier": "^3.0.0",
     "tailwindcss": "^3.3.3",
     "autoprefixer": "^10.4.15",
     "postcss": "^8.4.29"

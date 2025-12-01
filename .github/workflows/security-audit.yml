@@ -1,0 +1,224 @@
+name: Security Audit
+
+on:
+  schedule:
+    - cron: '0 2 * * 1' # Run weekly on Mondays at 2 AM
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'package*.json'
+      - 'backend/package*.json'
+      - 'frontend/package*.json'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'package*.json'
+      - 'backend/package*.json'
+      - 'frontend/package*.json'
+
+jobs:
+  dependency-audit:
+    name: Dependency Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Audit backend dependencies
+        working-directory: ./backend
+        run: |
+          npm audit --audit-level=moderate --json > audit-backend.json || true
+          if [ -s audit-backend.json ]; then
+            echo "Backend security vulnerabilities found:"
+            cat audit-backend.json | jq '.metadata.vulnerabilities'
+          fi
+
+      - name: Audit frontend dependencies
+        working-directory: ./frontend
+        run: |
+          npm audit --audit-level=moderate --json > audit-frontend.json || true
+          if [ -s audit-frontend.json ]; then
+            echo "Frontend security vulnerabilities found:"
+            cat audit-frontend.json | jq '.metadata.vulnerabilities'
+          fi
+
+      - name: Upload audit results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-audit-results
+          path: |
+            backend/audit-backend.json
+            frontend/audit-frontend.json
+
+  secrets-scan:
+    name: Secrets Detection Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: TruffleHog OSS
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: main
+          head: HEAD
+          extra_args: --debug --only-verified
+
+  codeql-analysis:
+    name: CodeQL Analysis
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ 'javascript' ]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v2
+        with:
+          languages: ${{ matrix.language }}
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v2
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
+        with:
+          category: "/language:${{matrix.language}}"
+
+  container-security:
+    name: Container Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build backend container
+        working-directory: ./backend
+        run: docker build -t planning-bord-backend:security-scan .
+
+      - name: Build frontend container
+        working-directory: ./frontend
+        run: docker build -t planning-bord-frontend:security-scan .
+
+      - name: Run Trivy vulnerability scanner on backend
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'planning-bord-backend:security-scan'
+          format: 'sarif'
+          output: 'trivy-backend-results.sarif'
+
+      - name: Run Trivy vulnerability scanner on frontend
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'planning-bord-frontend:security-scan'
+          format: 'sarif'
+          output: 'trivy-frontend-results.sarif'
+
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-backend-results.sarif'
+
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-frontend-results.sarif'
+
+  security-policy-check:
+    name: Security Policy Compliance
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check for security policy
+        run: |
+          if [ ! -f "SECURITY.md" ]; then
+            echo "❌ SECURITY.md file not found"
+            exit 1
+          fi
+
+      - name: Check for .env.example
+        run: |
+          if [ ! -f "backend/.env.example" ]; then
+            echo "❌ backend/.env.example file not found"
+            exit 1
+          fi
+
+      - name: Check for hardcoded secrets
+        run: |
+          # Check for common secret patterns
+          if grep -r "password.*=" backend/src/ frontend/src/ | grep -v ".env" | grep -v "example"; then
+            echo "❌ Potential hardcoded secrets found"
+            exit 1
+          fi
+
+          if grep -r "secret.*=" backend/src/ frontend/src/ | grep -v ".env" | grep -v "example"; then
+            echo "❌ Potential hardcoded secrets found"
+            exit 1
+          fi
+
+          if grep -r "api_key.*=" backend/src/ frontend/src/ | grep -v ".env" | grep -v "example"; then
+            echo "❌ Potential hardcoded secrets found"
+            exit 1
+          fi
+
+      - name: Check Docker security
+        run: |
+          # Check if Dockerfiles use non-root user
+          if grep -r "USER root" backend/Dockerfile frontend/Dockerfile; then
+            echo "❌ Dockerfiles should not run as root user"
+            exit 1
+          fi
+
+          # Check for latest Node.js LTS version
+          if ! grep -E "FROM node:(18|20|22)" backend/Dockerfile frontend/Dockerfile; then
+            echo "❌ Dockerfiles should use Node.js LTS versions (18, 20, or 22)"
+            exit 1
+          fi
+
+  microsoft-security-review:
+    name: Microsoft Integration Security Review
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check Microsoft Graph API scopes
+        run: |
+          # Check if minimal scopes are used
+          if grep -r "scope" backend/src/services/microsoftService.js; then
+            echo "Microsoft Graph API scopes found - reviewing for minimal permissions..."
+          fi
+
+      - name: Check token storage security
+        run: |
+          # Ensure tokens are not stored in plain text
+          if grep -r "accessToken.*=" backend/src/ | grep -v "process.env"; then
+            echo "❌ Access tokens should not be hardcoded"
+            exit 1
+          fi
+
+      - name: Check rate limiting implementation
+        run: |
+          if ! grep -r "rate.*limit" backend/src/services/microsoftService.js; then
+            echo "⚠️ Consider implementing rate limiting for Microsoft Graph API calls"
+          fi

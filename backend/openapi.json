@@ -1,0 +1,1049 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Planning Bord API",
+    "description": "Business management API for inventory, employees, and operations management",
+    "version": "1.0.0",
+    "contact": {
+      "name": "Planning Bord Support",
+      "email": "support@planningbord.com"
+    },
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:5000",
+      "description": "Development server"
+    },
+    {
+      "url": "https://api.planningbord.com",
+      "description": "Production server"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/api/auth/register": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Register a new user",
+        "description": "Create a new user account with email and password",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserRegistration"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "User already exists"
+          }
+        }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Login user",
+        "description": "Authenticate user with email and password",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid credentials"
+          }
+        }
+      }
+    },
+    "/api/auth/verify": {
+      "get": {
+        "tags": ["Authentication"],
+        "summary": "Verify JWT token",
+        "description": "Validate the provided JWT token",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Token is valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenVerification"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or expired token"
+          }
+        }
+      }
+    },
+    "/api/inventory/products": {
+      "get": {
+        "tags": ["Inventory"],
+        "summary": "Get all products",
+        "description": "Retrieve a list of all inventory products",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Search term to filter products",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "category_id",
+            "in": "query",
+            "description": "Filter by category ID",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Page number for pagination",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Number of items per page",
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "maximum": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Products retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Product"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      },
+      "post": {
+        "tags": ["Inventory"],
+        "summary": "Create a new product",
+        "description": "Add a new product to the inventory",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Product created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Product"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          }
+        }
+      }
+    },
+    "/api/inventory/products/{product_id}": {
+      "get": {
+        "tags": ["Inventory"],
+        "summary": "Get product by ID",
+        "description": "Retrieve a specific product by its ID",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "product_id",
+            "in": "path",
+            "required": true,
+            "description": "Product ID",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Product retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Product"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Product not found"
+          }
+        }
+      },
+      "put": {
+        "tags": ["Inventory"],
+        "summary": "Update product",
+        "description": "Update an existing product",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "product_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Product updated successfully"
+          },
+          "404": {
+            "description": "Product not found"
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Inventory"],
+        "summary": "Delete product",
+        "description": "Remove a product from inventory",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "product_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Product deleted successfully"
+          },
+          "404": {
+            "description": "Product not found"
+          }
+        }
+      }
+    },
+    "/api/inventory/low-stock": {
+      "get": {
+        "tags": ["Inventory"],
+        "summary": "Get low stock products",
+        "description": "Retrieve products with quantity below minimum threshold",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Low stock products retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Product"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/inventory/update": {
+      "post": {
+        "tags": ["Inventory"],
+        "summary": "Update inventory quantity",
+        "description": "Update the quantity of a product in inventory",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InventoryUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Inventory updated successfully"
+          },
+          "400": {
+            "description": "Invalid quantity or product"
+          }
+        }
+      }
+    },
+    "/api/employees": {
+      "get": {
+        "tags": ["Employees"],
+        "summary": "Get all employees",
+        "description": "Retrieve a list of all employees",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "department",
+            "in": "query",
+            "description": "Filter by department",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "role",
+            "in": "query",
+            "description": "Filter by role",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "maximum": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Employees retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Employee"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Employees"],
+        "summary": "Create a new employee",
+        "description": "Add a new employee to the system",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmployeeCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Employee created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Employee"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          }
+        }
+      }
+    },
+    "/api/employees/{employee_id}/attendance": {
+      "get": {
+        "tags": ["Employees"],
+        "summary": "Get employee attendance",
+        "description": "Retrieve attendance records for a specific employee",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "employee_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "start_date",
+            "in": "query",
+            "description": "Start date for attendance records (YYYY-MM-DD)",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "end_date",
+            "in": "query",
+            "description": "End date for attendance records (YYYY-MM-DD)",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Attendance records retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AttendanceRecord"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Employees"],
+        "summary": "Mark employee attendance",
+        "description": "Record attendance for an employee",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "employee_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AttendanceCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Attendance marked successfully"
+          }
+        }
+      }
+    },
+    "/api/employees/tasks": {
+      "post": {
+        "tags": ["Employees"],
+        "summary": "Assign task to employee",
+        "description": "Create and assign a task to an employee",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Task assigned successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "UserRegistration": {
+        "type": "object",
+        "required": ["email", "password", "first_name", "last_name"],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "user@example.com"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 6,
+            "example": "password123"
+          },
+          "first_name": {
+            "type": "string",
+            "example": "John"
+          },
+          "last_name": {
+            "type": "string",
+            "example": "Doe"
+          },
+          "role": {
+            "type": "string",
+            "enum": ["user", "admin"],
+            "default": "user"
+          }
+        }
+      },
+      "LoginRequest": {
+        "type": "object",
+        "required": ["email", "password"],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "user@example.com"
+          },
+          "password": {
+            "type": "string",
+            "example": "password123"
+          }
+        }
+      },
+      "AuthResponse": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "example": "User created successfully"
+          },
+          "user": {
+            "$ref": "#/components/schemas/User"
+          }
+        }
+      },
+      "LoginResponse": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+          },
+          "user": {
+            "$ref": "#/components/schemas/User"
+          }
+        }
+      },
+      "TokenVerification": {
+        "type": "object",
+        "properties": {
+          "valid": {
+            "type": "boolean",
+            "example": true
+          },
+          "user": {
+            "$ref": "#/components/schemas/User"
+          }
+        }
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "user@example.com"
+          },
+          "first_name": {
+            "type": "string",
+            "example": "John"
+          },
+          "last_name": {
+            "type": "string",
+            "example": "Doe"
+          },
+          "role": {
+            "type": "string",
+            "example": "user"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2024-01-01T00:00:00Z"
+          }
+        }
+      },
+      "Product": {
+        "type": "object",
+        "properties": {
+          "product_id": {
+            "type": "integer",
+            "example": 1
+          },
+          "name": {
+            "type": "string",
+            "example": "Laptop"
+          },
+          "description": {
+            "type": "string",
+            "example": "High-performance laptop"
+          },
+          "category_id": {
+            "type": "integer",
+            "example": 1
+          },
+          "supplier_id": {
+            "type": "integer",
+            "example": 1
+          },
+          "current_quantity": {
+            "type": "integer",
+            "example": 50
+          },
+          "min_quantity": {
+            "type": "integer",
+            "example": 10
+          },
+          "unit_price": {
+            "type": "number",
+            "format": "float",
+            "example": 999.99
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ProductCreate": {
+        "type": "object",
+        "required": ["name", "category_id", "supplier_id", "current_quantity", "min_quantity", "unit_price"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "New Product"
+          },
+          "description": {
+            "type": "string",
+            "example": "Product description"
+          },
+          "category_id": {
+            "type": "integer",
+            "example": 1
+          },
+          "supplier_id": {
+            "type": "integer",
+            "example": 1
+          },
+          "current_quantity": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 100
+          },
+          "min_quantity": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 20
+          },
+          "unit_price": {
+            "type": "number",
+            "format": "float",
+            "minimum": 0,
+            "example": 25.99
+          }
+        }
+      },
+      "ProductUpdate": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "category_id": {
+            "type": "integer"
+          },
+          "supplier_id": {
+            "type": "integer"
+          },
+          "current_quantity": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "min_quantity": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "unit_price": {
+            "type": "number",
+            "format": "float",
+            "minimum": 0
+          }
+        }
+      },
+      "InventoryUpdate": {
+        "type": "object",
+        "required": ["product_id", "quantity_change", "reason"],
+        "properties": {
+          "product_id": {
+            "type": "integer",
+            "example": 1
+          },
+          "quantity_change": {
+            "type": "integer",
+            "example": -5,
+            "description": "Positive for stock addition, negative for stock removal"
+          },
+          "reason": {
+            "type": "string",
+            "example": "Sale"
+          },
+          "notes": {
+            "type": "string",
+            "example": "Customer purchase"
+          }
+        }
+      },
+      "Employee": {
+        "type": "object",
+        "properties": {
+          "employee_id": {
+            "type": "integer",
+            "example": 1
+          },
+          "first_name": {
+            "type": "string",
+            "example": "John"
+          },
+          "last_name": {
+            "type": "string",
+            "example": "Smith"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "john.smith@example.com"
+          },
+          "role": {
+            "type": "string",
+            "example": "Manager"
+          },
+          "department": {
+            "type": "string",
+            "example": "Sales"
+          },
+          "phone": {
+            "type": "string",
+            "example": "+1234567890"
+          },
+          "date_joined": {
+            "type": "string",
+            "format": "date",
+            "example": "2024-01-15"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "EmployeeCreate": {
+        "type": "object",
+        "required": ["first_name", "last_name", "email", "role", "department", "date_joined"],
+        "properties": {
+          "first_name": {
+            "type": "string",
+            "example": "Jane"
+          },
+          "last_name": {
+            "type": "string",
+            "example": "Doe"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "jane.doe@example.com"
+          },
+          "role": {
+            "type": "string",
+            "example": "Developer"
+          },
+          "department": {
+            "type": "string",
+            "example": "IT"
+          },
+          "phone": {
+            "type": "string",
+            "example": "+1234567890"
+          },
+          "date_joined": {
+            "type": "string",
+            "format": "date",
+            "example": "2024-01-15"
+          }
+        }
+      },
+      "AttendanceRecord": {
+        "type": "object",
+        "properties": {
+          "attendance_id": {
+            "type": "integer",
+            "example": 1
+          },
+          "employee_id": {
+            "type": "integer",
+            "example": 1
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "example": "2024-01-15"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["present", "absent", "late", "half_day"],
+            "example": "present"
+          },
+          "check_in_time": {
+            "type": "string",
+            "format": "time",
+            "example": "09:00:00"
+          },
+          "check_out_time": {
+            "type": "string",
+            "format": "time",
+            "example": "17:00:00"
+          },
+          "reason": {
+            "type": "string",
+            "example": "Working from office"
+          }
+        }
+      },
+      "AttendanceCreate": {
+        "type": "object",
+        "required": ["status"],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["present", "absent", "late", "half_day"],
+            "example": "present"
+          },
+          "reason": {
+            "type": "string",
+            "example": "Working from office"
+          }
+        }
+      },
+      "Task": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "integer",
+            "example": 1
+          },
+          "employee_id": {
+            "type": "integer",
+            "example": 1
+          },
+          "task_title": {
+            "type": "string",
+            "example": "Complete inventory"
+          },
+          "task_description": {
+            "type": "string",
+            "example": "Count all products in warehouse"
+          },
+          "due_date": {
+            "type": "string",
+            "format": "date",
+            "example": "2024-01-20"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "in_progress", "completed"],
+            "example": "pending"
+          },
+          "priority": {
+            "type": "string",
+            "enum": ["low", "medium", "high"],
+            "example": "medium"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "TaskCreate": {
+        "type": "object",
+        "required": ["employee_id", "task_title", "task_description", "due_date"],
+        "properties": {
+          "employee_id": {
+            "type": "integer",
+            "example": 1
+          },
+          "task_title": {
+            "type": "string",
+            "example": "Complete inventory"
+          },
+          "task_description": {
+            "type": "string",
+            "example": "Count all products in warehouse"
+          },
+          "due_date": {
+            "type": "string",
+            "format": "date",
+            "example": "2024-01-20"
+          },
+          "priority": {
+            "type": "string",
+            "enum": ["low", "medium", "high"],
+            "default": "medium"
+          }
+        }
+      },
+      "ValidationError": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "example": "Validation failed"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "field": {
+                  "type": "string",
+                  "example": "email"
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Email is required"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
