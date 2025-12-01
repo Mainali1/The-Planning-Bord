@@ -125,7 +125,7 @@ export const paymentService = {
     api.delete(`/payments/${id}`),
   
   getSalaries: () => 
-    api.get('/payments/salaries'),
+    api.get('/payments/salaries/all'),
   
   createSalary: (salaryData) => 
     api.post('/payments/salaries', salaryData),
@@ -149,6 +149,34 @@ export const dashboardService = {
   
   getPaymentStats: () => 
     api.get('/dashboard/payment-stats'),
+};
+
+export const microsoftService = {
+  getStatus: () => 
+    api.get('/microsoft/status'),
+  
+  sendEmail: (emailData) => 
+    api.post('/microsoft/send-email', emailData),
+  
+  createCalendarEvent: (eventData) => 
+    api.post('/microsoft/create-calendar-event', eventData),
+  
+  uploadFile: (formData) => 
+    api.post('/microsoft/upload-file', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    }),
+  
+  getFiles: () => 
+    api.get('/microsoft/files'),
+  
+  sendTeamsMessage: (messageData) => 
+    api.post('/microsoft/send-teams-message', messageData),
+  
+  syncInventory: (inventoryData) => 
+    api.post('/microsoft/sync-inventory', inventoryData),
+  
+  syncEmployees: (employeesData) => 
+    api.post('/microsoft/sync-employees', employeesData),
 };
 
 export default api;

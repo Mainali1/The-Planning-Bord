@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
-import api from '../services/api';
+import { microsoftService } from '../services/api';
 
 const MicrosoftIntegration = () => {
   const [activeTab, setActiveTab] = useState('email');
@@ -10,12 +10,10 @@ const MicrosoftIntegration = () => {
   const [teamsForm, setTeamsForm] = useState({ teamId: '', channelId: '', messageContent: '' });
   const queryClient = useQueryClient();
 
-  const { data: status } = useQuery('microsoft-status', () => 
-    api.get('/microsoft/status').then(res => res.data)
-  );
+  const { data: status } = useQuery('microsoft-status', microsoftService.getStatus);
 
   const sendEmailMutation = useMutation(
-    (data) => api.post('/microsoft/send-email', data),
+    microsoftService.sendEmail,
     {
       onSuccess: () => {
         alert('Email sent successfully!');
@@ -28,7 +26,7 @@ const MicrosoftIntegration = () => {
   );
 
   const createEventMutation = useMutation(
-    (data) => api.post('/microsoft/create-calendar-event', data),
+    microsoftService.createCalendarEvent,
     {
       onSuccess: () => {
         alert('Calendar event created successfully!');
@@ -41,9 +39,7 @@ const MicrosoftIntegration = () => {
   );
 
   const uploadFileMutation = useMutation(
-    (formData) => api.post('/microsoft/upload-file', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    }),
+    microsoftService.uploadFile,
     {
       onSuccess: () => {
         alert('File uploaded successfully!');
@@ -56,7 +52,7 @@ const MicrosoftIntegration = () => {
   );
 
   const sendTeamsMessageMutation = useMutation(
-    (data) => api.post('/microsoft/send-teams-message', data),
+    microsoftService.sendTeamsMessage,
     {
       onSuccess: () => {
         alert('Teams message sent successfully!');

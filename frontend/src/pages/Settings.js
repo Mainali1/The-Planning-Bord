@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Save, User, Bell, Shield, Mail, Database, Briefcase, Settings as SettingsIcon } from 'lucide-react';
+import api from '../services/api';
 
 const Settings = () => {
   const [activeTab, setActiveTab] = useState('profile');
@@ -204,6 +205,40 @@ const Settings = () => {
     }
   };
 
+  const testEmailConnection = async () => {
+    try {
+      const response = await api.post('/settings/test-email', {
+        to: emailSettings.user || 'test@example.com',
+        subject: 'Test Email from Planning Bord',
+        message: 'This is a test email to verify your email configuration is working correctly.'
+      });
+      
+      if (response.data.success) {
+        alert('Email test successful! Check your inbox for the test email.');
+      } else {
+        alert('Email test failed: ' + response.data.message);
+      }
+    } catch (error) {
+      console.error('Email test error:', error);
+      alert('Failed to test email connection. Please check your settings and try again.');
+    }
+  };
+
+  const testMicrosoftConnection = async () => {
+    try {
+      const response = await api.post('/settings/test-microsoft');
+      
+      if (response.data.success) {
+        alert('Microsoft 365 connection test successful!');
+      } else {
+        alert('Microsoft 365 test failed: ' + response.data.message);
+      }
+    } catch (error) {
+      console.error('Microsoft test error:', error);
+      alert('Failed to test Microsoft 365 connection. Please check your settings and try again.');
+    }
+  };
+
   const renderTabContent = () => {
     switch (activeTab) {
       case 'profile':
@@ -251,6 +286,16 @@ const Settings = () => {
                   <Save className="h-4 w-4 mr-2" />
                   Save Profile
                 </button>
+                {settingsStatus.microsoftConfigured && (
+                  <button
+                    onClick={() => testMicrosoftConnection()}
+                    disabled={saving}
+                    className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Mail className="h-4 w-4 mr-2" />
+                    Test Microsoft 365
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -334,6 +379,16 @@ const Settings = () => {
                   <Save className="h-4 w-4 mr-2" />
                   Save Notifications
                 </button>
+                {settingsStatus.microsoftConfigured && (
+                  <button
+                    onClick={() => testMicrosoftConnection()}
+                    disabled={saving}
+                    className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Mail className="h-4 w-4 mr-2" />
+                    Test Microsoft 365
+                  </button>
+                )}
               </div>
             </div>
           </div>
