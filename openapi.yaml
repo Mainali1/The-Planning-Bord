@@ -1,0 +1,873 @@
+openapi: 3.0.3
+info:
+  title: The Planning Board API
+  description: |
+    Comprehensive business management system API with inventory tracking, employee management, 
+    payment processing, and Microsoft 365 integration.
+    
+    **Authentication**: All API endpoints require JWT authentication via Bearer token.
+    
+    **Rate Limiting**: 100 requests per minute per IP address.
+    
+    **Commercial License**: This API is part of proprietary commercial software.
+    Unauthorized use is strictly prohibited.
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: api@planningbord.com
+    url: https://planningbord.com/support
+  license:
+    name: Commercial License
+    url: https://github.com/your-repo/EULA.md
+
+servers:
+  - url: https://api.planningbord.com/api
+    description: Production server
+  - url: http://localhost:5000/api
+    description: Development server
+
+security:
+  - bearerAuth: []
+
+paths:
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: User login
+      description: Authenticate user and return JWT token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: admin@example.com
+                password:
+                  type: string
+                  format: password
+                  example: password123
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                  user:
+                    $ref: '#/components/schemas/User'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: User registration
+      description: Register a new user account
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+                - first_name
+                - last_name
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+                  minLength: 8
+                first_name:
+                  type: string
+                last_name:
+                  type: string
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: User created successfully
+        '400':
+          description: Invalid input data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /inventory/products:
+    get:
+      tags:
+        - Inventory
+      summary: Get all products
+      description: Retrieve paginated list of products with optional filtering
+      parameters:
+        - name: search
+          in: query
+          description: Search term for product name or description
+          schema:
+            type: string
+        - name: category_id
+          in: query
+          description: Filter by category ID
+          schema:
+            type: integer
+        - name: supplier_id
+          in: query
+          description: Filter by supplier ID
+          schema:
+            type: integer
+        - name: low_stock
+          in: query
+          description: Filter only low stock items
+          schema:
+            type: boolean
+        - name: page
+          in: query
+          description: Page number for pagination
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          description: Number of items per page
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+      responses:
+        '200':
+          description: Products retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  products:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Product'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+    post:
+      tags:
+        - Inventory
+      summary: Create product
+      description: Add a new product to inventory
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductInput'
+      responses:
+        '201':
+          description: Product created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+
+  /inventory/products/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    get:
+      tags:
+        - Inventory
+      summary: Get product by ID
+      responses:
+        '200':
+          description: Product retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '404':
+          description: Product not found
+
+    put:
+      tags:
+        - Inventory
+      summary: Update product
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductInput'
+      responses:
+        '200':
+          description: Product updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+
+    delete:
+      tags:
+        - Inventory
+      summary: Delete product
+      responses:
+        '204':
+          description: Product deleted successfully
+
+  /inventory/update:
+    post:
+      tags:
+        - Inventory
+      summary: Update inventory quantity
+      description: Record inventory change with reason
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - product_id
+                - quantity_change
+                - reason
+              properties:
+                product_id:
+                  type: integer
+                quantity_change:
+                  type: integer
+                  description: Positive for stock in, negative for stock out
+                reason:
+                  type: string
+                  enum: [sale, purchase, adjustment, damage, return]
+                notes:
+                  type: string
+      responses:
+        '200':
+          description: Inventory updated successfully
+
+  /employees:
+    get:
+      tags:
+        - Employees
+      summary: Get all employees
+      parameters:
+        - name: department
+          in: query
+          schema:
+            type: string
+        - name: role
+          in: query
+          schema:
+            type: string
+        - name: active
+          in: query
+          schema:
+            type: boolean
+        - name: page
+          in: query
+          schema:
+          type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Employees retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  employees:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Employee'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+    post:
+      tags:
+        - Employees
+      summary: Create employee
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmployeeInput'
+      responses:
+        '201':
+          description: Employee created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Employee'
+
+  /employees/{id}/attendance:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    get:
+      tags:
+        - Employees
+      summary: Get employee attendance
+      parameters:
+        - name: date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: start_date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: end_date
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Attendance records retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Attendance'
+
+    post:
+      tags:
+        - Employees
+      summary: Mark attendance
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum: [present, absent, late, half_day, on_leave]
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Attendance marked successfully
+
+  /employees/tasks:
+    post:
+      tags:
+        - Employees
+      summary: Assign task to employee
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - employee_id
+                - task_title
+              properties:
+                employee_id:
+                  type: integer
+                task_title:
+                  type: string
+                task_description:
+                  type: string
+                due_date:
+                  type: string
+                  format: date
+                priority:
+                  type: string
+                  enum: [low, medium, high]
+      responses:
+        '201':
+          description: Task assigned successfully
+
+  /payments:
+    get:
+      tags:
+        - Payments
+      summary: Get all payments
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [supplier, salary, other]
+        - name: start_date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: end_date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Payments retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  payments:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Payment'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+    post:
+      tags:
+        - Payments
+      summary: Create payment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentInput'
+      responses:
+        '201':
+          description: Payment created successfully
+
+  /payments/summary:
+    get:
+      tags:
+        - Payments
+      summary: Get financial summary
+      parameters:
+        - name: start_date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: end_date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: group_by
+          in: query
+          schema:
+            type: string
+            enum: [day, week, month, year]
+      responses:
+        '200':
+          description: Financial summary retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_payments:
+                    type: number
+                  payments_by_type:
+                    type: object
+                  monthly_trend:
+                    type: array
+                    items:
+                      type: object
+
+  /dashboard/stats:
+    get:
+      tags:
+        - Dashboard
+      summary: Get dashboard statistics
+      responses:
+        '200':
+          description: Dashboard statistics retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalProducts:
+                    type: integer
+                  lowStockItems:
+                    type: integer
+                  activeEmployees:
+                    type: integer
+                  monthlyPayments:
+                    type: number
+                  recentActivities:
+                    type: array
+
+  /dashboard/inventory-trends:
+    get:
+      tags:
+        - Dashboard
+      summary: Get inventory trends
+      parameters:
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum: [week, month, quarter, year]
+            default: month
+      responses:
+        '200':
+          description: Inventory trends retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    date:
+                      type: string
+                      format: date
+                    stock_in:
+                      type: integer
+                    stock_out:
+                      type: integer
+                    net_change:
+                      type: integer
+
+  /dashboard/attendance-stats:
+    get:
+      tags:
+        - Dashboard
+      summary: Get attendance statistics
+      parameters:
+        - name: month
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Attendance statistics retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  present:
+                    type: integer
+                  absent:
+                    type: integer
+                  late:
+                    type: integer
+                  on_leave:
+                    type: integer
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+          format: email
+        first_name:
+          type: string
+        last_name:
+          type: string
+        role:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    Product:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        category:
+          $ref: '#/components/schemas/Category'
+        supplier:
+          $ref: '#/components/schemas/Supplier'
+        current_quantity:
+          type: integer
+        min_quantity:
+          type: integer
+        unit_price:
+          type: number
+          format: float
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ProductInput:
+      type: object
+      required:
+        - name
+        - category_id
+        - current_quantity
+        - min_quantity
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        category_id:
+          type: integer
+        supplier_id:
+          type: integer
+        current_quantity:
+          type: integer
+          minimum: 0
+        min_quantity:
+          type: integer
+          minimum: 0
+        unit_price:
+          type: number
+          format: float
+          minimum: 0
+
+    Category:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+
+    Supplier:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        contact_email:
+          type: string
+          format: email
+        phone:
+          type: string
+        address:
+          type: string
+
+    Employee:
+      type: object
+      properties:
+        id:
+          type: integer
+        first_name:
+          type: string
+        last_name:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+        department:
+          type: string
+        date_joined:
+          type: string
+          format: date
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    EmployeeInput:
+      type: object
+      required:
+        - first_name
+        - last_name
+        - email
+        - role
+        - department
+      properties:
+        first_name:
+          type: string
+        last_name:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+        department:
+          type: string
+        date_joined:
+          type: string
+          format: date
+        is_active:
+          type: boolean
+          default: true
+
+    Attendance:
+      type: object
+      properties:
+        id:
+          type: integer
+        employee_id:
+          type: integer
+        date:
+          type: string
+          format: date
+        status:
+          type: string
+          enum: [present, absent, late, half_day, on_leave]
+        check_in_time:
+          type: string
+          format: time
+        check_out_time:
+          type: string
+          format: time
+        reason:
+          type: string
+
+    Payment:
+      type: object
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+          enum: [supplier, salary, other]
+        amount:
+          type: number
+          format: float
+        date:
+          type: string
+          format: date
+        notes:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    PaymentInput:
+      type: object
+      required:
+        - type
+        - amount
+        - date
+      properties:
+        type:
+          type: string
+          enum: [supplier, salary, other]
+        amount:
+          type: number
+          format: float
+          minimum: 0
+        date:
+          type: string
+          format: date
+        notes:
+          type: string
+
+    Pagination:
+      type: object
+      properties:
+        current_page:
+          type: integer
+        total_pages:
+          type: integer
+        total_items:
+          type: integer
+        items_per_page:
+          type: integer
+        has_next:
+          type: boolean
+        has_prev:
+          type: boolean
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        details:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+
+tags:
+  - name: Authentication
+    description: User authentication and authorization
+  - name: Inventory
+    description: Product and inventory management
+  - name: Employees
+    description: Employee management and attendance
+  - name: Payments
+    description: Payment tracking and financial management
+  - name: Dashboard
+    description: Analytics and reporting

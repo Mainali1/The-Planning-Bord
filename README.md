@@ -1,6 +1,6 @@
 # The Planning Bord
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: Commercial](https://img.shields.io/badge/License-Commercial-red.svg)](EULA.md)
 [![Node.js](https://img.shields.io/badge/Node.js-18.x-green.svg)](https://nodejs.org/)
 [![React](https://img.shields.io/badge/React-18.x-blue.svg)](https://reactjs.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14+-blue.svg)](https://postgresql.org/)
@@ -550,7 +550,20 @@ SHAREPOINT_SITE_ID=your_sharepoint_site_id
 
 ## License
 
-This project is licensed under the MIT License.
+**COMMERCIAL SOFTWARE LICENSE**
+
+This software is proprietary and confidential. All rights reserved.
+
+- **License Type**: Commercial End User License Agreement (EULA)
+- **Usage**: Requires valid license key and payment
+- **Distribution**: Strictly prohibited without written consent
+- **Modification**: Not permitted without explicit authorization
+
+**NOTICE**: This is commercial software. Unauthorized use, copying, or distribution is strictly prohibited and may result in legal action.
+
+For licensing inquiries, please contact: **licensing@planningbord.com**
+
+See [EULA.md](EULA.md) for complete license terms and conditions.
 
 ## Support
 
@@ -580,6 +593,59 @@ For support and questions, please contact: admin@planningbord.com
 - 📋 Mobile app development
 - 📋 AI-powered business insights
 - 📋 Advanced Microsoft 365 features
+
+---
+
+## Security & Privacy
+
+### 🔒 Security Features
+- **JWT Authentication**: Secure token-based authentication with automatic expiration
+- **Role-Based Access Control**: Granular permissions system with admin/user roles
+- **Data Encryption**: Sensitive data encrypted at rest and in transit
+- **Input Validation**: Comprehensive input sanitization and validation
+- **Rate Limiting**: API protection against abuse and DDoS attacks
+- **Security Headers**: Helmet.js protection against common web vulnerabilities
+- **SQL Injection Prevention**: Parameterized queries and ORM protection
+- **XSS Protection**: Content Security Policy and input sanitization
+- **CORS Protection**: Strict origin policies for cross-origin requests
+
+### 🛡️ Privacy Protection
+- **Data Minimization**: Only essential business data is collected
+- **PII Handling**: Personal information is encrypted and access-controlled
+- **Audit Logging**: All data access and modifications are logged
+- **Data Retention**: Configurable retention policies for compliance
+- **Right to Deletion**: User data can be permanently deleted upon request
+- **Data Portability**: Export functionality for user data
+- **Consent Management**: Clear consent for data processing activities
+
+### 🔐 Encryption Standards
+- **Transport Layer**: TLS 1.3 for all communications
+- **Database Encryption**: AES-256 encryption for sensitive fields
+- **Password Security**: bcrypt hashing with salt rounds
+- **JWT Tokens**: RS256 algorithm with secure key management
+- **Backup Encryption**: Encrypted backups with separate key storage
+
+### 📋 Compliance
+- **GDPR Compliance**: European data protection regulations
+- **CCPA Compliance**: California Consumer Privacy Act
+- **SOC 2 Type II**: Security and availability controls
+- **ISO 27001**: Information security management standards
+- **Industry Standards**: Following OWASP security guidelines
+
+### 🚨 Security Monitoring
+- **Real-time Monitoring**: 24/7 security event monitoring
+- **Automated Scanning**: Regular vulnerability assessments
+- **Incident Response**: Defined procedures for security incidents
+- **Threat Detection**: Anomaly detection for suspicious activities
+- **Regular Audits**: Third-party security assessments
+
+### 📞 Security Contact
+- **Security Issues**: Report security vulnerabilities to [security@planningbord.com](mailto:security@planningbord.com)
+- **Responsible Disclosure**: Follow our [Security Policy](SECURITY.md)
+- **Incident Response**: security-incident@planningbord.com for active incidents
+- **Compliance Questions**: compliance@planningbord.com for regulatory inquiries
+
+**See our [Security Policy](SECURITY.md) for detailed security information and vulnerability reporting process.**
 
 ---
 
