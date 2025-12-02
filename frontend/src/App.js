@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from 'react-query';
+import * as Sentry from '@sentry/react';
 import { AuthProvider } from './context/AuthContext';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
@@ -80,4 +81,18 @@ function App() {
   );
 }
 
-export default App;
+export default Sentry.withErrorBoundary(App, {
+  fallback: ({ error }) => (
+    <div className="error-boundary">
+      <h1>Something went wrong</h1>
+      <p>We're working on fixing this issue. Please try refreshing the page.</p>
+      <details style={{ whiteSpace: 'pre-wrap' }}>
+        {error && error.toString()}
+      </details>
+    </div>
+  ),
+  beforeCapture: (scope, error, hint) => {
+    scope.setTag('section', 'app');
+    scope.setLevel('error');
+  }
+});

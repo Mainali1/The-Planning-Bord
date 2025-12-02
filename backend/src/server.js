@@ -17,6 +17,7 @@ const dashboardRoutes = require('./routes/dashboard');
 const microsoftRoutes = require('./routes/microsoft');
 const settingsRoutes = require('./routes/settings');
 const databaseAdminRoutes = require('./routes/admin/database');
+const healthRoutes = require('./routes/health');
 
 const { errorHandler } = require('./middleware/errorHandler');
 const { startCronJobs } = require('./services/cronService');
@@ -64,10 +65,7 @@ app.use('/api', settingsRoutes);
 app.use('/api/admin/database', databaseAdminRoutes);
 
 // Health and monitoring endpoints
-app.get('/api/health', healthCheck);
-app.get('/api/health/ready', readinessCheck);
-app.get('/api/health/live', livenessCheck);
-app.get('/api/metrics', metrics);
+app.use('/api', healthRoutes);
 
 // Bull Board - Queue monitoring dashboard
 const serverAdapter = new ExpressAdapter();
