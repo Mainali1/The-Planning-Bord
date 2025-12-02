@@ -103,13 +103,27 @@ router.post('/login', loginValidation, async (req, res, next) => {
 
 router.get('/profile', async (req, res, next) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ message: 'Invalid authorization header' });
+    }
+
+    const token = authHeader.split(' ')[1];
     if (!token) {
       return res.status(401).json({ message: 'No token provided' });
     }
 
     const jwt = require('jsonwebtoken');
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (jwtError) {
+      return res.status(401).json({ message: 'Invalid token' });
+    }
+
+    if (!decoded.id || typeof decoded.id !== 'number') {
+      return res.status(401).json({ message: 'Invalid token payload' });
+    }
 
     const user = await knex('users')
       .where({ user_id: decoded.id })

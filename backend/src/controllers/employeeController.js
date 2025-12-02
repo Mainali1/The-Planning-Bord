@@ -149,7 +149,22 @@ const assignTool = async (req, res, next) => {
 const getComplaints = async (req, res, next) => {
   try {
     const { employee_id } = req.query;
-    const complaints = await Employee.getComplaints(employee_id);
+    
+    // Validate employee_id parameter
+    if (!employee_id) {
+      return res.status(400).json({ message: 'Employee ID is required' });
+    }
+    
+    if (!/^\d+$/.test(employee_id)) {
+      return res.status(400).json({ message: 'Invalid employee ID format' });
+    }
+    
+    const employeeId = parseInt(employee_id, 10);
+    if (isNaN(employeeId) || employeeId <= 0) {
+      return res.status(400).json({ message: 'Invalid employee ID' });
+    }
+    
+    const complaints = await Employee.getComplaints(employeeId);
     res.json(complaints);
   } catch (error) {
     next(error);

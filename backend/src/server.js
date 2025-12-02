@@ -19,7 +19,7 @@ const settingsRoutes = require('./routes/settings');
 const databaseAdminRoutes = require('./routes/admin/database');
 const healthRoutes = require('./routes/health');
 
-const { errorHandler } = require('./middleware/errorHandler');
+
 const { startCronJobs } = require('./services/cronService');
 
 // Queue monitoring with Bull Board

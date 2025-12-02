@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { SkipLink } from '../components/Accessibility/A11yUtils';
-import { useResponsive, ResponsiveNav, TouchFriendlyButton } from '../components/Responsive/ResponsiveUtils';
+import { useResponsive, TouchFriendlyButton } from '../components/Responsive/ResponsiveUtils';
 
 const Layout = ({ children }) => {
   const location = useLocation();
@@ -85,12 +85,9 @@ const Layout = ({ children }) => {
         />
       )}
       {/* Sidebar */}
-      <ResponsiveNav
-        isOpen={sidebarOpen}
-        onToggle={() => setSidebarOpen(!sidebarOpen)}
-        className={`${(isMobile || isTablet) ? (sidebarOpen ? 'translate-x-0' : '-translate-x-full') : ''} ${isDesktop ? 'w-64' : 'fixed inset-y-0 left-0 w-64 z-50'}`}
+      <div
+        className={`${(isMobile || isTablet) ? (sidebarOpen ? 'translate-x-0' : '-translate-x-full') : ''} ${isDesktop ? 'w-64' : 'fixed inset-y-0 left-0 w-64 z-50'} bg-white shadow-lg flex flex-col h-full`}
       >
-        <div className="h-full bg-white shadow-lg flex flex-col">
           {/* Mobile menu button */}
           {(isMobile || isTablet) && (
             <div className="flex items-center justify-between p-4 border-b border-gray-200">
@@ -103,14 +100,12 @@ const Layout = ({ children }) => {
                 <CloseIcon className="h-5 w-5" />
               </TouchFriendlyButton>
             </div>
-      </ResponsiveNav>
           )}
           
           <div className="p-6 flex-1">
-        <div className="p-6 flex-1">
-          <h1 className="text-2xl font-bold text-gray-800 mb-8">
-            Planning Bord
-          </h1>
+            <h1 className="text-2xl font-bold text-gray-800 mb-8">
+              Planning Bord
+            </h1>
           
           <nav className="space-y-2">
             {menuItems.map((item) => {

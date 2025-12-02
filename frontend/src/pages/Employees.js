@@ -342,6 +342,7 @@ const Employees = () => {
     setFormErrors({});
   };
 
+  // Loading state
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -350,9 +351,35 @@ const Employees = () => {
           <p className="text-gray-600">Loading your team...</p>
         </div>
       </div>
+    );
+  }
 
+  // Error state
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Unable to Load Employees</h3>
+          <p className="text-gray-600 mb-4">
+            We're having trouble loading your employee data. This might be due to missing credentials or connection issues.
+          </p>
+          <button
+            onClick={handleRefresh}
+            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-6">
       {/* Employee Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
         <div className="bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow duration-200">
           <div className="flex items-center justify-between">
             <div>
@@ -392,34 +419,9 @@ const Employees = () => {
             </div>
           </div>
         </div>
-      </div>
-    )
-  }
-
-  // Error state
-  if (error) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Unable to Load Employees</h3>
-          <p className="text-gray-600 mb-4">
-            We're having trouble loading your employee data. This might be due to missing credentials or connection issues.
-          </p>
-          <button
-            onClick={handleRefresh}
-            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Try Again
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-6">
+      
+      {/* Main Content */}
+      <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Employee Management</h1>
@@ -1336,6 +1338,7 @@ const Employees = () => {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }
