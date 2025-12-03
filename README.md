@@ -113,7 +113,38 @@ psql -d planning_bord -f seed_data.sql
 - **Curl Commands**: [docs/API_CURL_COMMANDS.md](docs/API_CURL_COMMANDS.md)
 - **Database Schema**: [docs/DATABASE_SCHEMA.md](docs/DATABASE_SCHEMA.md)
 
-## Installation
+## Desktop Application (Standalone)
+
+The Planning Bord is now available as a standalone desktop application that runs locally without requiring a browser.
+
+### Quick Setup
+```powershell
+# 1. Run the setup script
+.\setup-desktop.ps1
+
+# 2. Start the desktop application
+.\start-desktop.ps1
+
+# 3. Build standalone installer (optional)
+.\build-desktop.ps1
+```
+
+### Desktop Features
+- **Standalone Application**: Runs locally without browser dependency
+- **Integrated Backend**: Node.js backend starts automatically
+- **Web API Support**: Full access to external APIs and integrations
+- **Auto-updater**: Built-in update mechanism
+- **Native Installer**: Professional Windows installer with shortcuts
+- **File Protocol Support**: Uses file:// protocol for enhanced security
+
+### Desktop Requirements
+- Windows 10/11
+- Node.js (v14 or higher)
+- PostgreSQL (v12 or higher)
+
+For detailed desktop setup instructions, see [DESKTOP_SETUP.md](DESKTOP_SETUP.md).
+
+## Installation (Web Version)
 
 ### Prerequisites
 - Node.js (v14 or higher)
@@ -191,6 +222,48 @@ npm start
 
 ### 9. Access Queue Monitoring
 Visit `http://localhost:5000/admin/queues` to monitor background job processing.
+
+## Directory Structure
+
+```
+the-planning-bord/
+├── backend/                    # Node.js backend API
+│   ├── src/
+│   │   ├── config/            # Database & queue configuration
+│   │   ├── controllers/       # Business logic controllers
+│   │   ├── middleware/        # Authentication & error handling
+│   │   ├── models/           # Database models
+│   │   ├── routes/           # API route definitions
+│   │   ├── services/         # Business services (email, Microsoft)
+│   │   ├── utils/            # Utility functions
+│   │   ├── workers/          # Background job workers
+│   │   └── server.js         # Main server file
+│   ├── tests/                # Test files
+│   └── package.json          # Backend dependencies
+├── frontend/                 # React frontend application
+│   ├── src/
+│   │   ├── components/       # Reusable UI components
+│   │   ├── config/           # Frontend configuration
+│   │   ├── context/          # React context providers
+│   │   ├── pages/            # Page components
+│   │   ├── services/         # API service calls
+│   │   ├── utils/            # Frontend utilities
+│   │   └── App.js            # Main React component
+│   └── package.json          # Frontend dependencies
+├── electron/                 # Desktop application wrapper
+│   ├── main.js              # Electron main process
+│   ├── preload.js           # Security bridge
+│   └── package.json         # Electron dependencies
+├── build/                    # Build configuration files
+│   ├── docker-compose.yml     # Docker stack configuration
+│   ├── docker-compose.redis.yml # Redis-only Docker
+│   ├── redis.conf           # Redis server configuration
+│   ├── ecosystem.config.js  # PM2 process manager config
+│   └── *.config.js          # Various configuration files
+├── scripts/                  # Utility scripts
+├── docs/                     # Documentation
+└── *.ps1                    # PowerShell setup/build scripts
+```
 
 ## Environment Variables
 
