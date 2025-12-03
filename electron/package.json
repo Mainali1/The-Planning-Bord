@@ -1,0 +1,70 @@
+{
+  "name": "planning-bord-desktop",
+  "version": "1.0.0",
+  "description": "Standalone desktop version of The Planning Bord",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
+    "build:linux": "electron-builder --linux",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder --publish=never",
+    "postinstall": "electron-builder install-app-deps",
+    "dev": "electron . --dev"
+  },
+  "keywords": [
+    "business",
+    "management",
+    "desktop",
+    "electron"
+  ],
+  "author": "Planning Bord Team",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^27.0.0",
+    "electron-builder": "^24.6.4"
+  },
+  "dependencies": {
+    "electron-log": "^4.4.8",
+    "electron-updater": "^6.1.4",
+    "node-window-manager": "^2.2.4"
+  },
+  "build": {
+    "appId": "com.planningbord.desktop",
+    "productName": "Planning Bord",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer.js",
+      "assets/**/*",
+      "node_modules/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "../backend",
+        "to": "backend"
+      },
+      {
+        "from": "../frontend/build",
+        "to": "frontend"
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.ico"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "assets/icon.icns"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "assets/icon.png"
+    }
+  }
+}
