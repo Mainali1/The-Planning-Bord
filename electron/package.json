@@ -11,8 +11,10 @@
     "build:linux": "electron-builder --linux",
     "pack": "electron-builder --dir",
     "dist": "electron-builder --publish=never",
-    "postinstall": "electron-builder install-app-deps",
-    "dev": "electron . --dev"
+    "postinstall": "electron-builder install-app-deps || echo 'Electron postinstall skipped'",
+    "dev": "electron . --dev",
+    "install:safe": "npm install --ignore-scripts --legacy-peer-deps",
+    "postinstall:safe": "npm run install:safe && electron-builder install-app-deps"
   },
   "keywords": [
     "business",

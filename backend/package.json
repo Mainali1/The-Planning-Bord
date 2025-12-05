@@ -30,8 +30,8 @@
     "security:check": "npm audit && npm run lint",
     "docker:build": "docker build -t planning-bord-backend .",
     "docker:run": "docker run -p 5000:5000 --env-file .env planning-bord-backend",
-    "prepare": "cd .. && husky install backend/.husky",
-    "postinstall": "husky install",
+    "prepare": "cd .. && husky install backend/.husky || echo 'Husky installation skipped'",
+    "postinstall": "husky install || echo 'Husky postinstall skipped'",
     "worker:email": "node src/workers/emailWorker.js",
     "worker:inventory": "node src/workers/inventoryWorker.js",
     "worker:report": "node src/workers/reportWorker.js",
@@ -42,7 +42,9 @@
     "workers:logs": "pm2 logs",
     "redis:up": "docker-compose -f ../docker-compose.redis.yml up -d",
     "redis:down": "docker-compose -f ../docker-compose.redis.yml down",
-    "redis:logs": "docker logs planning-bord-redis"
+    "redis:logs": "docker logs planning-bord-redis",
+    "install:safe": "npm install --ignore-scripts --legacy-peer-deps",
+    "postinstall:safe": "npm run install:safe && npm run setup:hardware"
   },
   "dependencies": {
     "@azure/msal-node": "^2.16.3",

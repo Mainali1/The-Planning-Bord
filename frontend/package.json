@@ -38,8 +38,9 @@
     "security:check": "npm audit && npm run lint",
     "docker:build": "docker build -t planning-bord-frontend .",
     "docker:run": "docker run -p 3000:80 planning-bord-frontend",
-    "prepare": "cd .. && husky install frontend/.husky",
-    "postinstall": "husky install"
+    "prepare": "cd .. && husky install frontend/.husky || echo 'Husky installation skipped'",
+    "postinstall": "husky install || echo 'Husky postinstall skipped'",
+    "install:safe": "npm install --ignore-scripts --legacy-peer-deps"
   },
   "eslintConfig": {
     "extends": [

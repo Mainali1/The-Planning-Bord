@@ -1,5 +1,9 @@
 # PowerShell Setup Script for Planning Bord Desktop Application
 
+param(
+    [switch]$SafeMode = $false
+)
+
 Write-Host "Setting up Planning Bord Desktop Application..." -ForegroundColor Green
 
 # Check if Node.js is installed
@@ -23,30 +27,54 @@ foreach ($dir in $requiredDirs) {
 # Set execution policy for this session
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process -Force
 
+if ($SafeMode) {
+    Write-Host "Running in SAFE MODE - Scripts will be ignored" -ForegroundColor Yellow
+    $installFlags = "--ignore-scripts --legacy-peer-deps"
+} else {
+    Write-Host "Running in NORMAL MODE - Using .npmrc configuration" -ForegroundColor Yellow
+    $installFlags = ""
+}
+
 Write-Host "Installing all dependencies..." -ForegroundColor Yellow
 
 # Install root dependencies (if package.json exists in root)
 if (Test-Path "package.json") {
     Write-Host "Installing root dependencies..." -ForegroundColor Yellow
-    npm install
+    if ($SafeMode) {
+        npm install --ignore-scripts --legacy-peer-deps
+    } else {
+        npm install
+    }
 }
 
 # Install backend dependencies
 Write-Host "Installing backend dependencies..." -ForegroundColor Yellow
 Set-Location backend
-npm install
+if ($SafeMode) {
+    npm install --ignore-scripts --legacy-peer-deps
+} else {
+    npm install
+}
 Set-Location ..
 
 # Install frontend dependencies
 Write-Host "Installing frontend dependencies..." -ForegroundColor Yellow
 Set-Location frontend
-npm install
+if ($SafeMode) {
+    npm install --ignore-scripts --legacy-peer-deps
+} else {
+    npm install
+}
 Set-Location ..
 
 # Install electron dependencies
 Write-Host "Installing electron dependencies..." -ForegroundColor Yellow
 Set-Location electron
-npm install
+if ($SafeMode) {
+    npm install --ignore-scripts --legacy-peer-deps
+} else {
+    npm install
+}
 Set-Location ..
 
 Write-Host "Setup completed successfully!" -ForegroundColor Green
@@ -54,6 +82,12 @@ Write-Host ""
 Write-Host "You can now run the application using:" -ForegroundColor Yellow
 Write-Host "  .\start-desktop.ps1  - Start in development mode" -ForegroundColor White
 Write-Host "  .\build-desktop.ps1  - Build standalone installer" -ForegroundColor White
+Write-Host ""
+if ($SafeMode) {
+    Write-Host "Note: Safe mode was used - some features may need manual setup" -ForegroundColor Yellow
+} else {
+    Write-Host "Note: Normal mode used - .npmrc configuration applied" -ForegroundColor Yellow
+}
 Write-Host ""
 Write-Host "Requirements:" -ForegroundColor Yellow
 Write-Host "  - PostgreSQL 12+ (for database)" -ForegroundColor White
