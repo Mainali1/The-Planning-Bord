@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery } from 'react-query';
-import { Package, Users, AlertTriangle, DollarSign, RefreshCw, Info, TrendingUp, TrendingDown, AlertCircle } from 'lucide-react';
+import { Package, Users, AlertTriangle, DollarSign, RefreshCw, Info, AlertCircle } from 'lucide-react';
 import { dashboardService } from '../services/api';
-import StatCard from '../components/StatCard';
 import Chart from '../components/Chart';
 import { useResponsive, ResponsiveGrid, ResponsiveCard, TouchFriendlyButton } from '../components/Responsive/ResponsiveUtils';
 import { VisuallyHidden } from '../components/Accessibility/A11yUtils';

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { microsoftService } from '../services/api';
 
@@ -304,5 +305,7 @@ const MicrosoftIntegration = () => {
     </div>
   );
 };
+
+MicrosoftIntegration.propTypes = {};
 
 export default MicrosoftIntegration;

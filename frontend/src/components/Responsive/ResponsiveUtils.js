@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 
 /**
  * Responsive breakpoint utilities
@@ -63,6 +64,11 @@ export const ResponsiveContainer = ({ children, className = '', ...props }) => {
   );
 };
 
+ResponsiveContainer.propTypes = {
+  children: PropTypes.node.isRequired,
+  className: PropTypes.string,
+};
+
 /**
  * Mobile-first responsive grid component
  */
@@ -90,6 +96,21 @@ export const ResponsiveGrid = ({
   );
 };
 
+ResponsiveGrid.propTypes = {
+  children: PropTypes.node.isRequired,
+  cols: PropTypes.shape({
+    mobile: PropTypes.number,
+    tablet: PropTypes.number,
+    desktop: PropTypes.number,
+  }),
+  gap: PropTypes.shape({
+    mobile: PropTypes.number,
+    tablet: PropTypes.number,
+    desktop: PropTypes.number,
+  }),
+  className: PropTypes.string,
+};
+
 /**
  * Responsive table component
  */
@@ -107,6 +128,11 @@ export const ResponsiveTable = ({ children, className = '', ...props }) => {
       </table>
     </div>
   );
+};
+
+ResponsiveTable.propTypes = {
+  children: PropTypes.node.isRequired,
+  className: PropTypes.string,
 };
 
 /**
@@ -131,7 +157,7 @@ export const ResponsiveNav = ({ items, currentPath, onNavigate }) => {
       document.addEventListener('keydown', handleKeyDown);
       return () => document.removeEventListener('keydown', handleKeyDown);
     }
-  }, [isOpen]);
+  }, [isOpen, handleKeyDown]);
 
   if (isMobile) {
     return (
@@ -226,6 +252,13 @@ export const ResponsiveCard = ({
   );
 };
 
+ResponsiveCard.propTypes = {
+  children: PropTypes.node.isRequired,
+  title: PropTypes.string,
+  actions: PropTypes.node,
+  className: PropTypes.string,
+};
+
 /**
  * Touch-friendly button component
  */
@@ -265,6 +298,15 @@ export const TouchFriendlyButton = ({
   );
 };
 
+TouchFriendlyButton.propTypes = {
+  children: PropTypes.node.isRequired,
+  onClick: PropTypes.func,
+  variant: PropTypes.oneOf(['primary', 'secondary']),
+  size: PropTypes.oneOf(['small', 'default', 'large']),
+  disabled: PropTypes.bool,
+  ariaLabel: PropTypes.string,
+};
+
 /**
  * Responsive image component with proper alt text handling
  */
@@ -290,6 +332,16 @@ export const ResponsiveImage = ({
       {...props}
     />
   );
+};
+
+ResponsiveImage.propTypes = {
+  src: PropTypes.string.isRequired,
+  alt: PropTypes.string.isRequired,
+  srcSet: PropTypes.string,
+  sizes: PropTypes.string,
+  loading: PropTypes.oneOf(['lazy', 'eager']),
+  decoding: PropTypes.oneOf(['async', 'sync', 'auto']),
+  className: PropTypes.string,
 };
 
 /**

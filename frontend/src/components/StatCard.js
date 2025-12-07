@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import PropTypes from 'prop-types';
 import { Info } from 'lucide-react';
 
 const StatCard = ({ title, value, icon: Icon, color, change, changeType, description }) => {
@@ -64,6 +65,16 @@ const StatCard = ({ title, value, icon: Icon, color, change, changeType, descrip
       )}
     </div>
   );
+};
+
+StatCard.propTypes = {
+  title: PropTypes.string.isRequired,
+  value: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+  icon: PropTypes.elementType.isRequired,
+  color: PropTypes.oneOf(['blue', 'yellow', 'green', 'purple']).isRequired,
+  change: PropTypes.string,
+  changeType: PropTypes.oneOf(['increase', 'decrease']),
+  description: PropTypes.string,
 };
 
 export default StatCard;

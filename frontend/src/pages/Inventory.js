@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
-import { Plus, Search, Edit, Trash2, AlertTriangle, Package, Info, RefreshCw, Filter, DollarSign } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, AlertTriangle, Package, Info, RefreshCw, DollarSign } from 'lucide-react';
 import { inventoryService } from '../services/api';
 
 const Inventory = () => {

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { 
   Plus, Search, Edit, Trash2, User, Calendar, Briefcase, 
-  AlertTriangle, Info, RefreshCw, Users, TrendingUp, Clock, 
+  AlertTriangle, Info, RefreshCw, Users, Clock, 
   CheckCircle, XCircle, ArrowRight, UserCheck, Building 
 } from 'lucide-react';
 import { employeeService } from '../services/api';

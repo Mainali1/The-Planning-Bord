@@ -1,4 +1,5 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
@@ -53,6 +54,15 @@ const Chart = ({ data, type = 'line', height = 300 }) => {
       </LineChart>
     </ResponsiveContainer>
   );
+};
+
+Chart.propTypes = {
+  data: PropTypes.arrayOf(PropTypes.shape({
+    name: PropTypes.string,
+    value: PropTypes.number,
+  })),
+  type: PropTypes.oneOf(['line', 'pie']),
+  height: PropTypes.number,
 };
 
 export default Chart;

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   BarChart3, 
@@ -70,6 +71,20 @@ const Layout = ({ children }) => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showHelp, showNotifications, showUserMenu]);
+
+  // Handle keydown for escape key
+  const handleKeyDown = (e) => {
+    if (e.key === 'Escape') {
+      setShowHelp(false);
+      setShowNotifications(false);
+      setShowUserMenu(false);
+    }
+  };
+
+  useEffect(() => {
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -316,6 +331,10 @@ const Layout = ({ children }) => {
       </div>
     </div>
   );
+};
+
+Layout.propTypes = {
+  children: PropTypes.node.isRequired,
 };
 
 export default Layout;
