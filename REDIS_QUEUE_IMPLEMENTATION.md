@@ -1,475 +1,458 @@
 # Redis Queue Implementation Guide
 
-This guide covers the Redis queue implementation for background job processing in The Planning Bord application.
+> **⚠️ PROPRIETARY SOFTWARE NOTICE**  
+> This documentation contains implementation details for The Planning Bord™ proprietary software. All code, designs, and processes described herein are protected by international copyright laws and trade secret regulations. Unauthorized access, reproduction, or distribution is strictly prohibited.
 
-## Overview
+This guide covers the Redis queue implementation for background job processing in The Planning Bord™ proprietary business management system.
 
-The application uses **Bull** (Redis-based queue) for handling background jobs including:
-- Email notifications
-- Inventory synchronization
-- Report generation
-- File processing (imports/exports)
-- Scheduled tasks
+## 🎯 Overview
 
-## Architecture
+The Planning Bord™ uses **Celery** (Redis-based distributed task queue) for handling critical business background operations including:
+- 📧 **Business Email Notifications**: Customer communications, alerts, and reports
+- 📊 **Financial Report Generation**: Automated business intelligence reports
+- 💰 **Payment Processing**: Salary calculations, supplier payments, and financial workflows
+- 📦 **Inventory Synchronization**: Multi-location stock management and supplier integration
+- 🔐 **Security Auditing**: Compliance logging and activity monitoring
 
-### Components
+## 🏗️ Architecture
 
-1. **Queue Configuration** (`backend/src/config/queue.js`)
-   - Centralized queue setup
-   - Redis connection management
-   - Queue definitions
+### Core Components
 
-2. **Workers** (`backend/src/workers/`)
-   - `emailWorker.js` - Email notifications
-   - `inventoryWorker.js` - Inventory sync and updates
-   - `reportWorker.js` - Report generation
-   - `fileWorker.js` - File imports/exports
+1. **Celery Configuration** (`backend/src/config/celery_config.py`)
+   - Centralized task queue configuration
+   - Redis connection management with authentication
+   - Task routing and priority management
+   - Business-specific queue definitions
 
-3. **Queue Service** (`backend/src/services/queueService.js`)
-   - High-level API for queueing jobs
-   - Job status checking
-   - Job cancellation
+2. **Celery Tasks** (`backend/src/tasks/`)
+   - `email_tasks.py` - Business email notifications and alerts
+   - `inventory_tasks.py` - Inventory management and synchronization
+   - `payment_tasks.py` - Financial processing and reporting
+   - `report_tasks.py` - Business intelligence report generation
+   - `security_tasks.py` - Audit logging and compliance tasks
 
-4. **Monitoring** (Bull Board)
-   - Web-based queue monitoring
-   - Job inspection and management
+3. **Task Service API** (`backend/src/services/task_service.py`)
+   - High-level business task management API
+   - Task status monitoring and reporting
+   - Priority-based job scheduling
+   - Business workflow orchestration
 
-## Setup
+4. **Monitoring & Analytics** (`backend/src/monitoring/`)
+   - Flower-based task monitoring dashboard
+   - Business metrics and performance analytics
+   - Compliance reporting and audit trails
 
-### 1. Install Dependencies
+## ⚙️ Setup & Configuration
+
+### 1. Dependencies Installation
 
 ```bash
-# Install Redis queue dependencies
+# Navigate to backend directory
 cd backend
-npm install bull redis @bull-board/api @bull-board/express
 
-# Install PM2 for process management (production)
-npm install pm2 --save-dev
+# Install proprietary Celery and Redis dependencies
+pip install celery[redis] flower redis
+
+# Install business-specific task dependencies
+pip install reportlab openpyxl pandas
 ```
 
-### 2. Start Redis
+### 2. Redis Server Configuration
 
-**Option A: Using Docker Compose**
+**Option A: Secure Docker Deployment (Recommended)**
 ```bash
-# Start Redis with Redis Commander UI
-docker-compose -f docker-compose.redis.yml up -d
-
-# Redis will be available at localhost:6379
-# Redis Commander UI at http://localhost:8081 (admin/password)
+# Start Redis with authentication and persistence
+docker run -d \
+  --name planning-bord-redis \
+  -p 6379:6379 \
+  -e REDIS_PASSWORD=your-secure-business-password \
+  -v redis-data:/data \
+  redis:7-alpine \
+  redis-server --requirepass your-secure-business-password \
+               --appendonly yes \
+               --maxmemory 512mb \
+               --maxmemory-policy allkeys-lru
 ```
 
 **Option B: Local Redis Installation**
 ```bash
-# Install Redis (Ubuntu/Debian)
+# Install Redis (Ubuntu/Debian Business Environment)
 sudo apt-get install redis-server
 
-# Start Redis
-redis-server redis.conf
+# Configure for business use
+sudo nano /etc/redis/redis.conf
+
+# Set business-specific configurations:
+# requirepass your-secure-business-password
+# maxmemory 512mb
+# maxmemory-policy allkeys-lru
+# bind 127.0.0.1 ::1
 ```
 
-### 3. Environment Variables
+### 3. Business Environment Configuration
 
-Add to your `.env` file:
+Add to your business configuration file (`.env.business`):
 ```bash
-# Redis Configuration
+# Redis Business Configuration
 REDIS_HOST=localhost
 REDIS_PORT=6379
-REDIS_PASSWORD=
+REDIS_PASSWORD=your-secure-business-password
 REDIS_DB=0
 
-# Queue Settings
-QUEUE_PREFIX=planning-bord
-QUEUE_DEFAULT_ATTEMPTS=3
-QUEUE_DEFAULT_BACKOFF=2000
+# Celery Business Task Configuration
+CELERY_BROKER_URL=redis://:your-secure-business-password@localhost:6379/0
+CELERY_RESULT_BACKEND=redis://:your-secure-business-password@localhost:6379/0
+CELERY_TASK_SERIALIZER=json
+CELERY_RESULT_SERIALIZER=json
+CELERY_ACCEPT_CONTENT=['json']
+CELERY_TIMEZONE='UTC'
 
-# File Processing
-MAX_FILE_SIZE=10485760  # 10MB in bytes
-UPLOAD_DIR=uploads
-EXPORTS_DIR=exports
+# Business Queue Settings
+BUSINESS_QUEUE_PREFIX=planning-bord-business
+MAX_TASK_RETRIES=3
+TASK_RETRY_BACKOFF=300  # 5 minutes for business operations
+
+# Business File Processing Limits
+MAX_BUSINESS_FILE_SIZE=52428800  # 50MB for business documents
+BUSINESS_UPLOAD_DIR=business_uploads
+BUSINESS_EXPORTS_DIR=business_exports
+BUSINESS_REPORTS_DIR=business_reports
 ```
 
-## Usage
+## 🚀 Business Task Implementation
 
-### Queueing Jobs
+### Task Service API Usage
 
-Use the QueueService for easy job queueing:
+```python
+from backend.src.services.task_service import BusinessTaskService
 
-```javascript
-const QueueService = require('./services/queueService');
+# Initialize business task service
+task_service = BusinessTaskService()
 
-// Send email notification
-await QueueService.addWelcomeEmail({
-  userEmail: 'user@example.com',
-  userName: 'John Doe'
-});
+# Queue business email notification
+await task_service.queue_business_email(
+    email_type='low_stock_alert',
+    business_id=123,
+    recipient_email='manager@company.com',
+    priority='high'
+)
 
-// Queue inventory sync
-await QueueService.addInventorySync({
-  businessId: 123,
-  externalSystem: 'supplier-api',
-  syncType: 'full'
-});
+# Schedule financial report generation
+await task_service.queue_financial_report(
+    business_id=123,
+    report_type='monthly_summary',
+    report_date='2024-01-31',
+    recipients=['finance@company.com', 'ceo@company.com']
+)
 
-// Generate report
-await QueueService.addReportGeneration({
-  businessId: 123,
-  reportType: 'inventory-summary',
-  userEmail: 'manager@business.com'
-});
+# Trigger inventory synchronization
+await task_service.queue_inventory_sync(
+    business_id=123,
+    sync_type='supplier_integration',
+    supplier_id=456,
+    priority='critical'
+)
 ```
 
-### Processing Jobs
+### Celery Worker Management
 
 **Development Mode:**
 ```bash
-# Start individual workers
-npm run worker:email
-npm run worker:inventory
-npm run worker:report
-npm run worker:file
+# Start individual business workers
+celery -A backend.src.tasks.celery_app worker --loglevel=info --queue=business_email
+celery -A backend.src.tasks.celery_app worker --loglevel=info --queue=business_inventory
+celery -A backend.src.tasks.celery_app worker --loglevel=info --queue=business_payments
+celery -A backend.src.tasks.celery_app worker --loglevel=info --queue=business_reports
 ```
 
 **Production Mode:**
 ```bash
-# Start all workers with PM2
-npm run workers:start
+# Start all business workers with process management
+supervisord -c /etc/supervisor/conf.d/planning-bord-business.conf
 
-# Or start specific workers
-pm2 start ecosystem.config.js --only planning-bord-email-worker
-pm2 start ecosystem.config.js --only planning-bord-inventory-worker
+# Or use systemd for business services
+systemctl start planning-bord-business-workers
 ```
 
-## Queue Types
+## 📊 Business Queue Types
 
-### 1. Email Queue (`emailQueue`)
-**Jobs:**
-- `welcome-email` - New user welcome emails
-- `password-reset` - Password reset emails
-- `low-stock-alert` - Inventory low stock notifications
-- `report-ready` - Report generation completion emails
+### 1. Business Email Queue (`business_email`)
+**Critical Business Operations:**
+- `welcome_business_user` - New business user onboarding emails
+- `low_stock_business_alert` - Critical inventory notifications
+- `payment_due_business_reminder` - Financial deadline alerts
+- `report_ready_business_notification` - Business intelligence reports
+- `security_business_alert` - Security and compliance notifications
 
-**Priority:** High (1) for alerts, Normal (5) for regular emails
+**Priority Levels:**
+- **Critical (1)**: Security alerts, payment failures
+- **High (3)**: Low stock alerts, deadline reminders
+- **Normal (5)**: Regular business communications
+- **Low (7)**: Marketing and informational emails
 
-### 2. Inventory Queue (`inventoryQueue`)
-**Jobs:**
-- `sync-external` - Sync with external inventory systems
-- `bulk-update` - Bulk inventory updates
-- `stock-check` - Periodic stock level checks
+### 2. Business Inventory Queue (`business_inventory`)
+**Enterprise Operations:**
+- `sync_business_supplier` - Multi-supplier inventory synchronization
+- `update_business_stock_levels` - Real-time stock management
+- `generate_business_inventory_reports` - Business intelligence analytics
+- `process_business_restock_orders` - Automated restocking workflows
+- `audit_business_inventory_compliance` - Compliance and audit trails
 
-**Priority:** High (1) for critical syncs, Normal (5) for regular updates
+### 3. Business Payment Queue (`business_payments`)
+**Financial Operations:**
+- `process_business_salary_payments` - Automated payroll processing
+- `generate_business_financial_reports` - Monthly/quarterly financial statements
+- `sync_business_bank_transactions` - Banking integration and reconciliation
+- `calculate_business_tax_obligations` - Tax computation and reporting
+- `audit_business_payment_compliance` - Financial compliance monitoring
 
-### 3. Report Queue (`reportQueue`)
-**Jobs:**
-- `generate-report` - Generate various business reports
-- `cleanup-reports` - Clean up old report files
+### 4. Business Report Queue (`business_reports`)
+**Business Intelligence:**
+- `generate_executive_summary` - C-level business summaries
+- `create_department_performance_report` - Team productivity analysis
+- `compile_financial_forecast` - Business forecasting and projections
+- `generate_customer_analytics` - Customer behavior and trends
+- `produce_compliance_audit_report` - Regulatory compliance documentation
 
-**Priority:** Normal (5)
+## ⚙️ Business Task Configuration
 
-### 4. File Queue (`fileQueue`)
-**Jobs:**
-- `process-inventory-import` - Process CSV inventory imports
-- `process-inventory-export` - Generate CSV/JSON exports
-- `cleanup-exports` - Clean up old export files
-
-**Priority:** Normal (5)
-
-## Job Configuration
-
-### Retry Policy
-```javascript
+### Retry Policy for Business Operations
+```python
+# Business-critical retry configuration
 {
-  attempts: 3,
-  backoff: {
-    type: 'exponential',
-    delay: 2000
-  }
+    'max_retries': 5,  # Higher retries for business operations
+    'retry_backoff': 300,  # 5-minute backoff for business workflows
+    'retry_jitter': True,  # Add jitter to prevent thundering herd
+    'retry_policy': {
+        'exponential_base': 2,
+        'max_retry_delay': 3600  # Maximum 1-hour delay
+    }
 }
 ```
 
-### Priority Levels
-```javascript
-1: High priority (alerts, critical notifications)
-5: Normal priority (regular processing)
-10: Low priority (cleanup, maintenance)
-```
-
-### Job Options
-```javascript
-{
-  priority: 1,              // Job priority
-  delay: 5000,             // Delay before processing (ms)
-  attempts: 3,               // Number of retry attempts
-  backoff: {                // Retry backoff strategy
-    type: 'exponential',
-    delay: 2000
-  },
-  removeOnComplete: 100,     // Keep completed jobs
-  removeOnFail: 50          // Keep failed jobs
+### Business Priority Management
+```python
+# Priority-based business task scheduling
+BUSINESS_PRIORITY_LEVELS = {
+    'CRITICAL': 1,      # Business-critical operations
+    'HIGH': 3,          # Important business workflows
+    'NORMAL': 5,        # Standard business processes
+    'LOW': 7,           # Background business tasks
+    'MAINTENANCE': 9    # System maintenance tasks
 }
 ```
 
-## Monitoring
-
-### Bull Board
-Access the queue monitoring dashboard at: `http://localhost:5000/admin/queues`
-
-**Features:**
-- View all queues and jobs
-- Inspect job details and data
-- Retry failed jobs
-- Delete jobs
-- Monitor queue statistics
-
-### Health Checks
-Check worker health:
-```bash
-# Check if workers are running
-pm2 status
-
-# Check worker logs
-pm2 logs planning-bord-email-worker
-pm2 logs planning-bord-inventory-worker
+### Business Task Options
+```python
+# Enterprise task configuration
+{
+    'priority': 'HIGH',              # Business priority level
+    'eta': datetime.utcnow() + timedelta(hours=2),  # Business hours scheduling
+    'expires': datetime.utcnow() + timedelta(days=1),  # Business day expiration
+    'max_retries': 5,              # Business-grade reliability
+    'retry_backoff': 300,           # 5-minute business backoff
+    'acks_late': True,              # Acknowledge after completion
+    'reject_on_worker_lost': True,   # Requeue if worker fails
+    'store_errors_even_if_ignored': True  # Business audit requirements
+}
 ```
 
-### Metrics
-Key metrics to monitor:
-- Job processing rate
-- Queue length
-- Failed job count
-- Worker memory usage
-- Redis connection health
+## 📈 Business Monitoring & Analytics
 
-## Error Handling
+### Flower Monitoring Dashboard
+Access the business task monitoring dashboard at: `http://localhost:5555`
 
-### Job Failures
-Jobs that fail are automatically retried based on the retry policy:
-- 3 attempts by default
-- Exponential backoff (2s, 4s, 8s delays)
-- Failed jobs are logged with full error details
+**Business Features:**
+- Real-time task processing rates
+- Business queue length monitoring
+- Failed task analysis and reporting
+- Worker performance metrics
+- Business compliance audit trails
 
-### Worker Errors
-Workers handle errors gracefully:
-- Continue processing other jobs
-- Log errors with context
-- Send alerts for critical failures
-- Support graceful shutdown
-
-### Recovery
+### Business Health Monitoring
 ```bash
-# Restart failed workers
-pm2 restart planning-bord-email-worker
+# Check business worker health
+curl -X GET "http://localhost:5555/api/workers" \
+     -H "Authorization: Bearer YOUR_BUSINESS_API_TOKEN"
 
-# Retry failed jobs manually (via Bull Board)
-# Or programmatically:
-await job.retry();
+# Monitor business queue statistics
+curl -X GET "http://localhost:5555/api/queues" \
+     -H "Authorization: Bearer YOUR_BUSINESS_API_TOKEN"
 ```
 
-## Performance Optimization
+### Key Business Metrics
+- **Task Processing Rate**: Business operations per hour
+- **Queue Backlog**: Pending business workflows
+- **Failed Task Rate**: Business-critical failure monitoring
+- **Worker Utilization**: Resource optimization metrics
+- **Compliance SLA Adherence**: Business deadline tracking
 
-### Redis Tuning
+## 🛡️ Business Security & Compliance
+
+### Redis Business Security
 ```bash
-# Memory optimization
-maxmemory 256mb
+# Enterprise Redis security configuration
+# /etc/redis/redis-business.conf
+
+# Authentication
+requirepass your-enterprise-redis-password
+
+# Network security
+bind 127.0.0.1
+protected-mode yes
+port 6379
+
+# Business data persistence
+appendonly yes
+appendfsync everysec
+
+# Memory management for business data
+maxmemory 1gb
 maxmemory-policy allkeys-lru
 
-# Persistence tuning
-save 900 1
-save 300 10
-save 60 10000
+# Business audit logging
+loglevel notice
+logfile /var/log/redis/redis-business.log
 ```
 
-### Worker Scaling
-```javascript
-// Scale workers based on queue load
-// In ecosystem.config.js:
-{
-  name: 'planning-bord-email-worker',
-  instances: 2,  // Scale up for high email volume
-  exec_mode: 'cluster'
-}
-```
+### Business Task Data Security
+- **Data Encryption**: All business task payloads encrypted in transit and at rest
+- **Access Control**: Role-based permissions for business task management
+- **Audit Logging**: Complete business operation audit trails
+- **Compliance Validation**: Built-in compliance checking for business workflows
+- **Secure Communication**: TLS-encrypted communication between all business components
 
-### Job Batching
-```javascript
-// Process jobs in batches for better performance
-const batchSize = 100;
-const jobs = [];
+### Business Compliance Features
+- **SOX Compliance**: Financial reporting and audit trail requirements
+- **GDPR Compliance**: Data privacy and user consent management
+- **Industry Standards**: Sector-specific compliance validation
+- **Audit Trails**: Complete business operation logging
+- **Data Retention**: Configurable business data lifecycle management
 
-for (let i = 0; i < items.length; i += batchSize) {
-  const batch = items.slice(i, i + batchSize);
-  jobs.push(
-    QueueService.addBulkUpdate({
-      businessId,
-      items: batch
-    })
-  );
-}
-```
+## 🔧 Business Troubleshooting
 
-## Security
+### Common Business Issues
 
-### Redis Security
+**1. Redis Connection Failures**
 ```bash
-# Enable Redis password authentication
-requirepass your-strong-password
+# Check business Redis status
+docker ps | grep planning-bord-redis
+redis-cli -a your-enterprise-redis-password ping
 
-# Bind to localhost in production
-bind 127.0.0.1
-```
-
-### Job Data Security
-- Sanitize job data before queueing
-- Don't include sensitive data in job payloads
-- Use secure file storage for uploaded files
-- Validate file types and sizes
-
-## Testing
-
-### Local Testing
-```bash
-# Start Redis in Docker
-docker-compose -f docker-compose.redis.yml up -d
-
-# Start workers
-npm run worker:email &
-npm run worker:inventory &
-
-# Test job processing
-node test-queue.js
-```
-
-### Test Script Example
-```javascript
-// test-queue.js
-const QueueService = require('./backend/src/services/queueService');
-
-async function testQueue() {
-  console.log('Testing queue system...');
-  
-  // Test email queue
-  await QueueService.addWelcomeEmail({
-    userEmail: 'test@example.com',
-    userName: 'Test User'
-  });
-  
-  console.log('✅ Test job queued successfully');
-  process.exit(0);
-}
-
-testQueue().catch(console.error);
-```
-
-## Troubleshooting
-
-### Common Issues
-
-**1. Redis Connection Errors**
-```bash
-# Check Redis status
-docker ps | grep redis
-redis-cli ping
-
-# Check Redis logs
+# Check business Redis logs
 docker logs planning-bord-redis
+tail -f /var/log/redis/redis-business.log
 ```
 
-**2. Worker Not Processing Jobs**
+**2. Business Worker Processing Issues**
 ```bash
-# Check worker logs
-pm2 logs planning-bord-email-worker
+# Check business worker status
+supervisorctl status planning-bord-business-workers
 
-# Restart worker
-pm2 restart planning-bord-email-worker
+# Restart business workers
+supervisorctl restart planning-bord-business-workers
+
+# Check business worker logs
+tail -f /var/log/celery/business-worker.log
 ```
 
-**3. High Memory Usage**
+**3. Business Task Failures**
+- Review Flower dashboard for failed business tasks
+- Check business worker logs for error details
+- Verify business task data format and validation
+- Confirm external business service availability
+
+### Business Recovery Procedures
 ```bash
-# Monitor Redis memory
-redis-cli info memory
+# Restart failed business tasks
+curl -X POST "http://localhost:5555/api/task/retry-business-failed" \
+     -H "Authorization: Bearer YOUR_BUSINESS_API_TOKEN"
 
-# Check worker memory
-pm2 monit
+# Purge business queue backlog (emergency only)
+curl -X POST "http://localhost:5555/api/queue/purge-business" \
+     -H "Authorization: Bearer YOUR_BUSINESS_API_TOKEN"
 ```
 
-**4. Job Failures**
-- Check Bull Board for failed jobs
-- Review worker logs for error details
-- Verify job data format
-- Check external service availability
+## 📋 Business Maintenance Procedures
 
-### Debug Mode
-```bash
-# Enable debug logging
-DEBUG=bull:* npm run worker:email
+### Regular Business Maintenance
+1. **Monitor business task health** - Daily business operations review
+2. **Review failed business tasks** - Daily business failure analysis
+3. **Check business queue performance** - Weekly optimization review
+4. **Validate business compliance logs** - Monthly audit review
+5. **Update business worker configurations** - Quarterly optimization
 
-# Or set in environment
-DEBUG=bull:* node src/workers/emailWorker.js
+### Business Cleanup Operations
+```python
+# Clean up completed business tasks (retain 30 days)
+from celery.task.control import inspect
+
+# Get business task statistics
+inspector = inspect()
+stats = inspector.stats()
+active_tasks = inspector.active()
+
+# Clean up old business task results
+from backend.src.tasks.celery_app import app
+app.backend.cleanup(expires=30 * 24 * 3600)  # 30-day business retention
 ```
 
-## Maintenance
+## 💼 Business Integration Examples
 
-### Regular Tasks
-1. **Monitor queue health** - Daily
-2. **Clean up old jobs** - Weekly
-3. **Review failed jobs** - Daily
-4. **Check Redis memory usage** - Weekly
-5. **Update worker logs** - Monthly
+### Financial Report Generation
+```python
+# In your business financial service
+from backend.src.services.task_service import BusinessTaskService
 
-### Cleanup Scripts
-```javascript
-// Clean up old completed jobs
-await emailQueue.clean(24 * 60 * 60 * 1000); // 24 hours
-await inventoryQueue.clean(7 * 24 * 60 * 60 * 1000); // 7 days
+async def generate_quarterly_business_report(business_id, quarter, year):
+    # Queue business-critical financial report
+    task_service = BusinessTaskService()
+    
+    task_result = await task_service.queue_financial_report(
+        business_id=business_id,
+        report_type='quarterly_executive_summary',
+        report_parameters={
+            'quarter': quarter,
+            'year': year,
+            'include_forecasts': True,
+            'compliance_level': 'executive'
+        },
+        recipients=['cfo@company.com', 'ceo@company.com', 'board@company.com'],
+        priority='critical',
+        delivery_format=['pdf', 'excel', 'powerpoint']
+    )
+    
+    return task_result
 ```
 
-## Integration Examples
-
-### Email Notifications
-```javascript
-// In your user registration service
-const QueueService = require('./services/queueService');
-
-async function registerUser(userData) {
-  // Create user...
-  
-  // Queue welcome email
-  await QueueService.addWelcomeEmail({
-    userEmail: userData.email,
-    userName: userData.name
-  });
-}
+### Inventory Business Alert System
+```python
+# In your business inventory service
+async def process_business_inventory_alert(business_id, product_id, current_stock):
+    task_service = BusinessTaskService()
+    
+    # Queue multi-channel business alert
+    await task_service.queue_business_inventory_alert(
+        business_id=business_id,
+        alert_type='critical_low_stock',
+        product_details={
+            'product_id': product_id,
+            'current_stock': current_stock,
+            'reorder_point': 50,
+            'supplier_lead_time': 7
+        },
+        notification_channels=['email', 'sms', 'dashboard'],
+        escalation_level='manager',
+        requires_approval=True
+    )
 ```
 
-### Inventory Updates
-```javascript
-// In your inventory service
-async function updateInventory(businessId, updates) {
-  // Update inventory...
-  
-  // Queue sync with external system
-  await QueueService.addInventorySync({
-    businessId,
-    externalSystem: 'supplier-api',
-    syncType: 'incremental'
-  });
-}
-```
+This business-grade implementation provides enterprise-level background job processing with comprehensive monitoring, security, and compliance features specifically designed for The Planning Bord™ proprietary business management system.
 
-### Report Generation
-```javascript
-// In your reporting service
-async function generateMonthlyReport(businessId) {
-  await QueueService.addReportGeneration({
-    businessId,
-    reportType: 'sales-analysis',
-    filters: {
-      startDate: '2024-01-01',
-      endDate: '2024-01-31'
-    },
-    userEmail: 'manager@business.com'
-  });
-}
-```
+---
 
-This implementation provides a robust, scalable background job processing system that can handle various types of asynchronous tasks efficiently.
+**🔒 Proprietary Implementation Notice**
+
+This Redis queue implementation contains proprietary business logic and security measures. All task definitions, worker configurations, and monitoring systems are protected intellectual property of The Planning Bord™. Unauthorized reproduction or distribution is strictly prohibited.
+
+*For business support and licensing inquiries, contact: enterprise@theplanningbord.com*

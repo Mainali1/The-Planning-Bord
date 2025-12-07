@@ -1,36 +1,6 @@
 {
-  "name": "the-planning-bord",
-  "version": "1.0.0",
-  "description": "A comprehensive business management system",
-  "main": "index.js",
-  "scripts": {
-    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
-    "dev:backend": "cd backend && npm run dev",
-    "dev:frontend": "cd frontend && npm start",
-    "build": "cd frontend && npm run build",
-    "start": "cd backend && npm start",
-    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
-    "migrate": "cd backend && npm run migrate",
-    "test": "cd backend && npm test && cd ../frontend && npm test",
-    "docker:up": "docker-compose up -d",
-    "docker:down": "docker-compose down",
-    "docker:build": "docker-compose build"
-  },
-  "keywords": [
-    "business",
-    "management",
-    "inventory",
-    "employee",
-    "payments",
-    "dashboard"
-  ],
-  "author": "Planning Bord Team",
-  "license": "MIT",
-  "devDependencies": {
-    "concurrently": "^7.6.0"
-  },
   "dependencies": {
-    "dotenv": "^17.2.3",
-    "pg": "^8.16.3"
+    "colors": "1.4.0",
+    "rimraf": "6.1.2"
   }
 }

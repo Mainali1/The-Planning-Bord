@@ -31,6 +31,20 @@ We do not currently offer monetary rewards for vulnerability disclosures, but we
 
 ## Security Features
 
+### Code Protection & Obfuscation
+- **Python code obfuscation** using PyArmor to prevent reverse engineering
+- **JavaScript obfuscation** with advanced transformations and control flow flattening
+- **Anti-tamper measures** with integrity checks and license validation
+- **Compiled executables** that prevent direct source code access
+- **Secure build process** with automated obfuscation pipeline
+
+### License Enforcement
+- **License key validation** with cryptographic verification
+- **Usage tracking** and compliance monitoring
+- **Activation limits** to prevent unauthorized distribution
+- **Automatic license revocation** for violations
+- **Secure license storage** with encryption
+
 ### Authentication & Authorization
 - **JWT-based authentication** with secure token management
 - **Role-based access control** (RBAC) with granular permissions
@@ -39,11 +53,12 @@ We do not currently offer monetary rewards for vulnerability disclosures, but we
 - **Account lockout** after failed login attempts
 
 ### Data Protection
-- **Encryption at rest** for sensitive data
+- **Encryption at rest** for sensitive data using AES-256
 - **HTTPS enforcement** for all communications
 - **Input validation** and sanitization
 - **SQL injection prevention** through parameterized queries
 - **XSS protection** with content security policies
+- **Secure credential storage** with bcrypt hashing
 
 ### Infrastructure Security
 - **Container security** with minimal base images
@@ -51,13 +66,39 @@ We do not currently offer monetary rewards for vulnerability disclosures, but we
 - **Rate limiting** on API endpoints
 - **CORS protection** with strict origin policies
 - **Security headers** (Helmet.js)
+- **Network isolation** for sensitive operations
 
 ### Monitoring & Logging
 - **Security event logging** for audit trails
 - **Failed authentication tracking**
 - **Suspicious activity monitoring**
+- **License violation detection**
 - **Error tracking** with Sentry integration
 - **Performance monitoring** with application metrics
+- **Tamper attempt logging** with detailed forensics
+
+## Proprietary Software Security
+
+### Intellectual Property Protection
+- **Source code confidentiality** through compilation and obfuscation
+- **Binary distribution only** - no source code access for end users
+- **License agreement enforcement** with legal protections
+- **Reverse engineering prevention** through technical and legal measures
+- **Trade secret protection** for proprietary algorithms and business logic
+
+### Commercial License Security
+- **Activation-required installation** - software cannot run without valid license
+- **Usage monitoring** to ensure compliance with license terms
+- **Distribution control** to prevent unauthorized copying
+- **Version control** with forced updates for security patches
+- **Support authentication** - technical support requires valid license verification
+
+### Setup & Installation Security
+- **Secure installer** with integrity verification
+- **Initial setup wizard** with mandatory security configuration
+- **Credential encryption** during setup process
+- **Environment isolation** to prevent conflicts
+- **Automatic security updates** enabled by default
 
 ## Security Best Practices
 
@@ -68,6 +109,8 @@ We do not currently offer monetary rewards for vulnerability disclosures, but we
 - **Implement proper error handling** without exposing sensitive information
 - **Keep dependencies updated** with security patches
 - **Follow secure coding practices** and conduct code reviews
+- **Protect intellectual property** through proper obfuscation
+- **Implement license checks** in critical functionality
 
 ### For Administrators
 - **Regular security audits** of system configurations
@@ -76,13 +119,23 @@ We do not currently offer monetary rewards for vulnerability disclosures, but we
 - **Use strong passwords** and enable 2FA where possible
 - **Regular backups** with secure storage
 - **Network security** with proper firewall configurations
+- **License compliance monitoring** to ensure valid usage
+- **Setup wizard completion** before allowing system access
 
 ## Supported Versions
 
-| Version | Supported | Security Updates |
-|---------|-----------|------------------|
-| 1.x.x   | ✅        | Until 2025-12-31 |
-| 0.x.x   | ❌        | No longer supported |
+**Commercial License Required**: All versions require a valid commercial license for support and updates.
+
+| Version | License Type | Supported | Security Updates | Support Level |
+|---------|---------------|-----------|------------------|---------------|
+| 1.x.x   | Commercial    | ✅        | Active (24-48h)  | Full support  |
+| 0.x.x   | Legacy        | ❌        | No longer supported | None |
+
+### License Validation
+- **Automatic validation** required for all security updates
+- **Support authentication** through license verification
+- **Priority response** for licensed customers
+- **Custom security patches** available for enterprise licenses
 
 ## Vulnerability Severity Levels
 
@@ -123,5 +176,17 @@ We maintain a list of security researchers who have responsibly disclosed vulner
 ## Legal Notice
 
 This security policy is subject to change without notice. By reporting security vulnerabilities to us, you agree to comply with this policy and applicable laws. We reserve the right to modify this policy at any time.
+
+### Proprietary Software Notice
+- **Intellectual Property**: All security features and implementations are proprietary trade secrets
+- **Reverse Engineering**: Any attempt to reverse engineer security measures violates our license agreement
+- **Confidentiality**: Security vulnerability reports must be kept confidential per our NDA requirements
+- **Legal Action**: Unauthorized access attempts will be prosecuted to the fullest extent of the law
+
+### Compliance Requirements
+- **License Agreement**: All users must agree to our proprietary license terms
+- **Export Controls**: Software may be subject to export control regulations
+- **Data Laws**: Users are responsible for compliance with local data protection laws
+- **Audit Rights**: We reserve the right to audit license compliance
 
 **Last Updated**: December 2024

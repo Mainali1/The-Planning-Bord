@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Planning Bord - Setup</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .setup-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            width: 90%;
+            max-width: 800px;
+            min-height: 600px;
+            overflow: hidden;
+        }
+        
+        .setup-header {
+            background: #2c3e50;
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+        
+        .setup-header h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .setup-header p {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+        
+        .setup-content {
+            padding: 2rem;
+        }
+        
+        .setup-step {
+            display: none;
+        }
+        
+        .setup-step.active {
+            display: block;
+        }
+        
+        .step-indicator {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2rem;
+            padding: 0 1rem;
+        }
+        
+        .step {
+            flex: 1;
+            text-align: center;
+            position: relative;
+        }
+        
+        .step::after {
+            content: '';
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            width: 100%;
+            height: 2px;
+            background: #e0e0e0;
+            z-index: 1;
+        }
+        
+        .step:last-child::after {
+            display: none;
+        }
+        
+        .step.completed::after {
+            background: #27ae60;
+        }
+        
+        .step-circle {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #e0e0e0;
+            color: #999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 0.5rem;
+            font-weight: bold;
+            position: relative;
+            z-index: 2;
+        }
+        
+        .step.active .step-circle {
+            background: #3498db;
+            color: white;
+        }
+        
+        .step.completed .step-circle {
+            background: #27ae60;
+            color: white;
+        }
+        
+        .step-title {
+            font-size: 0.9rem;
+            color: #666;
+        }
+        
+        .step.active .step-title {
+            color: #3498db;
+            font-weight: 500;
+        }
+        
+        .step.completed .step-title {
+            color: #27ae60;
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: #333;
+        }
+        
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+        
+        .form-group input.error {
+            border-color: #e74c3c;
+        }
+        
+        .error-message {
+            color: #e74c3c;
+            font-size: 0.9rem;
+            margin-top: 0.25rem;
+        }
+        
+        .help-text {
+            color: #666;
+            font-size: 0.9rem;
+            margin-top: 0.25rem;
+        }
+        
+        .radio-group {
+            display: flex;
+            gap: 1rem;
+            margin-top: 0.5rem;
+        }
+        
+        .radio-option {
+            flex: 1;
+            padding: 1rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .radio-option:hover {
+            border-color: #3498db;
+        }
+        
+        .radio-option.selected {
+            border-color: #3498db;
+            background: #f8f9ff;
+        }
+        
+        .radio-option input[type="radio"] {
+            margin-right: 0.5rem;
+        }
+        
+        .checkbox-group {
+            margin-top: 1rem;
+        }
+        
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+        }
+        
+        .checkbox-item:hover {
+            background: #f8f9fa;
+        }
+        
+        .checkbox-item input[type="checkbox"] {
+            margin-right: 0.75rem;
+        }
+        
+        .button-group {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 2rem;
+            padding-top: 1rem;
+            border-top: 1px solid #e0e0e0;
+        }
+        
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+        
+        .btn-primary {
+            background: #3498db;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #2980b9;
+        }
+        
+        .btn-primary:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+        }
+        
+        .btn-secondary {
+            background: #95a5a6;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #7f8c8d;
+        }
+        
+        .license-agreement {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+            max-height: 200px;
+            overflow-y: auto;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+        
+        .success-message {
+            text-align: center;
+            padding: 2rem;
+        }
+        
+        .success-icon {
+            width: 80px;
+            height: 80px;
+            background: #27ae60;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1rem;
+            color: white;
+            font-size: 2rem;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 2rem;
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .info-box {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-radius: 0 6px 6px 0;
+        }
+        
+        .info-box h4 {
+            color: #1976d2;
+            margin-bottom: 0.5rem;
+        }
+        
+        .info-box p {
+            color: #424242;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="setup-container">
+        <div class="setup-header">
+            <h1>🏢 The Planning Bord</h1>
+            <p>Business Management Software Setup</p>
+        </div>
+        
+        <div class="setup-content">
+            <div id="loading" class="loading">
+                <div class="spinner"></div>
+                <p>Loading setup wizard...</p>
+            </div>
+            
+            <div id="setup-form" style="display: none;">
+                <div class="step-indicator">
+                    <div class="step active" id="step-1">
+                        <div class="step-circle">1</div>
+                        <div class="step-title">License</div>
+                    </div>
+                    <div class="step" id="step-2">
+                        <div class="step-circle">2</div>
+                        <div class="step-title">Company</div>
+                    </div>
+                    <div class="step" id="step-3">
+                        <div class="step-circle">3</div>
+                        <div class="step-title">Server</div>
+                    </div>
+                    <div class="step" id="step-4">
+                        <div class="step-circle">4</div>
+                        <div class="step-title">Features</div>
+                    </div>
+                    <div class="step" id="step-5">
+                        <div class="step-circle">5</div>
+                        <div class="step-title">Complete</div>
+                    </div>
+                </div>
+                
+                <!-- Step 1: License -->
+                <div id="step-1-content" class="setup-step active">
+                    <h2>License Agreement</h2>
+                    <div class="license-agreement">
+                        <h3>THE PLANNING BORD - PROPRIETARY SOFTWARE LICENSE</h3>
+                        <p><strong>Copyright (c) 2024 The Planning Bord. All rights reserved.</strong></p>
+                        <p>This is proprietary business management software. By using this software, you agree to the following terms:</p>
+                        <ul>
+                            <li>This software is licensed, not sold, to you.</li>
+                            <li>You may not reverse engineer, decompile, or disassemble the software.</li>
+                            <li>You may not distribute or share this software with others.</li>
+                            <li>This software contains trade secrets and proprietary information.</li>
+                            <li>All intellectual property rights remain with The Planning Bord.</li>
+                        </ul>
+                        <p><strong>Commercial Use:</strong> This software is intended for business and commercial use only. Each license is valid for one business location.</p>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="accept-license"> 
+                            I accept the license agreement and understand this is proprietary software
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label for="license-key">License Key *</label>
+                        <input type="text" id="license-key" placeholder="XXXX-XXXX-XXXX-XXXX">
+                        <div class="help-text">Enter the license key provided with your purchase</div>
+                    </div>
+                </div>
+                
+                <!-- Step 2: Company -->
+                <div id="step-2-content" class="setup-step">
+                    <h2>Company Information</h2>
+                    <div class="info-box">
+                        <h4>👋 Welcome to The Planning Bord!</h4>
+                        <p>Let's set up your company profile. This information will be used throughout the application.</p>
+                    </div>
+                    <div class="form-group">
+                        <label for="company-name">Company Name *</label>
+                        <input type="text" id="company-name" placeholder="Your Company Name">
+                    </div>
+                    <div class="form-group">
+                        <label for="admin-email">Administrator Email *</label>
+                        <input type="email" id="admin-email" placeholder="admin@yourcompany.com">
+                        <div class="help-text">This will be your login email</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="admin-password">Administrator Password *</label>
+                        <input type="password" id="admin-password" placeholder="Minimum 8 characters">
+                    </div>
+                </div>
+                
+                <!-- Step 3: Server -->
+                <div id="step-3-content" class="setup-step">
+                    <h2>Server Configuration</h2>
+                    <div class="info-box">
+                        <h4>💡 Choose Your Setup</h4>
+                        <p>Select how you want to run The Planning Bord. You can change this later in settings.</p>
+                    </div>
+                    <div class="form-group">
+                        <label>Server Mode *</label>
+                        <div class="radio-group">
+                            <div class="radio-option" onclick="selectServerMode('local')">
+                                <input type="radio" name="server-mode" value="local" id="local-mode">
+                                <label for="local-mode">
+                                    <strong>🏠 Local Server</strong><br>
+                                    <small>Run on this computer. Perfect for single-location businesses.</small>
+                                </label>
+                            </div>
+                            <div class="radio-option" onclick="selectServerMode('cloud')">
+                                <input type="radio" name="server-mode" value="cloud" id="cloud-mode">
+                                <label for="cloud-mode">
+                                    <strong>☁️ Cloud Server</strong><br>
+                                    <small>Connect to remote server. For multi-location businesses.</small>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="cloud-config" style="display: none;">
+                        <div class="form-group">
+                            <label for="cloud-url">Cloud Server URL *</label>
+                            <input type="url" id="cloud-url" placeholder="https://your-server.planningbord.com">
+                        </div>
+                        <div class="form-group">
+                            <label for="cloud-api-key">API Key (Optional)</label>
+                            <input type="password" id="cloud-api-key" placeholder="Your API key">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Step 4: Features -->
+                <div id="step-4-content" class="setup-step">
+                    <h2>Choose Your Features</h2>
+                    <div class="info-box">
+                        <h4>🎯 Customize Your Experience</h4>
+                        <p>Select the features you need. You can enable/disable these later in settings.</p>
+                    </div>
+                    <div class="checkbox-group">
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="enable-inventory" checked>
+                            <label for="enable-inventory">
+                                <strong>📦 Inventory Management</strong><br>
+                                <small>Track products, monitor stock levels, get low inventory alerts</small>
+                            </label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="enable-employees" checked>
+                            <label for="enable-employees">
+                                <strong>👥 Employee Management</strong><br>
+                                <small>Manage staff, schedules, and permissions</small>
+                            </label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="enable-finance" checked>
+                            <label for="enable-finance">
+                                <strong>💰 Finance & Payments</strong><br>
+                                <small>Track payments, generate invoices, manage finances</small>
+                            </label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="enable-notifications" checked>
+                            <label for="enable-notifications">
+                                <strong>🔔 Email Notifications</strong><br>
+                                <small>Get alerts for important events and reminders</small>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Step 5: Complete -->
+                <div id="step-5-content" class="setup-step">
+                    <div class="success-message">
+                        <div class="success-icon">✓</div>
+                        <h2>Setup Complete!</h2>
+                        <p>You're all set! The Planning Bord is ready to help you manage your business.</p>
+                        <div class="info-box" style="text-align: left; margin-top: 2rem;">
+                            <h4>🚀 What's Next?</h4>
+                            <ul>
+                                <li>Log in with your administrator account</li>
+                                <li>Add your products and inventory</li>
+                                <li>Set up employee accounts</li>
+                                <li>Configure payment methods</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="button-group">
+                    <button type="button" class="btn btn-secondary" id="prev-btn" onclick="previousStep()" style="display: none;">Previous</button>
+                    <button type="button" class="btn btn-primary" id="next-btn" onclick="nextStep()">Next</button>
+                    <button type="button" class="btn btn-primary" id="complete-btn" onclick="completeSetup()" style="display: none;">Start Using The Planning Bord</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let currentStep = 1;
+        const totalSteps = 5;
+        
+        // Form data
+        const setupData = {
+            licenseKey: '',
+            companyName: '',
+            adminEmail: '',
+            adminPassword: '',
+            serverMode: 'local',
+            cloudServerUrl: '',
+            cloudApiKey: '',
+            enableInventory: true,
+            enableEmployees: true,
+            enableFinance: true,
+            enableNotifications: true
+        };
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('setup-form').style.display = 'block';
+            updateStepDisplay();
+        });
+        
+        function updateStepDisplay() {
+            // Hide all steps
+            document.querySelectorAll('.setup-step').forEach(step => {
+                step.classList.remove('active');
+            });
+            
+            // Show current step
+            document.getElementById(`step-${currentStep}-content`).classList.add('active');
+            
+            // Update step indicators
+            document.querySelectorAll('.step').forEach((step, index) => {
+                step.classList.remove('active', 'completed');
+                if (index + 1 < currentStep) {
+                    step.classList.add('completed');
+                } else if (index + 1 === currentStep) {
+                    step.classList.add('active');
+                }
+            });
+            
+            // Update button visibility
+            document.getElementById('prev-btn').style.display = currentStep > 1 ? 'block' : 'none';
+            document.getElementById('next-btn').style.display = currentStep < totalSteps ? 'block' : 'none';
+            document.getElementById('complete-btn').style.display = currentStep === totalSteps ? 'block' : 'none';
+        }
+        
+        function nextStep() {
+            if (validateCurrentStep()) {
+                saveCurrentStepData();
+                if (currentStep < totalSteps) {
+                    currentStep++;
+                    updateStepDisplay();
+                }
+            }
+        }
+        
+        function previousStep() {
+            if (currentStep > 1) {
+                currentStep--;
+                updateStepDisplay();
+            }
+        }
+        
+        function validateCurrentStep() {
+            let isValid = true;
+            
+            switch (currentStep) {
+                case 1:
+                    const licenseAccepted = document.getElementById('accept-license').checked;
+                    const licenseKey = document.getElementById('license-key').value.trim();
+                    
+                    if (!licenseAccepted) {
+                        alert('Please accept the license agreement to continue.');
+                        isValid = false;
+                    } else if (!licenseKey || !isValidLicenseKey(licenseKey)) {
+                        alert('Please enter a valid license key (format: XXXX-XXXX-XXXX-XXXX).');
+                        isValid = false;
+                    } else {
+                        setupData.licenseKey = licenseKey;
+                    }
+                    break;
+                    
+                case 2:
+                    const companyName = document.getElementById('company-name').value.trim();
+                    const adminEmail = document.getElementById('admin-email').value.trim();
+                    const adminPassword = document.getElementById('admin-password').value;
+                    
+                    if (!companyName || !adminEmail || !adminPassword) {
+                        alert('Please fill in all required fields.');
+                        isValid = false;
+                    } else if (adminPassword.length < 8) {
+                        alert('Password must be at least 8 characters long.');
+                        isValid = false;
+                    } else {
+                        setupData.companyName = companyName;
+                        setupData.adminEmail = adminEmail;
+                        setupData.adminPassword = adminPassword;
+                    }
+                    break;
+                    
+                case 3:
+                    const serverMode = document.querySelector('input[name="server-mode"]:checked');
+                    if (!serverMode) {
+                        alert('Please select a server mode.');
+                        isValid = false;
+                    } else {
+                        setupData.serverMode = serverMode.value;
+                        if (serverMode.value === 'cloud') {
+                            const cloudUrl = document.getElementById('cloud-url').value.trim();
+                            if (!cloudUrl) {
+                                alert('Please enter the cloud server URL.');
+                                isValid = false;
+                            } else {
+                                setupData.cloudServerUrl = cloudUrl;
+                                setupData.cloudApiKey = document.getElementById('cloud-api-key').value;
+                            }
+                        }
+                    }
+                    break;
+                    
+                case 4:
+                    setupData.enableInventory = document.getElementById('enable-inventory').checked;
+                    setupData.enableEmployees = document.getElementById('enable-employees').checked;
+                    setupData.enableFinance = document.getElementById('enable-finance').checked;
+                    setupData.enableNotifications = document.getElementById('enable-notifications').checked;
+                    break;
+            }
+            
+            return isValid;
+        }
+        
+        function saveCurrentStepData() {
+            // Data is saved in validateCurrentStep
+        }
+        
+        function isValidLicenseKey(key) {
+            const parts = key.split('-');
+            if (parts.length !== 4) return false;
+            
+            for (const part of parts) {
+                if (part.length !== 4 || !part.match(/^[A-Z0-9]+$/)) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        
+        function selectServerMode(mode) {
+            setupData.serverMode = mode;
+            document.getElementById(`${mode}-mode`).checked = true;
+            
+            if (mode === 'cloud') {
+                document.getElementById('cloud-config').style.display = 'block';
+            } else {
+                document.getElementById('cloud-config').style.display = 'none';
+            }
+        }
+        
+        function completeSetup() {
+            // Send setup data to main process
+            if (window.electronAPI) {
+                window.electronAPI.completeSetup(setupData).then(result => {
+                    if (result.success) {
+                        window.electronAPI.setupComplete();
+                    } else {
+                        alert('Setup failed: ' + (result.error || 'Unknown error'));
+                    }
+                });
+            } else {
+                // Fallback for development
+                console.log('Setup data:', setupData);
+                alert('Setup completed successfully! (Development mode)');
+            }
+        }
+    </script>
+</body>
+</html>

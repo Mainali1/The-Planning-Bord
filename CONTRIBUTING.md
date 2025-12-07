@@ -1,168 +1,194 @@
 # Contributing to The Planning Bord
 
-Thank you for your interest in contributing to The Planning Bord! This document provides guidelines and information for contributors.
+**⚠️ PROPRIETARY SOFTWARE NOTICE**: The Planning Bord is proprietary commercial software. This repository contains only documentation and build tools. Source code access is restricted to authorized developers under strict NDA agreements.
 
-## 🚀 Getting Started
+Thank you for your interest in The Planning Bord! This document provides information about our development process for authorized contributors.
 
-### Prerequisites
+## 🚀 Development Access
 
-- Node.js 18+ (LTS recommended)
-- PostgreSQL 14+
-- Docker and Docker Compose (for containerized development)
-- Git
+### Authorization Required
 
-### Development Setup
+**⚠️ IMPORTANT**: Source code access is restricted to:
+- **Authorized employees** of The Planning Bord Inc.
+- **Contracted developers** with signed NDA agreements
+- **Certified partners** with commercial licenses
 
-1. **Fork and Clone**
-   ```bash
-   git clone https://github.com/your-username/The-Planning-Bord.git
-   cd The-Planning-Bord
-   ```
+### Prerequisites for Authorized Developers
 
-2. **Environment Setup**
-   ```bash
-   # Copy environment files
-   cp backend/.env.example backend/.env
-   cp frontend/.env.example frontend/.env
-   
-   # Update with your local configuration
-   # Edit backend/.env and frontend/.env files
-   ```
+- **Security clearance** and background check
+- **Signed NDA** and intellectual property agreements
+- **Secure development environment** with encrypted storage
+- **VPN access** to protected development infrastructure
+- **Multi-factor authentication** for all systems
 
-3. **Install Dependencies**
-   ```bash
-   # Backend
-   cd backend
-   npm install
-   
-   # Frontend
-   cd ../frontend
-   npm install
-   ```
+### Source Code Access Process
 
-4. **Database Setup**
-   ```bash
-   cd ../backend
-   npm run migrate
-   npm run seed
-   ```
+1. **Submit Access Request**
+   - Email: dev-access@planningbord.com
+   - Include: Project role, clearance level, business justification
+   - Attach: Signed NDA and employment verification
 
-5. **Start Development Servers**
-   ```bash
-   # Backend (port 5000)
-   npm run dev
-   
-   # Frontend (port 3000) - in another terminal
-   cd ../frontend
-   npm start
-   ```
+2. **Security Review**
+   - Background verification (5-7 business days)
+   - Security clearance validation
+   - Access level determination
 
-### Docker Development
+3. **Environment Setup**
+   - Secure workstation configuration
+   - Encrypted development tools installation
+   - VPN and authentication setup
+
+4. **Repository Access**
+   - Private repository invitation (GitHub Enterprise)
+   - Branch protection and audit logging enabled
+   - Code signing certificate installation
+
+### Development Environment Security
+
+- **Isolated development VMs** with no internet access
+- **Encrypted code repositories** with access logging
+- **Secure build pipelines** with code signing
+- **Regular security audits** of development practices
+- **Code obfuscation requirements** for all commits
+
+## 📋 Development Workflow (Authorized Developers Only)
+
+### Branch Protection & Access Control
+
+- **Main branch protection** - requires code owner approval
+- **Feature branch restrictions** - must be created by authorized developers
+- **Commit signing required** - all commits must be GPG signed
+- **Audit logging enabled** - all changes tracked and logged
+- **Code review mandatory** - minimum 2 approvals required
+
+### Secure Development Practices
+
+#### Code Commit Requirements
+- **No hardcoded secrets** - use secure credential management
+- **IP protection** - ensure no proprietary algorithms are exposed
+- **License headers** - include copyright notices in all files
+- **Security scanning** - automated vulnerability checks on all commits
+- **Code obfuscation** - required before any external distribution
+
+#### Branch Naming (Internal Use Only)
+- `internal/feature/description` - New proprietary features
+- `internal/bugfix/description` - Bug fixes for licensed software
+- `internal/hotfix/description` - Critical security fixes
+- `internal/refactor/description` - Code refactoring
+- `docs/description` - Documentation updates (public)
+
+### Commit Message Security
+
+We use encrypted commit messages for proprietary development:
+
+```
+<type>[security-level]: <encrypted-description>
+
+[security-classification: internal/confidential/public]
+[ip-review: completed/pending]
+[license-impact: none/minor/major]
+```
+
+Security Classifications:
+- `internal`: General development (default)
+- `confidential`: Contains proprietary algorithms
+- `public`: Documentation or non-sensitive changes
+
+Types (Internal Development):
+- `feat`: New proprietary features
+- `fix`: Security or functionality fixes
+- `security`: Security-related changes
+- `license`: License enforcement updates
+- `docs`: Documentation updates
+
+### Pre-commit Security Hooks
+
+Our security pipeline automatically:
+- **Scan for secrets** and hardcoded credentials
+- **Validate license headers** and copyright notices
+- **Check for IP exposure** of proprietary algorithms
+- **Run security linting** with custom rules
+- **Verify commit signatures** and author authorization
+- **Encrypt sensitive code sections** where applicable
+
+## 🧪 Testing (Authorized Environments Only)
+
+### Secure Testing Environment
+
+**⚠️ IMPORTANT**: All testing must be conducted in authorized, isolated environments:
+
+- **Internal test labs** with no external network access
+- **Encrypted test data** - never use real customer data
+- **Secure test credentials** - managed through enterprise vault
+- **Audit logging** - all test activities logged and monitored
+- **Clean room protocols** - no personal devices allowed
+
+### Running Tests (Authorized Developers)
 
 ```bash
-# Start all services
-docker-compose up -d
+# Access secure test environment
+ssh test-lab@secure.planningbord.com
 
-# View logs
-docker-compose logs -f
-
-# Stop services
-docker-compose down
-```
-
-## 📋 Development Workflow
-
-### Branch Naming
-
-- `feature/description` - New features
-- `bugfix/description` - Bug fixes
-- `hotfix/description` - Critical fixes
-- `refactor/description` - Code refactoring
-- `docs/description` - Documentation updates
-
-### Commit Messages
-
-We follow [Conventional Commits](https://www.conventionalcommits.org/):
-
-```
-<type>[optional scope]: <description>
-
-[optional body]
-
-[optional footer(s)]
-```
-
-Types:
-- `feat`: New feature
-- `fix`: Bug fix
-- `docs`: Documentation
-- `style`: Code style changes
-- `refactor`: Code refactoring
-- `test`: Tests
-- `chore`: Maintenance tasks
-
-Examples:
-```
-feat(auth): add Microsoft OAuth integration
-fix(inventory): resolve stock calculation error
-docs(api): update OpenAPI specification
-```
-
-### Pre-commit Hooks
-
-Our Husky pre-commit hooks will automatically:
-- Run ESLint on staged files
-- Format code with Prettier
-- Validate commit messages
-- Run type checks
-
-## 🧪 Testing
-
-### Running Tests
-
-```bash
-# Backend tests
-cd backend
-npm test                    # All tests
-npm run test:unit          # Unit tests only
+# Backend security tests
+cd /secure/backend
+npm run test:security      # Security-focused tests
+npm run test:license       # License validation tests
 npm run test:integration   # Integration tests only
 
-# Frontend tests
-cd ../frontend
-npm test                   # All tests
-npm run test:coverage      # With coverage report
+# Frontend security tests
+cd /secure/frontend
+npm run test:security      # UI security tests
+npm run test:obfuscation   # Code protection tests
+npm run test:coverage      # With security coverage report
 ```
 
-### Test Coverage
+### Proprietary Test Requirements
 
-- Maintain minimum 80% code coverage
-- Write tests for new features
-- Update tests for changed functionality
-- Include both positive and negative test cases
+- **Security coverage minimum 95%** - higher than industry standard
+- **License validation tests** - ensure proper license enforcement
+- **Code obfuscation tests** - verify protection mechanisms
+- **Anti-tamper tests** - validate integrity checks
+- **IP protection tests** - ensure no proprietary data exposure
 
-### Writing Tests
+### Writing Secure Tests
 
-- Use descriptive test names
-- Follow AAA pattern (Arrange, Act, Assert)
-- Mock external dependencies
-- Test edge cases and error conditions
+- **Test security boundaries** - validate all authentication/authorization
+- **Test license enforcement** - ensure unauthorized usage is blocked
+- **Test code protection** - verify obfuscation effectiveness
+- **Test audit logging** - ensure all security events are logged
+- **Test encryption** - validate data protection mechanisms
+- **Never expose proprietary logic** in test names or assertions
 
-## 🔒 Security Guidelines
+## 🔒 Security Guidelines (Mandatory for All Developers)
 
-### Code Security
+### Proprietary Code Security
 
-- Never commit secrets or credentials
-- Use environment variables for sensitive data
-- Validate all user inputs
-- Implement proper authentication and authorization
-- Use parameterized queries to prevent SQL injection
+- **Never commit source code** to public repositories
+- **Use secure development environments** with encrypted storage
+- **Validate all developer identities** through multi-factor authentication
+- **Implement code signing** for all commits and releases
+- **Use secure credential management** with enterprise vault systems
+- **Encrypt all proprietary data** both in transit and at rest
+- **Never expose proprietary algorithms** in public forums or documentation
 
-### Security Reporting
+### Intellectual Property Protection
+
+- **All code is proprietary** - treat as trade secrets
+- **Copyright notices required** in all source files
+- **License validation** built into all critical functionality
+- **Anti-tamper mechanisms** must be tested and maintained
+- **Code obfuscation** required before any distribution
+- **Legal compliance** - all code subject to IP laws and export controls
+
+### Security Reporting (Confidential)
 
 - **DO NOT** create public issues for security vulnerabilities
+- **Classified reporting** required for all security issues
 - Email security concerns to: security@planningbord.com
-- Include detailed reproduction steps
-- Use responsible disclosure practices
+- **Encrypted communication** using company PGP keys
+- **NDA requirements** for all security discussions
+- **Responsible disclosure** with legal team involvement
+- **Immediate escalation** for any IP or license violations
 
 ## 📊 Performance Guidelines
 
@@ -226,67 +252,117 @@ npm run test:coverage      # With coverage report
 - Include authentication requirements
 - Provide example requests
 
-## 🔄 Pull Request Process
+## 🔄 Pull Request Process (Internal Only)
 
-### Before Submitting
+### Pre-Submission Security Review
 
-1. **Sync with main branch**
+**⚠️ CRITICAL**: All PRs must undergo security review before submission:
+
+1. **IP Review Process**
    ```bash
-   git fetch origin
-   git rebase origin/main
+   # Submit for IP review
+   git request-ip-review --branch=your-feature-branch
+   
+   # Wait for legal clearance (2-5 business days)
+   # Receive IP clearance certificate
    ```
 
-2. **Run all tests**
+2. **Security Validation**
    ```bash
-   npm test
-   npm run lint
-   npm run security:check
+   npm run security:full-scan    # Comprehensive security scan
+   npm run license:validate     # License compliance check
+   npm run ip:verify            # Intellectual property verification
+   npm run obfuscation:test     # Code protection validation
    ```
 
-3. **Update documentation**
-   - Update README if needed
-   - Update API documentation
-   - Add/update code comments
+3. **Legal Documentation**
+   - **IP assignment agreement** for all code contributions
+   - **Patent clearance** for any new algorithms or methods
+   - **Export control review** for cryptographic components
+   - **Third-party license audit** for all dependencies
 
-### PR Requirements
+### Internal PR Requirements
 
-- Use the PR template
-- Include screenshots for UI changes
-- Reference related issues
-- Ensure CI/CD checks pass
-- Request reviews from code owners
+- **Internal PR template only** - no public PRs accepted
+- **Security classification** - mark as internal/confidential/public
+- **IP review certificate** - attach legal clearance documentation
+- **Code owner approval** - minimum 2 senior developers + 1 security engineer
+- **Legal team sign-off** - required for all proprietary features
+- **Executive approval** - required for major architectural changes
 
-### Review Process
+### Secure Review Process
 
-- All PRs require at least one approval
-- Address review feedback promptly
-- Keep PRs focused and reasonably sized
-- Squash commits before merging
+- **Encrypted review environment** - all reviews conducted in secure systems
+- **Audit trail** - all review comments and decisions logged
+- **Anonymous review option** - available for sensitive security features
+- **Legal consultation** - automatic escalation for IP concerns
+- **Executive review** - required for business-critical changes
+- **Classified deployment** - staged rollout for sensitive updates
 
-## 🐛 Bug Reporting
+## 🐛 Bug Reporting (For Licensed Users Only)
 
-### Bug Report Template
+### Authorized Bug Reporting
+
+**⚠️ RESTRICTED**: Bug reports accepted only from licensed customers and authorized partners:
+
+- **License verification required** - reports must include valid license key
+- **Secure reporting portal** - access through customer dashboard
+- **Confidential treatment** - all reports handled under NDA
+- **Priority support** based on license tier and severity
+
+### Bug Report Template (Licensed Users)
 
 When reporting bugs, include:
 
-- Clear description of the issue
-- Steps to reproduce
-- Expected vs actual behavior
-- Environment details
-- Screenshots if applicable
-- Error logs if available
+- **License key** for verification and priority assignment
+- **Customer ID** from your account dashboard
+- **Clear description** of the issue with business impact
+- **Steps to reproduce** with expected vs actual behavior
+- **Environment details** (OS, version, configuration)
+- **Screenshots** if applicable (secure upload portal)
+- **Error logs** through encrypted file transfer
+- **Business impact** assessment (critical/high/medium/low)
 
-## 📈 Feature Requests
+### Response Timeline (By License Tier)
 
-### Feature Request Template
+- **Enterprise License**: 4-hour response, 24-hour resolution target
+- **Business License**: 8-hour response, 48-hour resolution target  
+- **Standard License**: 24-hour response, 72-hour resolution target
+
+## 📈 Feature Requests (Customer-Driven Development)
+
+### Licensed Customer Feature Requests
+
+**⚠️ PROPRIETARY**: Feature development driven by customer needs and market requirements:
+
+- **Customer advisory board** - quarterly roadmap planning sessions
+- **Feature voting portal** - licensed customers vote on priorities
+- **Custom development** - available for enterprise licenses
+- **NDA protection** - all feature discussions confidential
+- **IP ownership** - all developed features remain proprietary
+
+### Feature Request Template (Customers)
 
 When suggesting features, include:
 
-- Problem statement
-- Proposed solution
-- Use cases
-- Alternatives considered
-- Mockups or examples
+- **License information** and customer tier
+- **Business problem** statement with quantified impact
+- **Proposed solution** with workflow integration needs
+- **Use cases** specific to your business operations
+- **Alternatives considered** and why they don't work
+- **ROI expectation** - how this improves your business
+- **Timeline requirements** - when you need this feature
+- **Integration needs** - other systems this must work with
+
+### Feature Development Process
+
+1. **Customer submission** through secure portal
+2. **Business impact assessment** by product team
+3. **Technical feasibility** review by engineering
+4. **Legal/IP clearance** for any new innovations
+5. **Customer advisory vote** for roadmap inclusion
+6. **Development and testing** in secure environment
+7. **Staged rollout** to requesting customers first
 
 ## 🏷️ Issue Labels
 
@@ -309,29 +385,52 @@ We use the following labels:
 - `blocked` - Blocked by external factors
 - `ready-for-review` - Ready for code review
 
-## 📞 Getting Help
+## 📞 Getting Help (Authorized Personnel Only)
 
-### Communication Channels
+### Secure Communication Channels
 
-- **Issues**: GitHub Issues for bugs and features
-- **Discussions**: GitHub Discussions for questions
-- **Email**: team@planningbord.com for private matters
-- **Security**: security@planningbord.com for security issues
+**⚠️ RESTRICTED ACCESS**: All communications subject to monitoring and NDA:
 
-### Code Owners
+- **Internal Issues**: GitHub Enterprise (private repositories only)
+- **Secure Email**: internal@planningbord.com (encrypted communication)
+- **Encrypted Chat**: Secure internal messaging system
+- **Emergency**: security@planningbord.com (24/7 monitored)
+- **Legal/IP**: legal@planningbord.com (patent and IP matters)
 
-- Backend: @backend-team
-- Frontend: @frontend-team
-- DevOps: @devops-team
-- Security: @security-team
+### Authorized Code Owners
 
-## 🏆 Recognition
+**Senior Development Team** (Internal GitHub Enterprise):
+- **Backend Architecture**: @senior-backend-team
+- **Frontend Security**: @senior-frontend-team  
+- **DevOps Security**: @secure-devops-team
+- **Security Engineering**: @security-architecture-team
+- **Legal/IP Review**: @legal-review-team
 
-Contributors will be recognized in:
+### Customer Support Channels
 
-- README.md contributors section
-- Release notes
-- Project documentation
-- Team acknowledgments
+**For Licensed Customers Only**:
+- **Customer Portal**: https://support.planningbord.com (license required)
+- **Priority Support**: support@planningbord.com (include license key)
+- **Technical Account Manager**: Assigned to enterprise customers
+- **24/7 Emergency**: enterprise-support@planningbord.com (enterprise only)
 
-Thank you for contributing to The Planning Bord! 🎉
+## 🏆 Recognition (Internal Only)
+
+Employee recognition programs for authorized contributors:
+
+- **Internal recognition** - secure company communications
+- **Patent awards** - for innovative proprietary features
+- **Security bonuses** - for identifying and fixing vulnerabilities
+- **Performance reviews** - contribution tracking for career advancement
+- **Stock options** - for significant proprietary contributions
+- **Executive acknowledgments** - quarterly all-hands recognition
+
+**Note**: Public recognition is prohibited to maintain security and prevent social engineering attacks.
+
+---
+
+**⚠️ FINAL NOTICE**: This repository contains documentation only. All source code development is conducted in secure, private environments with strict access controls, encryption, and audit logging. Unauthorized access attempts will be prosecuted under applicable intellectual property and computer fraud laws.
+
+**Intellectual Property Protection**: All contributions become the exclusive property of The Planning Bord Inc. and are protected by trade secret laws, patents, and international copyright conventions.
+
+Thank you for your interest in The Planning Bord! For licensing inquiries, contact sales@planningbord.com.
