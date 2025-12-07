@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
-import { Plus, Search, Edit, Trash2, User, Calendar, Briefcase, AlertTriangle, Info, RefreshCw, Users, TrendingUp, Clock, CheckCircle, XCircle, ArrowLeft, ArrowRight } from 'lucide-react';
+import { 
+  Plus, Search, Edit, Trash2, User, Calendar, Briefcase, 
+  AlertTriangle, Info, RefreshCw, Users, TrendingUp, Clock, 
+  CheckCircle, XCircle, ArrowRight, UserCheck, Building 
+} from 'lucide-react';
 import { employeeService } from '../services/api';
 
 const Employees = () => {
@@ -8,7 +12,6 @@ const Employees = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [selectedTab, setSelectedTab] = useState('employees');
-  const [lastRefresh, setLastRefresh] = useState(new Date());
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
@@ -21,7 +24,6 @@ const Employees = () => {
   });
   const [formErrors, setFormErrors] = useState({});
   const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
-  const [selectedEmployeeForAttendance, setSelectedEmployeeForAttendance] = useState('');
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [taskFormData, setTaskFormData] = useState({
     title: '',
@@ -37,16 +39,16 @@ const Employees = () => {
   const { data: employees, isLoading, error, refetch } = useQuery('employees', employeeService.getEmployees, {
     retry: 1,
     refetchOnWindowFocus: false,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000,
   });
 
   const { data: attendanceData } = useQuery(
     ['attendance', attendanceDate],
-    () => employeeService.getAttendance('all'), // Get all attendance for the date
+    () => employeeService.getAttendance('all'),
     {
       retry: 1,
       refetchOnWindowFocus: false,
-      staleTime: 2 * 60 * 1000, // 2 minutes
+      staleTime: 2 * 60 * 1000,
       enabled: selectedTab === 'attendance',
     }
   );
@@ -75,7 +77,7 @@ const Employees = () => {
     {
       retry: 1,
       refetchOnWindowFocus: false,
-      staleTime: 5 * 60 * 1000, // 5 minutes
+      staleTime: 5 * 60 * 1000,
       enabled: selectedTab === 'tasks',
     }
   );
@@ -100,9 +102,9 @@ const Employees = () => {
   );
 
   const filteredEmployees = employees?.data?.filter(employee =>
-    employee.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    employee.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    employee.role.toLowerCase().includes(searchTerm.toLowerCase())
+    employee.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    employee.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    employee.role?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleDelete = async (id) => {
@@ -113,7 +115,6 @@ const Employees = () => {
 
   const handleRefresh = () => {
     refetch();
-    setLastRefresh(new Date());
   };
 
   const handleMarkAttendance = async (employeeId, status) => {
@@ -135,7 +136,7 @@ const Employees = () => {
     const stats = { present: 0, absent: 0, late: 0, notMarked: 0 };
     
     employees.data.forEach(employee => {
-      const status = getAttendanceStatus(employee.id);
+      const status = getAttendanceStatus(employee.employee_id || employee.id);
       switch (status) {
         case 'present':
           stats.present++;
@@ -180,7 +181,6 @@ const Employees = () => {
       [name]: value
     }));
     
-    // Clear error for this field
     if (taskFormErrors[name]) {
       setTaskFormErrors(prev => ({
         ...prev,
@@ -268,7 +268,7 @@ const Employees = () => {
       ...prev,
       [name]: value
     }));
-    // Clear error for this field when user starts typing
+    
     if (formErrors[name]) {
       setFormErrors(prev => ({
         ...prev,
@@ -286,7 +286,7 @@ const Employees = () => {
     
     try {
       if (editingEmployee) {
-        await employeeService.updateEmployee(editingEmployee.employee_id, formData);
+        await employeeService.updateEmployee(editingEmployee.employee_id || editingEmployee.id, formData);
       } else {
         await employeeService.createEmployee(formData);
       }
@@ -324,6 +324,7 @@ const Employees = () => {
       status: employee.status || 'active'
     });
     setFormErrors({});
+    setShowAddModal(true);
   };
 
   const closeModal = () => {
@@ -342,7 +343,6 @@ const Employees = () => {
     setFormErrors({});
   };
 
-  // Loading state
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -354,7 +354,6 @@ const Employees = () => {
     );
   }
 
-  // Error state
   if (error) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -401,7 +400,7 @@ const Employees = () => {
               </p>
             </div>
             <div className="p-3 rounded-full bg-green-100 text-green-600">
-              <TrendingUp className="h-6 w-6" />
+              <UserCheck className="h-6 w-6" />
             </div>
           </div>
         </div>
@@ -411,933 +410,908 @@ const Employees = () => {
             <div>
               <p className="text-sm font-medium text-gray-600">Departments</p>
               <p className="text-2xl font-semibold text-gray-900">
-                {new Set(employees?.data?.map(emp => emp.department)).size || 0}
+                {new Set(employees?.data?.map(emp => emp.department).filter(Boolean)).size || 0}
               </p>
             </div>
             <div className="p-3 rounded-full bg-purple-100 text-purple-600">
-              <Briefcase className="h-6 w-6" />
+              <Building className="h-6 w-6" />
             </div>
           </div>
         </div>
-      
+      </div>
+
       {/* Main Content */}
       <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Employee Management</h1>
-          <p className="text-gray-600 mt-1">Manage your team and track attendance</p>
-        </div>
-        <div className="flex items-center space-x-3">
-          <button
-            onClick={handleRefresh}
-            className="inline-flex items-center px-3 py-2 text-gray-600 hover:text-gray-800 transition-colors"
-            title="Refresh employee data"
-          >
-            <RefreshCw className="h-4 w-4 mr-1" />
-            Refresh
-          </button>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            <Plus className="h-5 w-5 mr-2" />
-            Add Employee
-          </button>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8">
-          <button
-            onClick={() => setSelectedTab('employees')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
-              selectedTab === 'employees'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            <User className="inline h-4 w-4 mr-2" />
-            Employees
-          </button>
-          <button
-            onClick={() => setSelectedTab('attendance')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
-              selectedTab === 'attendance'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            <Calendar className="inline h-4 w-4 mr-2" />
-            Attendance
-          </button>
-          <button
-            onClick={() => setSelectedTab('tasks')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
-              selectedTab === 'tasks'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            <Briefcase className="inline h-4 w-4 mr-2" />
-            Tasks
-          </button>
-        </nav>
-      </div>
-
-      {/* Search Bar */}
-      <div className="flex items-center space-x-4">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search employees by name, role, or department..."
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        <div className="text-sm text-gray-500">
-          <Info className="inline h-4 w-4 mr-1" />
-          Tip: Search by name, role, or department to find team members quickly
-        </div>
-      </div>
-
-      {/* Employees Tab */}
-      {selectedTab === 'employees' && (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Name
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Role
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Department
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Email
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredEmployees?.map((employee) => (
-                <tr key={employee.employee_id}>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">
-                      {employee.first_name} {employee.last_name}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-500">{employee.role}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-500">{employee.department}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-500">{employee.email}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      employee.status === 'active'
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-red-100 text-red-800'
-                    }`}>
-                      {employee.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => openEditModal(employee)}
-                        className="text-blue-600 hover:text-blue-900"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(employee.employee_id)}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          
-          {filteredEmployees?.length === 0 && (
-            <div className="text-center py-12">
-              <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                {searchTerm ? 'No employees found' : 'No employees in your team'}
-              </h3>
-              <p className="text-gray-600 mb-4">
-                {searchTerm 
-                  ? 'Try adjusting your search terms or check for typos.'
-                  : 'Get started by adding your first team member.'
-                }
-              </p>
-              {!searchTerm && (
-                <button
-                  onClick={() => setShowAddModal(true)}
-                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Your First Employee
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Attendance Tab */}
-      {selectedTab === 'attendance' && (
-        <div className="space-y-6">
-          {/* Attendance Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div className="bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow duration-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Present Today</p>
-                  <p className="text-2xl font-semibold text-green-600">{getAttendanceStats().present}</p>
-                </div>
-                <div className="p-3 rounded-full bg-green-100 text-green-600">
-                  <CheckCircle className="h-6 w-6" />
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow duration-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Absent Today</p>
-                  <p className="text-2xl font-semibold text-red-600">{getAttendanceStats().absent}</p>
-                </div>
-                <div className="p-3 rounded-full bg-red-100 text-red-600">
-                  <XCircle className="h-6 w-6" />
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow duration-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Late Today</p>
-                  <p className="text-2xl font-semibold text-yellow-600">{getAttendanceStats().late}</p>
-                </div>
-                <div className="p-3 rounded-full bg-yellow-100 text-yellow-600">
-                  <Clock className="h-6 w-6" />
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow duration-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Not Marked</p>
-                  <p className="text-2xl font-semibold text-gray-600">{getAttendanceStats().notMarked}</p>
-                </div>
-                <div className="p-3 rounded-full bg-gray-100 text-gray-600">
-                  <Users className="h-6 w-6" />
-                </div>
-              </div>
-            </div>
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Employee Management</h1>
+            <p className="text-gray-600 mt-1">Manage your team and track attendance</p>
           </div>
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={handleRefresh}
+              className="inline-flex items-center px-3 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+              title="Refresh employee data"
+            >
+              <RefreshCw className="h-4 w-4 mr-1" />
+              Refresh
+            </button>
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              <Plus className="h-5 w-5 mr-2" />
+              Add Employee
+            </button>
+          </div>
+        </div>
 
-          {/* Date Selection and Controls */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-              <h2 className="text-xl font-semibold text-gray-900">Daily Attendance</h2>
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <label htmlFor="attendance-date" className="text-sm font-medium text-gray-700">
-                    Date:
-                  </label>
-                  <input
-                    type="date"
-                    id="attendance-date"
-                    value={attendanceDate}
-                    onChange={(e) => setAttendanceDate(e.target.value)}
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-                <button
-                  onClick={() => queryClient.invalidateQueries(['attendance', attendanceDate])}
-                  className="inline-flex items-center px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  disabled={attendanceMutation.isLoading}
-                >
-                  <RefreshCw className={`h-4 w-4 mr-1 ${attendanceMutation.isLoading ? 'animate-spin' : ''}`} />
-                  Refresh
-                </button>
-              </div>
-            </div>
+        {/* Tabs */}
+        <div className="border-b border-gray-200">
+          <nav className="-mb-px flex space-x-8">
+            <button
+              onClick={() => setSelectedTab('employees')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                selectedTab === 'employees'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <User className="inline h-4 w-4 mr-2" />
+              Employees
+            </button>
+            <button
+              onClick={() => setSelectedTab('attendance')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                selectedTab === 'attendance'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <Calendar className="inline h-4 w-4 mr-2" />
+              Attendance
+            </button>
+            <button
+              onClick={() => setSelectedTab('tasks')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                selectedTab === 'tasks'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <Briefcase className="inline h-4 w-4 mr-2" />
+              Tasks
+            </button>
+          </nav>
+        </div>
 
-            {/* Attendance Table */}
-            {isLoading ? (
-              <div className="text-center py-8">
-                <Clock className="h-12 w-12 text-gray-400 mx-auto mb-4 animate-pulse" />
-                <p className="text-gray-500">Loading attendance data...</p>
-              </div>
-            ) : error ? (
-              <div className="text-center py-8">
-                <AlertTriangle className="h-12 w-12 text-red-400 mx-auto mb-4" />
-                <p className="text-red-600 mb-2">Unable to load attendance data</p>
-                <p className="text-sm text-gray-500 mb-4">Please check your connection and try again</p>
-                <button
-                  onClick={() => queryClient.invalidateQueries(['attendance', attendanceDate])}
-                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Try Again
-                </button>
-              </div>
-            ) : !employees?.data || employees.data.length === 0 ? (
-              <div className="text-center py-8">
+        {/* Search Bar */}
+        <div className="flex items-center space-x-4">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search employees by name, role, or department..."
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <div className="text-sm text-gray-500">
+            <Info className="inline h-4 w-4 mr-1" />
+            Tip: Search by name, role, or department to find team members quickly
+          </div>
+        </div>
+
+        {/* Employees Tab */}
+        {selectedTab === 'employees' && (
+          <div className="bg-white rounded-lg shadow overflow-hidden">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Name
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Role
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Department
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Email
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredEmployees?.map((employee) => (
+                  <tr key={employee.employee_id || employee.id}>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">
+                        {employee.first_name} {employee.last_name}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-500">{employee.role}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-500">{employee.department}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-500">{employee.email}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        employee.status === 'active'
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-red-100 text-red-800'
+                      }`}>
+                        {employee.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => openEditModal(employee)}
+                          className="text-blue-600 hover:text-blue-900"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(employee.employee_id || employee.id)}
+                          className="text-red-600 hover:text-red-900"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            
+            {filteredEmployees?.length === 0 && (
+              <div className="text-center py-12">
                 <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No employees found</h3>
-                <p className="text-gray-600 mb-4">Add employees to start tracking attendance</p>
-                <button
-                  onClick={() => {
-                    setSelectedTab('employees');
-                    setShowAddModal(true);
-                  }}
-                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Employee
-                </button>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Employee
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Department
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Status
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Action
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {employees.data.map((employee) => {
-                      const status = getAttendanceStatus(employee.id);
-                      return (
-                        <tr key={employee.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center">
-                              <div className="flex-shrink-0 h-10 w-10">
-                                <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                                  <User className="h-5 w-5 text-blue-600" />
-                                </div>
-                              </div>
-                              <div className="ml-4">
-                                <div className="text-sm font-medium text-gray-900">
-                                  {employee.first_name} {employee.last_name}
-                                </div>
-                                <div className="text-sm text-gray-500">
-                                  {employee.email}
-                                </div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">{employee.department}</div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              status === 'present' ? 'bg-green-100 text-green-800' :
-                              status === 'absent' ? 'bg-red-100 text-red-800' :
-                              status === 'late' ? 'bg-yellow-100 text-yellow-800' :
-                              'bg-gray-100 text-gray-800'
-                            }`}>
-                              {status === 'present' && <CheckCircle className="h-3 w-3 mr-1" />}
-                              {status === 'absent' && <XCircle className="h-3 w-3 mr-1" />}
-                              {status === 'late' && <Clock className="h-3 w-3 mr-1" />}
-                              {status === 'not_marked' && <Info className="h-3 w-3 mr-1" />}
-                              {status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <div className="flex space-x-2">
-                              <button
-                                onClick={() => handleMarkAttendance(employee.id, 'present')}
-                                disabled={attendanceMutation.isLoading}
-                                className={`inline-flex items-center px-3 py-1 rounded text-xs font-medium ${
-                                  status === 'present'
-                                    ? 'bg-green-100 text-green-800 cursor-default'
-                                    : 'bg-green-50 text-green-700 hover:bg-green-100'
-                                } transition-colors`}
-                                disabled={attendanceMutation.isLoading || status === 'present'}
-                              >
-                                <CheckCircle className="h-3 w-3 mr-1" />
-                                Present
-                              </button>
-                              <button
-                                onClick={() => handleMarkAttendance(employee.id, 'absent')}
-                                disabled={attendanceMutation.isLoading}
-                                className={`inline-flex items-center px-3 py-1 rounded text-xs font-medium ${
-                                  status === 'absent'
-                                    ? 'bg-red-100 text-red-800 cursor-default'
-                                    : 'bg-red-50 text-red-700 hover:bg-red-100'
-                                } transition-colors`}
-                                disabled={attendanceMutation.isLoading || status === 'absent'}
-                              >
-                                <XCircle className="h-3 w-3 mr-1" />
-                                Absent
-                              </button>
-                              <button
-                                onClick={() => handleMarkAttendance(employee.id, 'late')}
-                                disabled={attendanceMutation.isLoading}
-                                className={`inline-flex items-center px-3 py-1 rounded text-xs font-medium ${
-                                  status === 'late'
-                                    ? 'bg-yellow-100 text-yellow-800 cursor-default'
-                                    : 'bg-yellow-50 text-yellow-700 hover:bg-yellow-100'
-                                } transition-colors`}
-                                disabled={attendanceMutation.isLoading || status === 'late'}
-                              >
-                                <Clock className="h-3 w-3 mr-1" />
-                                Late
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  {searchTerm ? 'No employees found' : 'No employees in your team'}
+                </h3>
+                <p className="text-gray-600 mb-4">
+                  {searchTerm 
+                    ? 'Try adjusting your search terms or check for typos.'
+                    : 'Get started by adding your first team member.'
+                  }
+                </p>
+                {!searchTerm && (
+                  <button
+                    onClick={() => setShowAddModal(true)}
+                    className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Your First Employee
+                  </button>
+                )}
               </div>
             )}
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Tasks Tab */}
-      {selectedTab === 'tasks' && (
-        <div className="space-y-6">
-          {/* Task Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div className="bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow duration-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Total Tasks</p>
-                  <p className="text-2xl font-semibold text-gray-900">{getTaskStats().total}</p>
+        {/* Attendance Tab */}
+        {selectedTab === 'attendance' && (
+          <div className="space-y-6">
+            {/* Attendance Summary Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow duration-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Present Today</p>
+                    <p className="text-2xl font-semibold text-green-600">{getAttendanceStats().present}</p>
+                  </div>
+                  <div className="p-3 rounded-full bg-green-100 text-green-600">
+                    <CheckCircle className="h-6 w-6" />
+                  </div>
                 </div>
-                <div className="p-3 rounded-full bg-blue-100 text-blue-600">
-                  <Briefcase className="h-6 w-6" />
+              </div>
+              
+              <div className="bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow duration-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Absent Today</p>
+                    <p className="text-2xl font-semibold text-red-600">{getAttendanceStats().absent}</p>
+                  </div>
+                  <div className="p-3 rounded-full bg-red-100 text-red-600">
+                    <XCircle className="h-6 w-6" />
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow duration-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Late Today</p>
+                    <p className="text-2xl font-semibold text-yellow-600">{getAttendanceStats().late}</p>
+                  </div>
+                  <div className="p-3 rounded-full bg-yellow-100 text-yellow-600">
+                    <Clock className="h-6 w-6" />
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow duration-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Not Marked</p>
+                    <p className="text-2xl font-semibold text-gray-600">{getAttendanceStats().notMarked}</p>
+                  </div>
+                  <div className="p-3 rounded-full bg-gray-100 text-gray-600">
+                    <Users className="h-6 w-6" />
+                  </div>
                 </div>
               </div>
             </div>
-            
-            <div className="bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow duration-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Pending</p>
-                  <p className="text-2xl font-semibold text-yellow-600">{getTaskStats().pending}</p>
-                </div>
-                <div className="p-3 rounded-full bg-yellow-100 text-yellow-600">
-                  <Clock className="h-6 w-6" />
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow duration-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">In Progress</p>
-                  <p className="text-2xl font-semibold text-blue-600">{getTaskStats().inProgress}</p>
-                </div>
-                <div className="p-3 rounded-full bg-blue-100 text-blue-600">
-                  <ArrowRight className="h-6 w-6" />
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow duration-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Completed</p>
-                  <p className="text-2xl font-semibold text-green-600">{getTaskStats().completed}</p>
-                </div>
-                <div className="p-3 rounded-full bg-green-100 text-green-600">
-                  <CheckCircle className="h-6 w-6" />
+
+            {/* Date Selection and Controls */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <h2 className="text-xl font-semibold text-gray-900">Daily Attendance</h2>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <label htmlFor="attendance-date" className="text-sm font-medium text-gray-700">
+                      Date:
+                    </label>
+                    <input
+                      type="date"
+                      id="attendance-date"
+                      value={attendanceDate}
+                      onChange={(e) => setAttendanceDate(e.target.value)}
+                      className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <button
+                    onClick={() => queryClient.invalidateQueries(['attendance', attendanceDate])}
+                    className="inline-flex items-center px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    disabled={attendanceMutation.isLoading}
+                  >
+                    <RefreshCw className={`h-4 w-4 mr-1 ${attendanceMutation.isLoading ? 'animate-spin' : ''}`} />
+                    Refresh
+                  </button>
                 </div>
               </div>
+
+              {/* Attendance Table */}
+              {isLoading ? (
+                <div className="text-center py-8">
+                  <Clock className="h-12 w-12 text-gray-400 mx-auto mb-4 animate-pulse" />
+                  <p className="text-gray-500">Loading attendance data...</p>
+                </div>
+              ) : error ? (
+                <div className="text-center py-8">
+                  <AlertTriangle className="h-12 w-12 text-red-400 mx-auto mb-4" />
+                  <p className="text-red-600 mb-2">Unable to load attendance data</p>
+                  <p className="text-sm text-gray-500 mb-4">Please check your connection and try again</p>
+                  <button
+                    onClick={() => queryClient.invalidateQueries(['attendance', attendanceDate])}
+                    className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Try Again
+                  </button>
+                </div>
+              ) : !employees?.data || employees.data.length === 0 ? (
+                <div className="text-center py-8">
+                  <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No employees found</h3>
+                  <p className="text-gray-600 mb-4">Add employees to start tracking attendance</p>
+                  <button
+                    onClick={() => {
+                      setSelectedTab('employees');
+                      setShowAddModal(true);
+                    }}
+                    className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Employee
+                  </button>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Employee
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Department
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Status
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Action
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {employees.data.map((employee) => {
+                        const employeeId = employee.employee_id || employee.id;
+                        const status = getAttendanceStatus(employeeId);
+                        return (
+                          <tr key={employeeId} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center">
+                                <div className="flex-shrink-0 h-10 w-10">
+                                  <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                                    <User className="h-5 w-5 text-blue-600" />
+                                  </div>
+                                </div>
+                                <div className="ml-4">
+                                  <div className="text-sm font-medium text-gray-900">
+                                    {employee.first_name} {employee.last_name}
+                                  </div>
+                                  <div className="text-sm text-gray-500">
+                                    {employee.email}
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900">{employee.department}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                status === 'present' ? 'bg-green-100 text-green-800' :
+                                status === 'absent' ? 'bg-red-100 text-red-800' :
+                                status === 'late' ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-gray-100 text-gray-800'
+                              }`}>
+                                {status === 'present' && <CheckCircle className="h-3 w-3 mr-1" />}
+                                {status === 'absent' && <XCircle className="h-3 w-3 mr-1" />}
+                                {status === 'late' && <Clock className="h-3 w-3 mr-1" />}
+                                {status === 'not_marked' && <Info className="h-3 w-3 mr-1" />}
+                                {status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                              <div className="flex space-x-2">
+                                <button
+                                  onClick={() => handleMarkAttendance(employeeId, 'present')}
+                                  disabled={attendanceMutation.isLoading || status === 'present'}
+                                  className={`inline-flex items-center px-3 py-1 rounded text-xs font-medium ${
+                                    status === 'present'
+                                      ? 'bg-green-100 text-green-800 cursor-default'
+                                      : 'bg-green-50 text-green-700 hover:bg-green-100'
+                                  } transition-colors`}
+                                >
+                                  <CheckCircle className="h-3 w-3 mr-1" />
+                                  Present
+                                </button>
+                                <button
+                                  onClick={() => handleMarkAttendance(employeeId, 'absent')}
+                                  disabled={attendanceMutation.isLoading || status === 'absent'}
+                                  className={`inline-flex items-center px-3 py-1 rounded text-xs font-medium ${
+                                    status === 'absent'
+                                      ? 'bg-red-100 text-red-800 cursor-default'
+                                      : 'bg-red-50 text-red-700 hover:bg-red-100'
+                                  } transition-colors`}
+                                >
+                                  <XCircle className="h-3 w-3 mr-1" />
+                                  Absent
+                                </button>
+                                <button
+                                  onClick={() => handleMarkAttendance(employeeId, 'late')}
+                                  disabled={attendanceMutation.isLoading || status === 'late'}
+                                  className={`inline-flex items-center px-3 py-1 rounded text-xs font-medium ${
+                                    status === 'late'
+                                      ? 'bg-yellow-100 text-yellow-800 cursor-default'
+                                      : 'bg-yellow-50 text-yellow-700 hover:bg-yellow-100'
+                                  } transition-colors`}
+                                >
+                                  <Clock className="h-3 w-3 mr-1" />
+                                  Late
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </div>
+        )}
 
-          {/* Task Controls */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-              <h2 className="text-xl font-semibold text-gray-900">Task List</h2>
-              <button
-                onClick={openTaskModal}
-                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Assign New Task
-              </button>
+        {/* Tasks Tab */}
+        {selectedTab === 'tasks' && (
+          <div className="space-y-6">
+            {/* Task Summary Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow duration-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Total Tasks</p>
+                    <p className="text-2xl font-semibold text-gray-900">{getTaskStats().total}</p>
+                  </div>
+                  <div className="p-3 rounded-full bg-blue-100 text-blue-600">
+                    <Briefcase className="h-6 w-6" />
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow duration-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Pending</p>
+                    <p className="text-2xl font-semibold text-yellow-600">{getTaskStats().pending}</p>
+                  </div>
+                  <div className="p-3 rounded-full bg-yellow-100 text-yellow-600">
+                    <Clock className="h-6 w-6" />
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow duration-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">In Progress</p>
+                    <p className="text-2xl font-semibold text-blue-600">{getTaskStats().inProgress}</p>
+                  </div>
+                  <div className="p-3 rounded-full bg-blue-100 text-blue-600">
+                    <ArrowRight className="h-6 w-6" />
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow duration-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Completed</p>
+                    <p className="text-2xl font-semibold text-green-600">{getTaskStats().completed}</p>
+                  </div>
+                  <div className="p-3 rounded-full bg-green-100 text-green-600">
+                    <CheckCircle className="h-6 w-6" />
+                  </div>
+                </div>
+              </div>
             </div>
 
-            {/* Task List */}
-            {tasksData?.isLoading || isLoading ? (
-              <div className="text-center py-8">
-                <Briefcase className="h-12 w-12 text-gray-400 mx-auto mb-4 animate-pulse" />
-                <p className="text-gray-500">Loading tasks...</p>
-              </div>
-            ) : tasksData?.error || error ? (
-              <div className="text-center py-8">
-                <AlertTriangle className="h-12 w-12 text-red-400 mx-auto mb-4" />
-                <p className="text-red-600 mb-2">Unable to load tasks</p>
-                <p className="text-sm text-gray-500 mb-4">Please check your connection and try again</p>
-                <button
-                  onClick={() => queryClient.invalidateQueries('tasks')}
-                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Try Again
-                </button>
-              </div>
-            ) : !tasksData?.data || tasksData.data.length === 0 ? (
-              <div className="text-center py-8">
-                <Briefcase className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No tasks assigned</h3>
-                <p className="text-gray-600 mb-4">Start by assigning your first task to a team member</p>
+            {/* Task Controls */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <h2 className="text-xl font-semibold text-gray-900">Task List</h2>
                 <button
                   onClick={openTaskModal}
                   className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 >
                   <Plus className="h-4 w-4 mr-2" />
-                  Assign First Task
+                  Assign New Task
                 </button>
               </div>
-            ) : (
-              <div className="space-y-4">
-                {tasksData.data.map((task) => {
-                  const assignee = employees?.data?.find(emp => emp.id === task.assignee_id);
-                  const isOverdue = new Date(task.due_date) < new Date() && task.status !== 'completed';
-                  
-                  return (
-                    <div key={task.id} className={`border rounded-lg p-4 ${
-                      isOverdue ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-white'
-                    }`}>
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <h3 className="text-lg font-medium text-gray-900">{task.title}</h3>
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              task.priority === 'high' ? 'bg-red-100 text-red-800' :
-                              task.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                              'bg-green-100 text-green-800'
-                            }`}>
-                              {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
-                            </span>
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              task.status === 'completed' ? 'bg-green-100 text-green-800' :
-                              task.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
-                              'bg-gray-100 text-gray-800'
-                            }`}>
-                              {task.status === 'in_progress' ? 'In Progress' : 
-                               task.status === 'completed' ? 'Completed' : 'Pending'}
-                            </span>
-                          </div>
-                          {task.description && (
-                            <p className="text-gray-600 mb-3">{task.description}</p>
-                          )}
-                          <div className="flex items-center gap-4 text-sm text-gray-500">
-                            <div className="flex items-center gap-1">
-                              <User className="h-4 w-4" />
-                              <span>{assignee ? `${assignee.first_name} ${assignee.last_name}` : 'Unassigned'}</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Calendar className="h-4 w-4" />
-                              <span className={isOverdue ? 'text-red-600 font-medium' : ''}>
-                                Due: {new Date(task.due_date).toLocaleDateString()}
+
+              {/* Task List */}
+              {tasksData?.isLoading || isLoading ? (
+                <div className="text-center py-8">
+                  <Briefcase className="h-12 w-12 text-gray-400 mx-auto mb-4 animate-pulse" />
+                  <p className="text-gray-500">Loading tasks...</p>
+                </div>
+              ) : tasksData?.error || error ? (
+                <div className="text-center py-8">
+                  <AlertTriangle className="h-12 w-12 text-red-400 mx-auto mb-4" />
+                  <p className="text-red-600 mb-2">Unable to load tasks</p>
+                  <p className="text-sm text-gray-500 mb-4">Please check your connection and try again</p>
+                  <button
+                    onClick={() => queryClient.invalidateQueries('tasks')}
+                    className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Try Again
+                  </button>
+                </div>
+              ) : !tasksData?.data || tasksData.data.length === 0 ? (
+                <div className="text-center py-8">
+                  <Briefcase className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No tasks assigned</h3>
+                  <p className="text-gray-600 mb-4">Start by assigning your first task to a team member</p>
+                  <button
+                    onClick={openTaskModal}
+                    className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Assign First Task
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {tasksData.data.map((task) => {
+                    const assignee = employees?.data?.find(emp => (emp.id === task.assignee_id) || (emp.employee_id === task.assignee_id));
+                    const isOverdue = new Date(task.due_date) < new Date() && task.status !== 'completed';
+                    
+                    return (
+                      <div key={task.id} className={`border rounded-lg p-4 ${
+                        isOverdue ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-white'
+                      }`}>
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <h3 className="text-lg font-medium text-gray-900">{task.title}</h3>
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                task.priority === 'high' ? 'bg-red-100 text-red-800' :
+                                task.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-green-100 text-green-800'
+                              }`}>
+                                {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
+                              </span>
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                task.status === 'completed' ? 'bg-green-100 text-green-800' :
+                                task.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                                'bg-gray-100 text-gray-800'
+                              }`}>
+                                {task.status === 'in_progress' ? 'In Progress' : 
+                                 task.status === 'completed' ? 'Completed' : 'Pending'}
                               </span>
                             </div>
-                            {isOverdue && (
-                              <div className="flex items-center gap-1 text-red-600">
-                                <AlertTriangle className="h-4 w-4" />
-                                <span>Overdue</span>
-                              </div>
+                            {task.description && (
+                              <p className="text-gray-600 mb-3">{task.description}</p>
                             )}
+                            <div className="flex items-center gap-4 text-sm text-gray-500">
+                              <div className="flex items-center gap-1">
+                                <User className="h-4 w-4" />
+                                <span>{assignee ? `${assignee.first_name} ${assignee.last_name}` : 'Unassigned'}</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Calendar className="h-4 w-4" />
+                                <span className={isOverdue ? 'text-red-600 font-medium' : ''}>
+                                  Due: {new Date(task.due_date).toLocaleDateString()}
+                                </span>
+                              </div>
+                              {isOverdue && (
+                                <div className="flex items-center gap-1 text-red-600">
+                                  <AlertTriangle className="h-4 w-4" />
+                                  <span>Overdue</span>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
-                        <div className="flex space-x-2 ml-4">
-                          <button
-                            onClick={() => {
-                              // Update task status logic would go here
-                              console.log('Update task:', task.id);
-                            }}
-                            className="inline-flex items-center px-3 py-1 text-xs bg-blue-50 text-blue-700 rounded hover:bg-blue-100 transition-colors"
-                          >
-                            <Edit className="h-3 w-3 mr-1" />
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => {
-                              if (window.confirm('Are you sure you want to delete this task?')) {
-                                // Delete task logic would go here
-                                console.log('Delete task:', task.id);
-                              }
-                            }}
-                            className="inline-flex items-center px-3 py-1 text-xs bg-red-50 text-red-700 rounded hover:bg-red-100 transition-colors"
-                          >
-                            <Trash2 className="h-3 w-3 mr-1" />
-                            Delete
-                          </button>
-                        </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Add/Edit Modal */}
-      {(showAddModal || editingEmployee) && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
-            <h3 className="text-lg font-bold text-gray-900 mb-4">
-              {editingEmployee ? 'Edit Employee' : 'Add New Employee'}
-            </h3>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* First Name */}
-                <div>
-                  <label htmlFor="first_name" className="block text-sm font-medium text-gray-700 mb-1">
-                    First Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    id="first_name"
-                    name="first_name"
-                    value={formData.first_name}
-                    onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      formErrors.first_name ? 'border-red-300' : 'border-gray-300'
-                    }`}
-                    placeholder="Enter first name"
-                  />
-                  {formErrors.first_name && (
-                    <p className="mt-1 text-sm text-red-600">{formErrors.first_name}</p>
-                  )}
+        {/* Add/Edit Modal */}
+        {(showAddModal || editingEmployee) && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div className="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">
+                {editingEmployee ? 'Edit Employee' : 'Add New Employee'}
+              </h3>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* First Name */}
+                  <div>
+                    <label htmlFor="first_name" className="block text-sm font-medium text-gray-700 mb-1">
+                      First Name <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      id="first_name"
+                      name="first_name"
+                      value={formData.first_name}
+                      onChange={handleInputChange}
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                        formErrors.first_name ? 'border-red-300' : 'border-gray-300'
+                      }`}
+                      placeholder="Enter first name"
+                    />
+                    {formErrors.first_name && (
+                      <p className="mt-1 text-sm text-red-600">{formErrors.first_name}</p>
+                    )}
+                  </div>
+
+                  {/* Last Name */}
+                  <div>
+                    <label htmlFor="last_name" className="block text-sm font-medium text-gray-700 mb-1">
+                      Last Name <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      id="last_name"
+                      name="last_name"
+                      value={formData.last_name}
+                      onChange={handleInputChange}
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                        formErrors.last_name ? 'border-red-300' : 'border-gray-300'
+                      }`}
+                      placeholder="Enter last name"
+                    />
+                    {formErrors.last_name && (
+                      <p className="mt-1 text-sm text-red-600">{formErrors.last_name}</p>
+                    )}
+                  </div>
+
+                  {/* Email */}
+                  <div>
+                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                      Email Address <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="email"
+                      id="email"
+                      name="email"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                        formErrors.email ? 'border-red-300' : 'border-gray-300'
+                      }`}
+                      placeholder="employee@company.com"
+                    />
+                    {formErrors.email && (
+                      <p className="mt-1 text-sm text-red-600">{formErrors.email}</p>
+                    )}
+                  </div>
+
+                  {/* Phone */}
+                  <div>
+                    <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
+                      Phone Number
+                    </label>
+                    <input
+                      type="tel"
+                      id="phone"
+                      name="phone"
+                      value={formData.phone}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="(555) 123-4567"
+                    />
+                  </div>
+
+                  {/* Role */}
+                  <div>
+                    <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">
+                      Role <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      id="role"
+                      name="role"
+                      value={formData.role}
+                      onChange={handleInputChange}
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                        formErrors.role ? 'border-red-300' : 'border-gray-300'
+                      }`}
+                      placeholder="e.g., Sales Manager"
+                    />
+                    {formErrors.role && (
+                      <p className="mt-1 text-sm text-red-600">{formErrors.role}</p>
+                    )}
+                  </div>
+
+                  {/* Department */}
+                  <div>
+                    <label htmlFor="department" className="block text-sm font-medium text-gray-700 mb-1">
+                      Department <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      id="department"
+                      name="department"
+                      value={formData.department}
+                      onChange={handleInputChange}
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                        formErrors.department ? 'border-red-300' : 'border-gray-300'
+                      }`}
+                    >
+                      <option value="">Select a department</option>
+                      <option value="Sales">Sales</option>
+                      <option value="Marketing">Marketing</option>
+                      <option value="Engineering">Engineering</option>
+                      <option value="HR">Human Resources</option>
+                      <option value="Finance">Finance</option>
+                      <option value="Operations">Operations</option>
+                      <option value="Other">Other</option>
+                    </select>
+                    {formErrors.department && (
+                      <p className="mt-1 text-sm text-red-600">{formErrors.department}</p>
+                    )}
+                  </div>
+
+                  {/* Hire Date */}
+                  <div>
+                    <label htmlFor="hire_date" className="block text-sm font-medium text-gray-700 mb-1">
+                      Hire Date
+                    </label>
+                    <input
+                      type="date"
+                      id="hire_date"
+                      name="hire_date"
+                      value={formData.hire_date}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+
+                  {/* Status */}
+                  <div>
+                    <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
+                      Status
+                    </label>
+                    <select
+                      id="status"
+                      name="status"
+                      value={formData.status}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="active">Active</option>
+                      <option value="inactive">Inactive</option>
+                      <option value="on_leave">On Leave</option>
+                    </select>
+                  </div>
                 </div>
 
-                {/* Last Name */}
-                <div>
-                  <label htmlFor="last_name" className="block text-sm font-medium text-gray-700 mb-1">
-                    Last Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    id="last_name"
-                    name="last_name"
-                    value={formData.last_name}
-                    onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      formErrors.last_name ? 'border-red-300' : 'border-gray-300'
-                    }`}
-                    placeholder="Enter last name"
-                  />
-                  {formErrors.last_name && (
-                    <p className="mt-1 text-sm text-red-600">{formErrors.last_name}</p>
-                  )}
-                </div>
-
-                {/* Email */}
-                <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                    Email Address <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="email"
-                    id="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      formErrors.email ? 'border-red-300' : 'border-gray-300'
-                    }`}
-                    placeholder="employee@company.com"
-                  />
-                  {formErrors.email && (
-                    <p className="mt-1 text-sm text-red-600">{formErrors.email}</p>
-                  )}
-                </div>
-
-                {/* Phone */}
-                <div>
-                  <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
-                    Phone Number
-                  </label>
-                  <input
-                    type="tel"
-                    id="phone"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="(555) 123-4567"
-                  />
-                </div>
-
-                {/* Role */}
-                <div>
-                  <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">
-                    Role <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    id="role"
-                    name="role"
-                    value={formData.role}
-                    onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      formErrors.role ? 'border-red-300' : 'border-gray-300'
-                    }`}
-                    placeholder="e.g., Sales Manager"
-                  />
-                  {formErrors.role && (
-                    <p className="mt-1 text-sm text-red-600">{formErrors.role}</p>
-                  )}
-                </div>
-
-                {/* Department */}
-                <div>
-                  <label htmlFor="department" className="block text-sm font-medium text-gray-700 mb-1">
-                    Department <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    id="department"
-                    name="department"
-                    value={formData.department}
-                    onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      formErrors.department ? 'border-red-300' : 'border-gray-300'
-                    }`}
+                {/* Form Actions */}
+                <div className="flex justify-end space-x-3 pt-4 border-t">
+                  <button
+                    type="button"
+                    onClick={closeModal}
+                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
                   >
-                    <option value="">Select a department</option>
-                    <option value="Sales">Sales</option>
-                    <option value="Marketing">Marketing</option>
-                    <option value="Engineering">Engineering</option>
-                    <option value="HR">Human Resources</option>
-                    <option value="Finance">Finance</option>
-                    <option value="Operations">Operations</option>
-                    <option value="Other">Other</option>
-                  </select>
-                  {formErrors.department && (
-                    <p className="mt-1 text-sm text-red-600">{formErrors.department}</p>
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    {editingEmployee ? 'Update Employee' : 'Add Employee'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Task Assignment Modal */}
+        {showTaskModal && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div className="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">Assign New Task</h3>
+              <form onSubmit={handleTaskSubmit} className="space-y-4">
+                {/* Task Title */}
+                <div>
+                  <label htmlFor="task-title" className="block text-sm font-medium text-gray-700 mb-1">
+                    Task Title <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    id="task-title"
+                    name="title"
+                    value={taskFormData.title}
+                    onChange={handleTaskInputChange}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      taskFormErrors.title ? 'border-red-300' : 'border-gray-300'
+                    }`}
+                    placeholder="Enter task title"
+                  />
+                  {taskFormErrors.title && (
+                    <p className="mt-1 text-sm text-red-600">{taskFormErrors.title}</p>
                   )}
                 </div>
 
-                {/* Hire Date */}
+                {/* Description */}
                 <div>
-                  <label htmlFor="hire_date" className="block text-sm font-medium text-gray-700 mb-1">
-                    Hire Date
+                  <label htmlFor="task-description" className="block text-sm font-medium text-gray-700 mb-1">
+                    Description
+                  </label>
+                  <textarea
+                    id="task-description"
+                    name="description"
+                    value={taskFormData.description}
+                    onChange={handleTaskInputChange}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter task description (optional)"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Assignee */}
+                  <div>
+                    <label htmlFor="task-assignee" className="block text-sm font-medium text-gray-700 mb-1">
+                      Assign To <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      id="task-assignee"
+                      name="assignee_id"
+                      value={taskFormData.assignee_id}
+                      onChange={handleTaskInputChange}
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                        taskFormErrors.assignee_id ? 'border-red-300' : 'border-gray-300'
+                      }`}
+                    >
+                      <option value="">Select an employee</option>
+                      {employees?.data?.map((employee) => (
+                        <option key={employee.employee_id || employee.id} value={employee.employee_id || employee.id}>
+                          {employee.first_name} {employee.last_name} - {employee.role}
+                        </option>
+                      ))}
+                    </select>
+                    {taskFormErrors.assignee_id && (
+                      <p className="mt-1 text-sm text-red-600">{taskFormErrors.assignee_id}</p>
+                    )}
+                  </div>
+
+                  {/* Priority */}
+                  <div>
+                    <label htmlFor="task-priority" className="block text-sm font-medium text-gray-700 mb-1">
+                      Priority
+                    </label>
+                    <select
+                      id="task-priority"
+                      name="priority"
+                      value={taskFormData.priority}
+                      onChange={handleTaskInputChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="low">Low</option>
+                      <option value="medium">Medium</option>
+                      <option value="high">High</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Due Date */}
+                <div>
+                  <label htmlFor="task-due-date" className="block text-sm font-medium text-gray-700 mb-1">
+                    Due Date <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="date"
-                    id="hire_date"
-                    name="hire_date"
-                    value={formData.hire_date}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-
-                {/* Status */}
-                <div>
-                  <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
-                    Status
-                  </label>
-                  <select
-                    id="status"
-                    name="status"
-                    value={formData.status}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                    <option value="on_leave">On Leave</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Form Actions */}
-              <div className="flex justify-end space-x-3 pt-4 border-t">
-                <button
-                  type="button"
-                  onClick={closeModal}
-                  className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  {editingEmployee ? 'Update Employee' : 'Add Employee'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Task Assignment Modal */}
-      {showTaskModal && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
-            <h3 className="text-lg font-bold text-gray-900 mb-4">Assign New Task</h3>
-            <form onSubmit={handleTaskSubmit} className="space-y-4">
-              {/* Task Title */}
-              <div>
-                <label htmlFor="task-title" className="block text-sm font-medium text-gray-700 mb-1">
-                  Task Title <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  id="task-title"
-                  name="title"
-                  value={taskFormData.title}
-                  onChange={handleTaskInputChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    taskFormErrors.title ? 'border-red-300' : 'border-gray-300'
-                  }`}
-                  placeholder="Enter task title"
-                />
-                {taskFormErrors.title && (
-                  <p className="mt-1 text-sm text-red-600">{taskFormErrors.title}</p>
-                )}
-              </div>
-
-              {/* Description */}
-              <div>
-                <label htmlFor="task-description" className="block text-sm font-medium text-gray-700 mb-1">
-                  Description
-                </label>
-                <textarea
-                  id="task-description"
-                  name="description"
-                  value={taskFormData.description}
-                  onChange={handleTaskInputChange}
-                  rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Enter task description (optional)"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Assignee */}
-                <div>
-                  <label htmlFor="task-assignee" className="block text-sm font-medium text-gray-700 mb-1">
-                    Assign To <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    id="task-assignee"
-                    name="assignee_id"
-                    value={taskFormData.assignee_id}
+                    id="task-due-date"
+                    name="due_date"
+                    value={taskFormData.due_date}
                     onChange={handleTaskInputChange}
                     className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      taskFormErrors.assignee_id ? 'border-red-300' : 'border-gray-300'
+                      taskFormErrors.due_date ? 'border-red-300' : 'border-gray-300'
                     }`}
-                  >
-                    <option value="">Select an employee</option>
-                    {employees?.data?.map((employee) => (
-                      <option key={employee.id} value={employee.id}>
-                        {employee.first_name} {employee.last_name} - {employee.role}
-                      </option>
-                    ))}
-                  </select>
-                  {taskFormErrors.assignee_id && (
-                    <p className="mt-1 text-sm text-red-600">{taskFormErrors.assignee_id}</p>
+                  />
+                  {taskFormErrors.due_date && (
+                    <p className="mt-1 text-sm text-red-600">{taskFormErrors.due_date}</p>
                   )}
                 </div>
 
-                {/* Priority */}
-                <div>
-                  <label htmlFor="task-priority" className="block text-sm font-medium text-gray-700 mb-1">
-                    Priority
-                  </label>
-                  <select
-                    id="task-priority"
-                    name="priority"
-                    value={taskFormData.priority}
-                    onChange={handleTaskInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                {/* Form Actions */}
+                <div className="flex justify-end space-x-3 pt-4 border-t">
+                  <button
+                    type="button"
+                    onClick={closeTaskModal}
+                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
                   >
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                  </select>
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    disabled={taskMutation.isLoading}
+                  >
+                    {taskMutation.isLoading ? 'Assigning...' : 'Assign Task'}
+                  </button>
                 </div>
-              </div>
-
-              {/* Due Date */}
-              <div>
-                <label htmlFor="task-due-date" className="block text-sm font-medium text-gray-700 mb-1">
-                  Due Date <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="date"
-                  id="task-due-date"
-                  name="due_date"
-                  value={taskFormData.due_date}
-                  onChange={handleTaskInputChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    taskFormErrors.due_date ? 'border-red-300' : 'border-gray-300'
-                  }`}
-                />
-                {taskFormErrors.due_date && (
-                  <p className="mt-1 text-sm text-red-600">{taskFormErrors.due_date}</p>
-                )}
-              </div>
-
-              {/* Form Actions */}
-              <div className="flex justify-end space-x-3 pt-4 border-t">
-                <button
-                  type="button"
-                  onClick={closeTaskModal}
-                  className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  disabled={taskMutation.isLoading}
-                >
-                  {taskMutation.isLoading ? 'Assigning...' : 'Assign Task'}
-                </button>
-              </div>
-            </form>
+              </form>
+            </div>
           </div>
-        </div>
-      )}
+        )}
       </div>
     </div>
   );
