@@ -15,6 +15,7 @@ yarn-error.log*
 dist/
 \venv
 \__pycache__
+\desktop-build
 
 # Logs
 logs

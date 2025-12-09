@@ -1,6 +1,7 @@
 {
   "dependencies": {
     "colors": "1.4.0",
+    "javascript-obfuscator": "5.0.1",
     "rimraf": "6.1.2"
   }
 }

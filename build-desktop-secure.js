@@ -173,8 +173,16 @@ class DesktopBuilder {
     const backendBuildDir = path.join(this.buildDir, 'backend');
     fs.mkdirSync(backendBuildDir, { recursive: true });
     
-    // Copy backend source
-    execSync(`xcopy /E /I /Y "${this.backendDir}" "${backendBuildDir}"`, { stdio: 'inherit' });
+    // Copy backend source - fix the xcopy command
+    log('Copying backend files...');
+    const backendSource = path.resolve(this.backendDir);
+    execSync(`xcopy /E /I /Y "${backendSource}" "${backendBuildDir}"`, { stdio: 'inherit' });
+    
+    // Verify requirements.txt exists
+    const requirementsPath = path.join(backendBuildDir, 'requirements.txt');
+    if (!fs.existsSync(requirementsPath)) {
+      throw new Error('requirements.txt not found in backend build directory');
+    }
     
     // Create virtual environment
     log('Creating Python virtual environment...');
@@ -184,7 +192,7 @@ class DesktopBuilder {
     
     // Install dependencies
     log('Installing Python dependencies...');
-    execSync(`"${venvPython}" -m pip install -r requirements.txt`, { stdio: 'inherit' });
+    execSync(`cd "${backendBuildDir}" && "${venvPython}" -m pip install -r requirements.txt`, { stdio: 'inherit' });
     
     // Apply code obfuscation if enabled
     if (CONFIG.obfuscateCode) {
@@ -227,8 +235,16 @@ class DesktopBuilder {
     const frontendBuildDir = path.join(this.buildDir, 'frontend');
     fs.mkdirSync(frontendBuildDir, { recursive: true });
     
-    // Copy frontend source
-    execSync(`xcopy /E /I /Y "${this.frontendDir}" "${frontendBuildDir}"`, { stdio: 'inherit' });
+    // Copy frontend source - fix the xcopy command
+    log('Copying frontend files...');
+    const frontendSource = path.resolve(this.frontendDir);
+    execSync(`xcopy /E /I /Y "${frontendSource}" "${frontendBuildDir}"`, { stdio: 'inherit' });
+    
+    // Verify package.json exists in renderer
+    const rendererPackagePath = path.join(frontendBuildDir, 'src', 'renderer', 'package.json');
+    if (!fs.existsSync(rendererPackagePath)) {
+      throw new Error('package.json not found in frontend renderer directory');
+    }
     
     // Install dependencies
     log('Installing frontend dependencies...');
@@ -320,8 +336,8 @@ class DesktopBuilder {
           'LICENSE.txt'
         ],
         win: {
-          target: 'nsis',
-          icon: 'assets/icon.ico'
+          target: 'nsis'
+          // Note: Icon will be set after assets are copied
         },
         nsis: {
           oneClick: false,
@@ -372,8 +388,23 @@ contextBridge.exposeInMainWorld('electronAPI', {
     const assetsDir = path.join(desktopDir, 'assets');
     fs.mkdirSync(assetsDir, { recursive: true });
     
-    // Create a simple icon (you should replace with your actual icon)
-    fs.writeFileSync(path.join(assetsDir, 'icon.ico'), '');
+    // Copy the actual icon file from the main assets directory
+    const iconSourcePath = path.resolve('assets', 'icon.ico');
+    const iconTargetPath = path.join(assetsDir, 'icon.ico');
+    
+    if (fs.existsSync(iconSourcePath)) {
+      fs.copyFileSync(iconSourcePath, iconTargetPath);
+      log('Copied icon.ico to desktop package');
+      
+      // Update package.json with icon reference after successful copy
+      const packageJsonPath = path.join(desktopDir, 'package.json');
+      const packageData = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+      packageData.build.win.icon = 'assets/icon.ico';
+      fs.writeFileSync(packageJsonPath, JSON.stringify(packageData, null, 2));
+    } else {
+      log('⚠️  Warning: icon.ico not found, creating placeholder', colors.yellow);
+      fs.writeFileSync(iconTargetPath, '');
+    }
     
     // Install Electron dependencies
     log('Installing Electron dependencies...');
@@ -399,11 +430,65 @@ contextBridge.exposeInMainWorld('electronAPI', {
       
       if (fs.existsSync(installerPath)) {
         fs.renameSync(installerPath, targetPath);
+        success('Installers created successfully');
+        log(`📦 Installer location: ${targetPath}`);
+      } else {
+        // Check for other possible installer names
+        const possibleNames = [
+          `${CONFIG.appName}-${CONFIG.version}.exe`,
+          `${CONFIG.appName}.exe`,
+          `Setup.exe`
+        ];
+        
+        for (const name of possibleNames) {
+          const altPath = path.join(desktopDir, name);
+          if (fs.existsSync(altPath)) {
+            fs.renameSync(altPath, targetPath);
+            success('Installers created successfully');
+            log(`📦 Installer location: ${targetPath}`);
+            return;
+          }
+        }
+        
+        throw new Error('Installer file not found after build');
       }
       
-      success('Installers created successfully');
     } catch (err) {
-      throw new Error(`Failed to create installer: ${err.message}`);
+      if (err.message.includes('icon') || err.message.includes('ICO') || err.message.includes('format')) {
+        log('⚠️  Icon-related error detected. Trying build without custom icon...', colors.yellow);
+        
+        // Try building without icon
+        const packageJsonPath = path.join(desktopDir, 'package.json');
+        const packageData = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+        
+        // Remove icon reference
+        if (packageData.build.win) {
+          delete packageData.build.win.icon;
+        }
+        fs.writeFileSync(packageJsonPath, JSON.stringify(packageData, null, 2));
+        
+        try {
+          execSync(`cd "${desktopDir}" && npm run build:electron`, { stdio: 'inherit' });
+          
+          // Move installer to main build directory
+          const installerName = `${CONFIG.appName} Setup ${CONFIG.version}.exe`;
+          const installerPath = path.join(desktopDir, installerName);
+          const targetPath = path.join(this.buildDir, installerName);
+          
+          if (fs.existsSync(installerPath)) {
+            fs.renameSync(installerPath, targetPath);
+            success('Installers created successfully (without custom icon)');
+            log(`📦 Installer location: ${targetPath}`);
+          } else {
+            throw new Error('Installer file not found after build without icon');
+          }
+          
+        } catch (secondErr) {
+          throw new Error(`Failed to create installer even without icon: ${secondErr.message}`);
+        }
+      } else {
+        throw new Error(`Failed to create installer: ${err.message}`);
+      }
     }
   }
 }
