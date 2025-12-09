@@ -219,11 +219,26 @@ class DesktopBuilder {
       const mainPy = path.join(backendBuildDir, 'main.py');
       const distDir = path.join(backendBuildDir, 'dist');
       
-      execSync(`cd "${backendBuildDir}" && "${venvPython}" -m PyInstaller --onefile --windowed --name "PlanningBordServer" "${mainPy}"`, { stdio: 'inherit' });
+      // First check if main.py exists
+      if (!fs.existsSync(mainPy)) {
+        log('⚠️  main.py not found in backend build directory', colors.yellow);
+        throw new Error('main.py not found');
+      }
+      
+      // Use PyInstaller with console mode for debugging (remove --windowed temporarily)
+      execSync(`cd "${backendBuildDir}" && "${venvPython}" -m PyInstaller --onefile --name "PlanningBordServer" "${mainPy}"`, { stdio: 'inherit' });
+      
+      // Check if executable was created
+      const exePath = path.join(backendBuildDir, 'dist', 'PlanningBordServer.exe');
+      if (fs.existsSync(exePath)) {
+        log(`✅ Executable created at: ${exePath}`);
+      } else {
+        log('⚠️  Executable not found after PyInstaller', colors.yellow);
+      }
       
       success('Backend compiled to executable');
     } catch (err) {
-      log('⚠️  Could not create compiled executable, using original', colors.yellow);
+      log(`⚠️  Could not create compiled executable: ${err.message}`, colors.yellow);
     }
     
     success('Backend built successfully');
@@ -332,7 +347,7 @@ class DesktopBuilder {
           'setup.html',
           'assets/**/*',
           'frontend/src/renderer/build/**/*',
-          'backend/dist/**/*',
+          'backend/**/*',
           'LICENSE.txt'
         ],
         win: {
@@ -404,6 +419,27 @@ contextBridge.exposeInMainWorld('electronAPI', {
     } else {
       log('⚠️  Warning: icon.ico not found, creating placeholder', colors.yellow);
       fs.writeFileSync(iconTargetPath, '');
+    }
+    
+    // Copy backend files to the desktop directory
+    log('Copying backend files to desktop package...');
+    const backendSourceDir = path.join(this.buildDir, 'backend');
+    const backendTargetDir = path.join(desktopDir, 'backend');
+    
+    if (fs.existsSync(backendSourceDir)) {
+      // Copy entire backend directory including dist folder and source files
+      execSync(`xcopy /E /I /Y "${backendSourceDir}" "${backendTargetDir}"`, { stdio: 'inherit' });
+      log('Backend files copied to desktop package');
+      
+      // Also copy the main.py file to the root of backend for fallback
+      const mainPySource = path.join(backendSourceDir, 'main.py');
+      const mainPyTarget = path.join(backendTargetDir, 'main.py');
+      if (fs.existsSync(mainPySource) && !fs.existsSync(mainPyTarget)) {
+        fs.copyFileSync(mainPySource, mainPyTarget);
+        log('main.py copied to backend root for fallback');
+      }
+    } else {
+      log('⚠️  Warning: Backend build directory not found', colors.yellow);
     }
     
     // Install Electron dependencies

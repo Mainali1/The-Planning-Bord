@@ -92,9 +92,14 @@ function createMainWindow() {
 }
 
 function startBackend() {
+  console.log('Starting backend...');
+  
+  // Try the compiled executable first
   const backendPath = path.join(__dirname, 'backend', 'dist', 'PlanningBordServer.exe');
+  console.log(`Checking for compiled backend at: ${backendPath}`);
   
   if (fs.existsSync(backendPath)) {
+    console.log('Found compiled backend, starting...');
     backendProcess = spawn(backendPath, [], {
       stdio: 'pipe',
       cwd: path.join(__dirname, 'backend')
@@ -117,14 +122,18 @@ function startBackend() {
       setTimeout(resolve, 3000);
     });
   } else {
-    console.log('Backend executable not found, trying Python version...');
+    console.log('Compiled backend executable not found at:', backendPath);
     
-    // Fallback to Python version
-    const pythonPath = path.join(__dirname, 'backend', 'venv', 'Scripts', 'python.exe');
+    // Try Python from venv
+    const pythonVenvPath = path.join(__dirname, 'backend', 'venv', 'Scripts', 'python.exe');
     const mainPyPath = path.join(__dirname, 'backend', 'main.py');
     
-    if (fs.existsSync(pythonPath) && fs.existsSync(mainPyPath)) {
-      backendProcess = spawn(pythonPath, [mainPyPath], {
+    console.log(`Checking for Python venv at: ${pythonVenvPath}`);
+    console.log(`Checking for main.py at: ${mainPyPath}`);
+    
+    if (fs.existsSync(pythonVenvPath) && fs.existsSync(mainPyPath)) {
+      console.log('Found Python venv, starting backend with venv Python...');
+      backendProcess = spawn(pythonVenvPath, [mainPyPath], {
         stdio: 'pipe',
         cwd: path.join(__dirname, 'backend')
       });
@@ -133,19 +142,43 @@ function startBackend() {
         setTimeout(resolve, 5000);
       });
     } else {
-      throw new Error('Neither compiled backend nor Python backend found');
+      console.log('Python venv not found, trying system Python...');
+      
+      // Fallback to system Python
+      if (fs.existsSync(mainPyPath)) {
+        console.log('Found main.py, trying system Python...');
+        backendProcess = spawn('python', [mainPyPath], {
+          stdio: 'pipe',
+          cwd: path.join(__dirname, 'backend')
+        });
+        
+        return new Promise((resolve) => {
+          setTimeout(resolve, 5000);
+        });
+      } else {
+        console.log('main.py not found at:', mainPyPath);
+        throw new Error('Neither compiled backend nor Python backend found. Checked paths:\n' +
+          `Compiled: ${backendPath}\n` +
+          `Python venv: ${pythonVenvPath}\n` +
+          `main.py: ${mainPyPath}`);
+      }
     }
+  }
+}
+
+async function checkBackendHealth() {
+  try {
+    const response = await fetch('http://localhost:8000/health');
+    return response.ok;
+  } catch (error) {
+    console.log('Backend health check failed:', error.message);
+    return false;
   }
 }
 
 // IPC handlers
 ipcMain.handle('check-backend-status', async () => {
-  try {
-    const response = await fetch('http://localhost:8000/health');
-    return response.ok;
-  } catch (error) {
-    return false;
-  }
+  return await checkBackendHealth();
 });
 
 ipcMain.handle('complete-setup', async (event, setupData) => {
@@ -216,7 +249,18 @@ app.whenReady().then(async () => {
   ensureConfigDir();
   
   try {
+    console.log('Starting backend...');
     await startBackend();
+    console.log('Backend started successfully');
+    
+    // Check if backend is actually responding
+    console.log('Checking backend health...');
+    const isHealthy = await checkBackendHealth();
+    if (!isHealthy) {
+      console.log('Backend health check failed, but continuing...');
+    } else {
+      console.log('Backend health check passed');
+    }
     
     if (!isSetupComplete()) {
       createSetupWindow();
@@ -224,7 +268,8 @@ app.whenReady().then(async () => {
       createMainWindow();
     }
   } catch (error) {
-    dialog.showErrorBox('Startup Error', `Failed to start The Planning Bord: ${error.message}`);
+    console.error('Startup error:', error);
+    dialog.showErrorBox('Startup Error', `Failed to start The Planning Bord: ${error.message}\n\nPlease check that the backend files are properly installed.`);
     app.quit();
   }
 });
