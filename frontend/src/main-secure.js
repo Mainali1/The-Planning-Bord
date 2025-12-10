@@ -124,44 +124,68 @@ function startBackend() {
   } else {
     console.log('Compiled backend executable not found at:', backendPath);
     
-    // Try Python from venv
-    const pythonVenvPath = path.join(__dirname, 'backend', 'venv', 'Scripts', 'python.exe');
+    // Check if we're running from a packaged app (no venv available)
     const mainPyPath = path.join(__dirname, 'backend', 'main.py');
-    
-    console.log(`Checking for Python venv at: ${pythonVenvPath}`);
     console.log(`Checking for main.py at: ${mainPyPath}`);
     
-    if (fs.existsSync(pythonVenvPath) && fs.existsSync(mainPyPath)) {
-      console.log('Found Python venv, starting backend with venv Python...');
-      backendProcess = spawn(pythonVenvPath, [mainPyPath], {
-        stdio: 'pipe',
-        cwd: path.join(__dirname, 'backend')
-      });
+    if (fs.existsSync(mainPyPath)) {
+      // In packaged app, skip venv check and go straight to system Python
+      const isPackaged = !process.env.NODE_ENV || process.env.NODE_ENV === 'production';
       
-      return new Promise((resolve) => {
-        setTimeout(resolve, 5000);
-      });
-    } else {
-      console.log('Python venv not found, trying system Python...');
-      
-      // Fallback to system Python
-      if (fs.existsSync(mainPyPath)) {
-        console.log('Found main.py, trying system Python...');
+      if (isPackaged) {
+        console.log('Running from packaged app, using system Python directly...');
         backendProcess = spawn('python', [mainPyPath], {
           stdio: 'pipe',
           cwd: path.join(__dirname, 'backend')
+        });
+        
+        backendProcess.stdout.on('data', (data) => {
+          console.log(`Backend: ${data}`);
+        });
+        
+        backendProcess.stderr.on('data', (data) => {
+          console.error(`Backend Error: ${data}`);
+        });
+        
+        backendProcess.on('close', (code) => {
+          console.log(`Backend process exited with code ${code}`);
         });
         
         return new Promise((resolve) => {
           setTimeout(resolve, 5000);
         });
       } else {
-        console.log('main.py not found at:', mainPyPath);
-        throw new Error('Neither compiled backend nor Python backend found. Checked paths:\n' +
-          `Compiled: ${backendPath}\n` +
-          `Python venv: ${pythonVenvPath}\n` +
-          `main.py: ${mainPyPath}`);
+        // Development mode - try venv first
+        const pythonVenvPath = path.join(__dirname, 'backend', 'venv', 'Scripts', 'python.exe');
+        console.log(`Checking for Python venv at: ${pythonVenvPath}`);
+        
+        if (fs.existsSync(pythonVenvPath)) {
+          console.log('Found Python venv, starting backend with venv Python...');
+          backendProcess = spawn(pythonVenvPath, [mainPyPath], {
+            stdio: 'pipe',
+            cwd: path.join(__dirname, 'backend')
+          });
+          
+          return new Promise((resolve) => {
+            setTimeout(resolve, 5000);
+          });
+        } else {
+          console.log('Python venv not found, trying system Python...');
+          backendProcess = spawn('python', [mainPyPath], {
+            stdio: 'pipe',
+            cwd: path.join(__dirname, 'backend')
+          });
+          
+          return new Promise((resolve) => {
+            setTimeout(resolve, 5000);
+          });
+        }
       }
+    } else {
+      console.log('main.py not found at:', mainPyPath);
+      throw new Error('Neither compiled backend nor Python backend found. Checked paths:\n' +
+        `Compiled: ${backendPath}\n` +
+        `main.py: ${mainPyPath}`);
     }
   }
 }

@@ -213,8 +213,8 @@ class DesktopBuilder {
       }
     }
     
-    // Create compiled executable
-    log('Creating compiled executable...');
+    // Build backend executable
+    log('Building backend executable...');
     try {
       const mainPy = path.join(backendBuildDir, 'main.py');
       const distDir = path.join(backendBuildDir, 'dist');
@@ -225,18 +225,25 @@ class DesktopBuilder {
         throw new Error('main.py not found');
       }
       
-      // Use PyInstaller with console mode for debugging (remove --windowed temporarily)
-      execSync(`cd "${backendBuildDir}" && "${venvPython}" -m PyInstaller --onefile --name "PlanningBordServer" "${mainPy}"`, { stdio: 'inherit' });
-      
-      // Check if executable was created
-      const exePath = path.join(backendBuildDir, 'dist', 'PlanningBordServer.exe');
-      if (fs.existsSync(exePath)) {
-        log(`✅ Executable created at: ${exePath}`);
-      } else {
-        log('⚠️  Executable not found after PyInstaller', colors.yellow);
+      // Try to create executable with PyInstaller, but don't fail if it doesn't work
+      // This is a known issue with Python 3.10.0 and PyInstaller
+      try {
+        log('Attempting to create executable with PyInstaller...');
+        execSync(`cd "${backendBuildDir}" && "${venvPython}" -m PyInstaller --onefile --name "PlanningBordServer" "${mainPy}"`, { stdio: 'inherit' });
+        
+        // Check if executable was created
+        const exePath = path.join(backendBuildDir, 'dist', 'PlanningBordServer.exe');
+        if (fs.existsSync(exePath)) {
+          log(`✅ Executable created at: ${exePath}`);
+          success('Backend compiled to executable');
+        } else {
+          log('⚠️  Executable not found after PyInstaller - will use Python source fallback', colors.yellow);
+        }
+      } catch (pyinstallerErr) {
+        log(`⚠️  PyInstaller failed (Python 3.10.0 compatibility issue): ${pyinstallerErr.message}`, colors.yellow);
+        log('ℹ️  Will rely on Python source fallback instead', colors.blue);
       }
       
-      success('Backend compiled to executable');
     } catch (err) {
       log(`⚠️  Could not create compiled executable: ${err.message}`, colors.yellow);
     }
