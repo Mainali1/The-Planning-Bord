@@ -10,6 +10,7 @@ const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const { rimraf } = require('rimraf');
+const os = require('os');
 
 // Configuration
 const CONFIG = {
@@ -173,10 +174,32 @@ class DesktopBuilder {
     const backendBuildDir = path.join(this.buildDir, 'backend');
     fs.mkdirSync(backendBuildDir, { recursive: true });
     
-    // Copy backend source - fix the xcopy command
+    // Copy backend source (cross-platform)
     log('Copying backend files...');
     const backendSource = path.resolve(this.backendDir);
-    execSync(`xcopy /E /I /Y "${backendSource}" "${backendBuildDir}"`, { stdio: 'inherit' });
+    // Use Node 16+ fs.cp if available, otherwise fallback to a recursive copy
+    try {
+      if (fs.cp) {
+        await fs.promises.cp(backendSource, backendBuildDir, { recursive: true });
+      } else {
+        // naive recursive copy
+        const copyRecursive = async (src, dest) => {
+          const stats = await fs.promises.lstat(src);
+          if (stats.isDirectory()) {
+            await fs.promises.mkdir(dest, { recursive: true });
+            const entries = await fs.promises.readdir(src);
+            for (const e of entries) {
+              await copyRecursive(path.join(src, e), path.join(dest, e));
+            }
+          } else {
+            await fs.promises.copyFile(src, dest);
+          }
+        };
+        await copyRecursive(backendSource, backendBuildDir);
+      }
+    } catch (err) {
+      throw new Error(`Failed to copy backend files: ${err.message}`);
+    }
     
     // Verify requirements.txt exists
     const requirementsPath = path.join(backendBuildDir, 'requirements.txt');
@@ -186,13 +209,29 @@ class DesktopBuilder {
     
     // Create virtual environment
     log('Creating Python virtual environment...');
-    execSync(`cd "${backendBuildDir}" && ${CONFIG.pythonExecutable} -m venv venv`, { stdio: 'inherit' });
-    
-    const venvPython = path.join(backendBuildDir, 'venv', 'Scripts', 'python.exe');
-    
+    execSync(`${CONFIG.pythonExecutable} -m venv "${path.join(backendBuildDir, 'venv')}"`, { stdio: 'inherit' });
+
+    // Detect venv python path cross-platform
+    let venvPython;
+    if (process.platform === 'win32') {
+      venvPython = path.join(backendBuildDir, 'venv', 'Scripts', 'python.exe');
+    } else {
+      venvPython = path.join(backendBuildDir, 'venv', 'bin', 'python');
+    }
+
     // Install dependencies
     log('Installing Python dependencies...');
-    execSync(`cd "${backendBuildDir}" && "${venvPython}" -m pip install -r requirements.txt`, { stdio: 'inherit' });
+    try {
+      execSync(`"${venvPython}" -m pip install -r "${requirementsPath}"`, { stdio: 'inherit' });
+    } catch (err) {
+      log(`⚠️  pip install failed: ${err.message}`, colors.yellow);
+    }
+    // Ensure PyInstaller/PyArmor are available inside the venv for packaging/obfuscation
+    try {
+      execSync(`"${venvPython}" -m pip install pyinstaller pyarmor`, { stdio: 'inherit' });
+    } catch (err) {
+      log(`⚠️  Could not install PyInstaller/PyArmor in venv: ${err.message}`, colors.yellow);
+    }
     
     // Apply code obfuscation if enabled
     if (CONFIG.obfuscateCode) {
@@ -204,8 +243,11 @@ class DesktopBuilder {
         
         execSync(`pyarmor obfuscate --output "${obfuscatedDir}" --src "${srcDir}"`, { stdio: 'inherit' });
         
-        // Replace original with obfuscated code
-        execSync(`rmdir /S /Q "${srcDir}" && move "${obfuscatedDir}" "${srcDir}"`, { stdio: 'inherit' });
+        // Replace original with obfuscated code (cross-platform)
+        try {
+          await fs.promises.rm(srcDir, { recursive: true, force: true });
+        } catch (rmErr) {}
+        await fs.promises.rename(obfuscatedDir, srcDir);
         
         success('Backend code obfuscated');
       } catch (err) {
@@ -213,8 +255,8 @@ class DesktopBuilder {
       }
     }
     
-    // Build backend executable
-    log('Building backend executable...');
+    // Create compiled executable
+    log('Creating compiled executable...');
     try {
       const mainPy = path.join(backendBuildDir, 'main.py');
       const distDir = path.join(backendBuildDir, 'dist');
@@ -225,25 +267,58 @@ class DesktopBuilder {
         throw new Error('main.py not found');
       }
       
-      // Try to create executable with PyInstaller, but don't fail if it doesn't work
-      // This is a known issue with Python 3.10.0 and PyInstaller
+      // Use PyInstaller with hardening flags when possible
       try {
-        log('Attempting to create executable with PyInstaller...');
+        const pyinstallerArgs = [
+          '--onefile',
+          '--name', 'PlanningBordServer',
+          '--clean',
+          '--strip',
+          '--noconsole',
+          '"' + mainPy + '"'
+        ].join(' ');
+
+        execSync(`cd "${backendBuildDir}" && "${venvPython}" -m PyInstaller ${pyinstallerArgs}`, { stdio: 'inherit' });
+      } catch (piErr) {
+        // Retry without --noconsole if debugging needed
+        log(`⚠️  PyInstaller failed with hardening flags: ${piErr.message}`, colors.yellow);
         execSync(`cd "${backendBuildDir}" && "${venvPython}" -m PyInstaller --onefile --name "PlanningBordServer" "${mainPy}"`, { stdio: 'inherit' });
-        
-        // Check if executable was created
-        const exePath = path.join(backendBuildDir, 'dist', 'PlanningBordServer.exe');
-        if (fs.existsSync(exePath)) {
-          log(`✅ Executable created at: ${exePath}`);
-          success('Backend compiled to executable');
-        } else {
-          log('⚠️  Executable not found after PyInstaller - will use Python source fallback', colors.yellow);
-        }
-      } catch (pyinstallerErr) {
-        log(`⚠️  PyInstaller failed (Python 3.10.0 compatibility issue): ${pyinstallerErr.message}`, colors.yellow);
-        log('ℹ️  Will rely on Python source fallback instead', colors.blue);
       }
       
+      // Check if executable was created
+      const exePath = process.platform === 'win32'
+        ? path.join(backendBuildDir, 'dist', 'PlanningBordServer.exe')
+        : path.join(backendBuildDir, 'dist', 'PlanningBordServer');
+      if (fs.existsSync(exePath)) {
+        log(`✅ Executable created at: ${exePath}`);
+        // Save the path for later packaging
+        this.backendExePath = exePath;
+        // Try to further harden the executable with UPX if available
+        try {
+          const whichUpx = execSync('which upx', { encoding: 'utf8' }).trim();
+          if (whichUpx) {
+            log('ℹ️  UPX found, compressing backend executable...');
+            try {
+              execSync(`upx -9 "${exePath}"`, { stdio: 'inherit' });
+              log('✅ UPX compression completed');
+            } catch (upxErr) {
+              log(`⚠️  UPX compression failed: ${upxErr.message}`, colors.yellow);
+            }
+          }
+        } catch (e) {
+          // which upx failed — skip UPX
+        }
+        // Ensure executable bit on unix
+        try {
+          if (process.platform !== 'win32') {
+            await fs.promises.chmod(exePath, 0o755);
+          }
+        } catch (chmodErr) {}
+      } else {
+        log('⚠️  Executable not found after PyInstaller', colors.yellow);
+      }
+      
+      success('Backend compiled to executable');
     } catch (err) {
       log(`⚠️  Could not create compiled executable: ${err.message}`, colors.yellow);
     }
@@ -257,10 +332,30 @@ class DesktopBuilder {
     const frontendBuildDir = path.join(this.buildDir, 'frontend');
     fs.mkdirSync(frontendBuildDir, { recursive: true });
     
-    // Copy frontend source - fix the xcopy command
+    // Copy frontend source (cross-platform)
     log('Copying frontend files...');
     const frontendSource = path.resolve(this.frontendDir);
-    execSync(`xcopy /E /I /Y "${frontendSource}" "${frontendBuildDir}"`, { stdio: 'inherit' });
+    try {
+      if (fs.cp) {
+        await fs.promises.cp(frontendSource, frontendBuildDir, { recursive: true });
+      } else {
+        const copyRecursive = async (src, dest) => {
+          const stats = await fs.promises.lstat(src);
+          if (stats.isDirectory()) {
+            await fs.promises.mkdir(dest, { recursive: true });
+            const entries = await fs.promises.readdir(src);
+            for (const e of entries) {
+              await copyRecursive(path.join(src, e), path.join(dest, e));
+            }
+          } else {
+            await fs.promises.copyFile(src, dest);
+          }
+        };
+        await copyRecursive(frontendSource, frontendBuildDir);
+      }
+    } catch (err) {
+      throw new Error(`Failed to copy frontend files: ${err.message}`);
+    }
     
     // Verify package.json exists in renderer
     const rendererPackagePath = path.join(frontendBuildDir, 'src', 'renderer', 'package.json');
@@ -282,15 +377,23 @@ class DesktopBuilder {
       try {
         const buildDir = path.join(frontendBuildDir, 'src', 'renderer', 'build');
         const assetsDir = path.join(buildDir, 'assets');
-        
+
         // Obfuscate JavaScript files
         const jsFiles = fs.readdirSync(assetsDir).filter(file => file.endsWith('.js'));
         for (const file of jsFiles) {
           const filePath = path.join(assetsDir, file);
           execSync(`javascript-obfuscator "${filePath}" --output "${filePath}" --compact true --control-flow-flattening true`, { stdio: 'inherit' });
         }
-        
-        success('Frontend JavaScript obfuscated');
+
+        // Remove source maps to avoid exposing readable mappings
+        try {
+          const mapFiles = fs.readdirSync(assetsDir).filter(f => f.endsWith('.map'));
+          for (const m of mapFiles) {
+            try { fs.unlinkSync(path.join(assetsDir, m)); } catch (e) {}
+          }
+        } catch (e) {}
+
+        success('Frontend JavaScript obfuscated and source maps removed');
       } catch (err) {
         log('⚠️  JavaScript obfuscation failed', colors.yellow);
       }
@@ -347,6 +450,17 @@ class DesktopBuilder {
         directories: {
           output: '.'
         },
+        asar: true,
+        asarUnpack: [
+          'backend/**'
+        ],
+        extraResources: [
+          {
+            from: 'backend/dist',
+            to: 'backend/dist',
+            filter: ['**/*']
+          }
+        ],
         files: [
           'main-secure.js',
           'preload.js',
@@ -358,7 +472,11 @@ class DesktopBuilder {
           'LICENSE.txt'
         ],
         win: {
-          target: 'nsis'
+          target: 'nsis',
+          // Code signing placeholders: set environment variable CSC_LINK and CSC_KEY_PASSWORD
+          // Or place a .pfx at build/certs/win/cert.pfx and set its password in env var CSC_KEY_PASSWORD
+          certificateFile: 'build/certs/win/cert.pfx',
+          certificatePassword: 'env:CSC_KEY_PASSWORD',
           // Note: Icon will be set after assets are copied
         },
         nsis: {
@@ -378,6 +496,30 @@ class DesktopBuilder {
     };
     
     fs.writeFileSync(path.join(desktopDir, 'package.json'), JSON.stringify(mainPackageJson, null, 2));
+    // If code signing artifacts are not present, don't set certificate fields to avoid builder failure
+    try {
+      const packageJsonPath = path.join(desktopDir, 'package.json');
+      const pkg = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+      const certPath = path.resolve('build', 'certs', 'win', 'cert.pfx');
+      if (fs.existsSync(certPath) || process.env.CSC_LINK || process.env.CSC_KEY_PASSWORD) {
+        // If user provided cert via file or env, keep placeholders or env usage
+        if (fs.existsSync(certPath)) {
+          pkg.build = pkg.build || {};
+          pkg.build.win = pkg.build.win || {};
+          pkg.build.win.certificateFile = 'build/certs/win/cert.pfx';
+          pkg.build.win.certificatePassword = 'env:CSC_KEY_PASSWORD';
+        }
+      } else {
+        // Remove signing fields to avoid electron-builder error when absent
+        if (pkg.build && pkg.build.win) {
+          delete pkg.build.win.certificateFile;
+          delete pkg.build.win.certificatePassword;
+        }
+      }
+      fs.writeFileSync(packageJsonPath, JSON.stringify(pkg, null, 2));
+    } catch (e) {
+      log(`⚠️  Could not update package.json signing fields: ${e.message}`, colors.yellow);
+    }
     
     // Copy setup-related files to desktop directory
     const setupFiles = [
@@ -392,6 +534,21 @@ class DesktopBuilder {
       if (fs.existsSync(sourcePath)) {
         fs.copyFileSync(sourcePath, targetPath);
         log(`Copied ${path.basename(file)} to desktop package`);
+        // Obfuscate Electron setup/main scripts if obfuscation is enabled
+        if (CONFIG.obfuscateCode) {
+          try {
+            // Only obfuscate JavaScript files
+            if (path.extname(targetPath).toLowerCase() === '.js') {
+              const obfuscatorCmd = `javascript-obfuscator "${targetPath}" --output "${targetPath}" --compact true --control-flow-flattening true`;
+              execSync(obfuscatorCmd, { stdio: 'inherit' });
+            } else {
+              log(`Skipping obfuscation for non-JS file: ${path.basename(targetPath)}`);
+            }
+            log(`Obfuscated ${path.basename(file)}`);
+          } catch (err) {
+            log(`⚠️  Could not obfuscate ${path.basename(file)}: ${err.message}`, colors.yellow);
+          }
+        }
       }
     }
     
@@ -405,6 +562,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
 `;
     
     fs.writeFileSync(path.join(desktopDir, 'preload.js'), preloadJsContent);
+    // Obfuscate preload.js as well if enabled
+    if (CONFIG.obfuscateCode) {
+      try {
+        const preloadPath = path.join(desktopDir, 'preload.js');
+        execSync(`javascript-obfuscator "${preloadPath}" --output "${preloadPath}" --compact true`, { stdio: 'inherit' });
+        log('Obfuscated preload.js');
+      } catch (err) {
+        log(`⚠️  Could not obfuscate preload.js: ${err.message}`, colors.yellow);
+      }
+    }
     
     // Create assets directory and copy files
     const assetsDir = path.join(desktopDir, 'assets');
@@ -435,18 +602,63 @@ contextBridge.exposeInMainWorld('electronAPI', {
     
     if (fs.existsSync(backendSourceDir)) {
       // Copy entire backend directory including dist folder and source files
-      execSync(`xcopy /E /I /Y "${backendSourceDir}" "${backendTargetDir}"`, { stdio: 'inherit' });
-      log('Backend files copied to desktop package');
-      
-      // Also copy the main.py file to the root of backend for fallback
-      const mainPySource = path.join(backendSourceDir, 'main.py');
-      const mainPyTarget = path.join(backendTargetDir, 'main.py');
-      if (fs.existsSync(mainPySource) && !fs.existsSync(mainPyTarget)) {
-        fs.copyFileSync(mainPySource, mainPyTarget);
-        log('main.py copied to backend root for fallback');
+      try {
+        if (fs.cp) {
+          await fs.promises.cp(backendSourceDir, backendTargetDir, { recursive: true });
+        } else {
+          const copyRecursive = async (src, dest) => {
+            const stats = await fs.promises.lstat(src);
+            if (stats.isDirectory()) {
+              await fs.promises.mkdir(dest, { recursive: true });
+              const entries = await fs.promises.readdir(src);
+              for (const e of entries) {
+                await copyRecursive(path.join(src, e), path.join(dest, e));
+              }
+            } else {
+              await fs.promises.copyFile(src, dest);
+            }
+          };
+          await copyRecursive(backendSourceDir, backendTargetDir);
+        }
+        log('Backend files copied to desktop package');
+        
+        // Also copy the main.py file to the root of backend for fallback
+        const mainPySource = path.join(backendSourceDir, 'main.py');
+        const mainPyTarget = path.join(backendTargetDir, 'main.py');
+        if (fs.existsSync(mainPySource) && !fs.existsSync(mainPyTarget)) {
+          fs.copyFileSync(mainPySource, mainPyTarget);
+          log('main.py copied to backend root for fallback');
+        }
+      } catch (err) {
+        log(`⚠️  Failed copying backend to desktop package: ${err.message}`, colors.yellow);
       }
     } else {
       log('⚠️  Warning: Backend build directory not found', colors.yellow);
+    }
+
+    // If we built a single-file backend executable (PyInstaller), include it inside the packaged backend folder
+    if (this.backendExePath && fs.existsSync(this.backendExePath)) {
+      // Preserve the compiled executable's filename (e.g. PlanningBordServer.exe)
+      const targetExe = path.join(backendTargetDir, path.basename(this.backendExePath));
+      try {
+        await fs.promises.copyFile(this.backendExePath, targetExe);
+        log(`Copied backend executable to backend folder as ${path.basename(targetExe)}`);
+      } catch (copyErr) {
+        log(`⚠️  Could not copy backend executable into backend folder: ${copyErr.message}`, colors.yellow);
+      }
+    } else {
+      // As a fallback, try to copy venv python if present into the backend folder
+      const venvPythonCandidateWin = path.join(backendTargetDir, 'venv', 'Scripts', 'python.exe');
+      const venvPythonCandidateUnix = path.join(backendTargetDir, 'venv', 'bin', 'python');
+      if (fs.existsSync(venvPythonCandidateWin)) {
+        await fs.promises.copyFile(venvPythonCandidateWin, path.join(backendTargetDir, 'python.exe'));
+        log('Copied venv python.exe into backend folder as fallback');
+      } else if (fs.existsSync(venvPythonCandidateUnix)) {
+        await fs.promises.copyFile(venvPythonCandidateUnix, path.join(backendTargetDir, 'python'));
+        log('Copied venv python into backend folder as fallback');
+      } else {
+        log('⚠️  No backend executable or venv python found to include in backend folder', colors.yellow);
+      }
     }
     
     // Install Electron dependencies
@@ -464,6 +676,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
     log(`Building for ${this.currentPlatform} (${this.currentArch})...`);
     
     try {
+      // If building a Windows installer on Linux, ensure wine is available
+      if (process.platform === 'linux' && process.platform !== 'win32') {
+        // We only attempt Windows build if wine is available
+        try {
+          execSync('which wine', { stdio: 'ignore' });
+        } catch (e) {
+          log('⚠️  wine is not installed — cannot build Windows installer on Linux. Skipping Windows build.', colors.yellow);
+          return;
+        }
+      }
+
       execSync(`cd "${desktopDir}" && npm run build:electron`, { stdio: 'inherit' });
       
       // Move installer to main build directory
