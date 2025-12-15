@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Settings as SettingsIcon, Save, Database, Bell, Mail, Shield, Server } from 'lucide-react'
 import toast from 'react-hot-toast'
+import ServerControl from '../components/ServerControl'
 
 const Settings = () => {
   const [settings, setSettings] = useState({
@@ -188,6 +189,13 @@ const Settings = () => {
           </div>
         </div>
       </div>
+
+      {/* Server Control */}
+      <ServerControl 
+        backendStatus={backendStatus}
+        isOnline={isOnline}
+        onServerToggle={checkConnectionStatus}
+      />
 
       {/* Settings Form */}
       <form onSubmit={handleSubmit} className="space-y-6">

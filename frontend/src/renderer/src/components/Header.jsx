@@ -1,7 +1,7 @@
 import React from 'react'
-import { Menu, Bell, Wifi, WifiOff, Server } from 'lucide-react'
+import { Menu, Bell, Wifi, WifiOff, Server, User, LogOut } from 'lucide-react'
 
-const Header = ({ sidebarOpen, setSidebarOpen, backendStatus, isOnline }) => {
+const Header = ({ sidebarOpen, setSidebarOpen, backendStatus, isOnline, currentUser, onLogout }) => {
   return (
     <header className="bg-white shadow-sm border-b border-gray-200">
       <div className="flex items-center justify-between px-6 py-4">

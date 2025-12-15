@@ -22,8 +22,8 @@ const CONFIG = {
   frontendDir: 'frontend',
   assetsDir: 'assets',
   pythonExecutable: process.platform === 'win32' ? 'python' : 'python3',
-  supportedPlatforms: ['win32', 'darwin', 'linux'],
-  architectures: ['x64', 'arm64'],
+  supportedPlatforms: ['win32'],
+  architectures: ['x64'],
   obfuscateCode: true,
   includeLicense: true,
   antiTamper: true
@@ -63,6 +63,22 @@ class DesktopBuilder {
     this.frontendDir = path.resolve(CONFIG.frontendDir);
   }
 
+  async copyDir(src, dest) {
+    const copyRecursive = async (src, dest) => {
+      const stats = await fs.promises.lstat(src);
+      if (stats.isDirectory()) {
+        await fs.promises.mkdir(dest, { recursive: true });
+        const entries = await fs.promises.readdir(src);
+        for (const e of entries) {
+          await copyRecursive(path.join(src, e), path.join(dest, e));
+        }
+      } else {
+        await fs.promises.copyFile(src, dest);
+      }
+    };
+    await copyRecursive(src, dest);
+  }
+
   async build() {
     log(`🚀 Starting SECURE build for ${CONFIG.appName} v${CONFIG.version}`, colors.bright);
     log(`Platform: ${this.currentPlatform} (${this.currentArch})`);
@@ -97,7 +113,7 @@ class DesktopBuilder {
       await this.createInstallers();
       
       success('SECURE Build completed successfully!');
-      log(`📦 Installer created: ${path.join(this.buildDir, `The ${CONFIG.appName} Setup ${CONFIG.version}.exe`)}`);
+      log(`📦 Installer created: ${path.join(this.buildDir, `${CONFIG.appName} Setup ${CONFIG.version}.exe`)}`);
       
     } catch (err) {
       error(err.message);
@@ -179,7 +195,7 @@ class DesktopBuilder {
     const backendSource = path.resolve(this.backendDir);
     // Use Node 16+ fs.cp if available, otherwise fallback to a recursive copy
     try {
-      if (fs.cp) {
+      if (fs.promises && typeof fs.promises.cp === 'function') {
         await fs.promises.cp(backendSource, backendBuildDir, { recursive: true });
       } else {
         // naive recursive copy
@@ -294,19 +310,18 @@ class DesktopBuilder {
         // Save the path for later packaging
         this.backendExePath = exePath;
         // Try to further harden the executable with UPX if available
+        let upxFound = '';
         try {
-          const whichUpx = execSync('which upx', { encoding: 'utf8' }).trim();
-          if (whichUpx) {
-            log('ℹ️  UPX found, compressing backend executable...');
-            try {
-              execSync(`upx -9 "${exePath}"`, { stdio: 'inherit' });
-              log('✅ UPX compression completed');
-            } catch (upxErr) {
-              log(`⚠️  UPX compression failed: ${upxErr.message}`, colors.yellow);
-            }
+          upxFound = execSync(process.platform === 'win32' ? 'where upx' : 'which upx', { encoding: 'utf8' }).trim();
+        } catch {}
+        if (upxFound) {
+          log('ℹ️  UPX found, compressing backend executable...');
+          try {
+            execSync(`upx -9 "${exePath}"`, { stdio: 'inherit' });
+            log('✅ UPX compression completed');
+          } catch (upxErr) {
+            log(`⚠️  UPX compression failed: ${upxErr.message}`, colors.yellow);
           }
-        } catch (e) {
-          // which upx failed — skip UPX
         }
         // Ensure executable bit on unix
         try {
@@ -316,11 +331,85 @@ class DesktopBuilder {
         } catch (chmodErr) {}
       } else {
         log('⚠️  Executable not found after PyInstaller', colors.yellow);
+        
+        // Fallback: Copy Python interpreter for bundled execution
+        log('ℹ️  Attempting to copy Python interpreter for fallback execution...');
+        try {
+          // Find Python executable
+          let pythonPath;
+          try {
+            pythonPath = execSync('where python', { encoding: 'utf8' }).trim().split('\n')[0];
+          } catch {
+            try {
+              pythonPath = execSync('which python', { encoding: 'utf8' }).trim();
+            } catch {
+              throw new Error('Python executable not found in PATH');
+            }
+          }
+          
+          if (pythonPath && fs.existsSync(pythonPath)) {
+            const targetPythonPath = path.join(backendBuildDir, 'python.exe');
+            fs.copyFileSync(pythonPath, targetPythonPath);
+            log(`✅ Copied Python interpreter from ${pythonPath} to ${targetPythonPath}`);
+            
+            // Also copy Python DLLs and libraries if on Windows
+            if (process.platform === 'win32') {
+              const pythonDir = path.dirname(pythonPath);
+              const dllFiles = fs.readdirSync(pythonDir).filter(f => f.endsWith('.dll'));
+              for (const dllFile of dllFiles) {
+                try {
+                  fs.copyFileSync(path.join(pythonDir, dllFile), path.join(backendBuildDir, dllFile));
+                } catch (copyErr) {
+                  log(`⚠️  Could not copy ${dllFile}: ${copyErr.message}`, colors.yellow);
+                }
+              }
+              
+              // Copy Lib directory if it exists
+              const libDir = path.join(path.dirname(pythonPath), 'Lib');
+              if (fs.existsSync(libDir)) {
+                try {
+                  await this.copyDir(libDir, path.join(backendBuildDir, 'Lib'));
+                  log('✅ Copied Python Lib directory');
+                } catch (copyErr) {
+                  log(`⚠️  Could not copy Lib directory: ${copyErr.message}`, colors.yellow);
+                }
+              }
+            }
+          } else {
+            throw new Error(`Python executable not found at ${pythonPath}`);
+          }
+        } catch (copyErr) {
+          log(`⚠️  Could not copy Python interpreter: ${copyErr.message}`, colors.yellow);
+          log('⚠️  Backend will rely on system Python being available', colors.yellow);
+        }
       }
       
       success('Backend compiled to executable');
     } catch (err) {
       log(`⚠️  Could not create compiled executable: ${err.message}`, colors.yellow);
+      
+      // Fallback: Copy Python interpreter even if PyInstaller completely fails
+      log('ℹ️  Attempting to copy Python interpreter as fallback...');
+      try {
+        let pythonPath;
+        try {
+          pythonPath = execSync('where python', { encoding: 'utf8' }).trim().split('\n')[0];
+        } catch {
+          try {
+            pythonPath = execSync('which python', { encoding: 'utf8' }).trim();
+          } catch {
+            log('⚠️  Python executable not found in PATH', colors.yellow);
+          }
+        }
+        
+        if (pythonPath && fs.existsSync(pythonPath)) {
+          const targetPythonPath = path.join(backendBuildDir, 'python.exe');
+          fs.copyFileSync(pythonPath, targetPythonPath);
+          log(`✅ Copied Python interpreter from ${pythonPath} to ${targetPythonPath}`);
+        }
+      } catch (copyErr) {
+        log(`⚠️  Could not copy Python interpreter: ${copyErr.message}`, colors.yellow);
+      }
     }
     
     success('Backend built successfully');
@@ -336,7 +425,7 @@ class DesktopBuilder {
     log('Copying frontend files...');
     const frontendSource = path.resolve(this.frontendDir);
     try {
-      if (fs.cp) {
+      if (fs.promises && typeof fs.promises.cp === 'function') {
         await fs.promises.cp(frontendSource, frontendBuildDir, { recursive: true });
       } else {
         const copyRecursive = async (src, dest) => {
@@ -451,13 +540,15 @@ class DesktopBuilder {
           output: '.'
         },
         asar: true,
-        asarUnpack: [
-          'backend/**'
-        ],
         extraResources: [
           {
             from: 'backend/dist',
             to: 'backend/dist',
+            filter: ['**/*']
+          },
+          {
+            from: 'backend',
+            to: 'backend',
             filter: ['**/*']
           }
         ],
@@ -468,7 +559,6 @@ class DesktopBuilder {
           'setup.html',
           'assets/**/*',
           'frontend/src/renderer/build/**/*',
-          'backend/**/*',
           'LICENSE.txt'
         ],
         win: {
@@ -551,26 +641,47 @@ class DesktopBuilder {
         }
       }
     }
-    
-    // Create preload script
-    const preloadJsContent = `
-const { contextBridge, ipcRenderer } = require('electron');
-
-contextBridge.exposeInMainWorld('electronAPI', {
-  // Expose safe methods to renderer
-});
-`;
-    
-    fs.writeFileSync(path.join(desktopDir, 'preload.js'), preloadJsContent);
-    // Obfuscate preload.js as well if enabled
-    if (CONFIG.obfuscateCode) {
-      try {
-        const preloadPath = path.join(desktopDir, 'preload.js');
-        execSync(`javascript-obfuscator "${preloadPath}" --output "${preloadPath}" --compact true`, { stdio: 'inherit' });
-        log('Obfuscated preload.js');
-      } catch (err) {
-        log(`⚠️  Could not obfuscate preload.js: ${err.message}`, colors.yellow);
+    const rendererBuildSource = path.join(this.buildDir, 'frontend', 'src', 'renderer', 'build');
+    const rendererBuildTarget = path.join(desktopDir, 'frontend', 'src', 'renderer', 'build');
+    try {
+      if (fs.promises && typeof fs.promises.cp === 'function') {
+        await fs.promises.cp(rendererBuildSource, rendererBuildTarget, { recursive: true });
+      } else {
+        const copyRecursive = async (src, dest) => {
+          const stats = await fs.promises.lstat(src);
+          if (stats.isDirectory()) {
+            await fs.promises.mkdir(dest, { recursive: true });
+            const entries = await fs.promises.readdir(src);
+            for (const e of entries) {
+              await copyRecursive(path.join(src, e), path.join(dest, e));
+            }
+          } else {
+            await fs.promises.copyFile(src, dest);
+          }
+        };
+        await copyRecursive(rendererBuildSource, rendererBuildTarget);
       }
+      log('Copied renderer build to desktop package');
+    } catch (err) {
+      throw new Error(`Renderer build not found or failed to copy: ${err.message}`);
+    }
+    
+    // Copy actual preload script for renderer
+    const preloadSource = path.resolve('frontend', 'src', 'preload.js');
+    const preloadTarget = path.join(desktopDir, 'preload.js');
+    if (fs.existsSync(preloadSource)) {
+      fs.copyFileSync(preloadSource, preloadTarget);
+      log('Copied preload.js to desktop package');
+      if (CONFIG.obfuscateCode) {
+        try {
+          execSync(`javascript-obfuscator "${preloadTarget}" --output "${preloadTarget}" --compact true`, { stdio: 'inherit' });
+          log('Obfuscated preload.js');
+        } catch (err) {
+          log(`⚠️  Could not obfuscate preload.js: ${err.message}`, colors.yellow);
+        }
+      }
+    } else {
+      throw new Error('frontend/src/preload.js not found');
     }
     
     // Create assets directory and copy files
@@ -677,7 +788,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     
     try {
       // If building a Windows installer on Linux, ensure wine is available
-      if (process.platform === 'linux' && process.platform !== 'win32') {
+      if (process.platform === 'linux') {
         // We only attempt Windows build if wine is available
         try {
           execSync('which wine', { stdio: 'ignore' });

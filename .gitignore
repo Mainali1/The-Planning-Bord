@@ -10,6 +10,7 @@ yarn-error.log*
 .env.development.local
 .env.test.local
 .env.production.local
+.vs
 
 # Build outputs
 dist/
@@ -20,6 +21,7 @@ dist/
 # Logs
 logs
 *.log
+
 
 # Runtime data
 pids

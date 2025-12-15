@@ -14,7 +14,8 @@ from src.controllers import (
     dashboard_router,
     auth_router,
     microsoft_router,
-    setup_router
+    setup_router,
+    server_router
 )
 from src.services.offline_service import OfflineService
 from src.utils.logger import setup_logger
@@ -69,6 +70,7 @@ app.include_router(employee_router, prefix="/api/employees", tags=["Employees"])
 app.include_router(payment_router, prefix="/api/payments", tags=["Payments"])
 app.include_router(dashboard_router, prefix="/api/dashboard", tags=["Dashboard"])
 app.include_router(microsoft_router, prefix="/api/microsoft", tags=["Microsoft 365"])
+app.include_router(server_router, prefix="/api/server", tags=["Server Management"])
 
 @app.get("/")
 async def root():

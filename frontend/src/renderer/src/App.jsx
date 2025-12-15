@@ -7,18 +7,25 @@ import Inventory from './pages/Inventory'
 import Employees from './pages/Employees'
 import Payments from './pages/Payments'
 import Settings from './pages/Settings'
+import LoginForm from './components/LoginForm'
 import SetupWizard from './components/SetupWizard'
+import authUtils from './utils/auth'
 import './App.css'
 
 function App() {
   const [backendStatus, setBackendStatus] = useState(false)
   const [isOnline, setIsOnline] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [currentUser, setCurrentUser] = useState(null)
   const [setupComplete, setSetupComplete] = useState(false)
   const [checkingSetup, setCheckingSetup] = useState(true)
 
   useEffect(() => {
-    // Check setup status first
+    // Check authentication status
+    setIsAuthenticated(authUtils.isAuthenticated())
+    
+    // Check setup status
     checkSetupStatus()
     
     // Check backend status
@@ -29,19 +36,6 @@ function App() {
     
     return () => clearInterval(interval)
   }, [])
-
-  const checkSetupStatus = async () => {
-    try {
-      const response = await fetch('http://localhost:8000/api/setup/status')
-      const data = await response.json()
-      setSetupComplete(data.setup_complete)
-    } catch (error) {
-      // If setup endpoint doesn't exist, assume setup is complete (for development)
-      setSetupComplete(true)
-    } finally {
-      setCheckingSetup(false)
-    }
-  }
 
   const checkBackendStatus = async () => {
     try {
@@ -58,10 +52,26 @@ function App() {
     }
   }
 
-  const handleSetupComplete = async (config) => {
-    setSetupComplete(true)
-    // Refresh setup status
-    await checkSetupStatus()
+
+
+  const checkSetupStatus = async () => {
+    try {
+      setCheckingSetup(true)
+      const response = await fetch('http://localhost:8000/api/setup/status')
+      if (response.ok) {
+        const data = await response.json()
+        setSetupComplete(data.setup_complete)
+      } else {
+        // If setup endpoint doesn't exist, assume setup is complete for backward compatibility
+        setSetupComplete(true)
+      }
+    } catch (error) {
+      console.error('Error checking setup status:', error)
+      // Assume setup is complete if we can't check
+      setSetupComplete(true)
+    } finally {
+      setCheckingSetup(false)
+    }
   }
 
   const checkOnlineStatus = async () => {
@@ -73,27 +83,76 @@ function App() {
     }
   }
 
+  const handleLogin = (user) => {
+    setIsAuthenticated(true)
+    setCurrentUser(user)
+  }
+
+  const handleSetupComplete = async (setupData) => {
+    try {
+      // After setup completion, try to auto-login with the created admin account
+      const loginResponse = await fetch('http://localhost:8000/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: setupData.admin_username || setupData.adminUsername,
+          password: setupData.admin_password || setupData.adminPassword,
+        }),
+      });
+
+      if (loginResponse.ok) {
+        const loginData = await loginResponse.json();
+        localStorage.setItem('planningbord_token', loginData.access_token);
+        setSetupComplete(true);
+        setIsAuthenticated(true);
+        setCurrentUser(loginData.user);
+      } else {
+        // If auto-login fails, just mark setup as complete and show login form
+        setSetupComplete(true);
+      }
+    } catch (error) {
+      console.error('Auto-login after setup failed:', error);
+      // If auto-login fails, just mark setup as complete and show login form
+      setSetupComplete(true);
+    }
+  }
+
+  const handleLogout = () => {
+    authUtils.removeToken()
+    setIsAuthenticated(false)
+    setCurrentUser(null)
+  }
+
   useEffect(() => {
     checkOnlineStatus()
     const interval = setInterval(checkOnlineStatus, 60000) // Check every minute
     return () => clearInterval(interval)
   }, [])
 
-  // Show setup wizard if setup is not complete
-  if (!setupComplete && !checkingSetup) {
-    return <SetupWizard onComplete={handleSetupComplete} />
-  }
 
-  // Show loading screen while checking setup
+
+  // Show setup wizard if setup is not complete
   if (checkingSetup) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Checking setup status...</p>
+          <p className="text-gray-600">Checking system status...</p>
         </div>
       </div>
     )
+  }
+
+  // Show setup wizard if setup is not complete
+  if (!setupComplete) {
+    return <SetupWizard onComplete={handleSetupComplete} />
+  }
+
+  // Show login form if not authenticated
+  if (!isAuthenticated) {
+    return <LoginForm onLogin={handleLogin} />
   }
 
   return (
@@ -109,6 +168,8 @@ function App() {
           setSidebarOpen={setSidebarOpen}
           backendStatus={backendStatus}
           isOnline={isOnline}
+          currentUser={currentUser}
+          onLogout={handleLogout}
         />
         
         {/* Page Content */}

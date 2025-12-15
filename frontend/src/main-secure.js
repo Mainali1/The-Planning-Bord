@@ -3,7 +3,7 @@
  * This script helps users get started after installation
  */
 
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Menu } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 const fs = require('fs');
@@ -26,14 +26,17 @@ function ensureConfigDir() {
 
 function isSetupComplete() {
   try {
-    if (fs.existsSync(CONFIG_FILE)) {
-      const config = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
-      return config.security?.setup_complete === true;
+    if (!fs.existsSync(CONFIG_FILE)) {
+      return false;
     }
+    const config = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+    const licenseOk = fs.existsSync(LICENSE_FILE) && fs.readFileSync(LICENSE_FILE, 'utf8').trim().length > 0;
+    const versionOk = typeof app.getVersion === 'function' ? config.version === app.getVersion() : true;
+    return config.security?.setup_complete === true && licenseOk && versionOk;
   } catch (error) {
     console.error('Error checking setup status:', error);
+    return false;
   }
-  return false;
 }
 
 function createSetupWindow() {
@@ -50,7 +53,8 @@ function createSetupWindow() {
     minimizable: false,
     alwaysOnTop: true,
     title: 'The Planning Bord - Initial Setup',
-    icon: path.join(__dirname, 'assets', 'icon.ico')
+    icon: path.join(__dirname, 'assets', 'icon.ico'),
+    autoHideMenuBar: true
   });
 
   setupWindow.loadFile(path.join(__dirname, 'setup.html'));
@@ -70,17 +74,26 @@ function createMainWindow() {
       preload: path.join(__dirname, 'preload.js')
     },
     icon: path.join(__dirname, 'assets', 'icon.ico'),
-    show: false
+    show: false,
+    autoHideMenuBar: true
   });
 
-  // Load the built React app
+  // Load UI: prefer dev server, fallback to built files
   const isDev = process.env.NODE_ENV === 'development';
-  if (isDev) {
-    mainWindow.loadURL('http://localhost:5173');
-    mainWindow.webContents.openDevTools();
-  } else {
-    mainWindow.loadFile(path.join(__dirname, 'frontend', 'src', 'renderer', 'build', 'index.html'));
-  }
+  const devUrl = 'http://localhost:5173';
+  (async () => {
+    if (isDev) {
+      try {
+        const res = await fetch(devUrl);
+        if (res && (res.ok || res.status === 0)) {
+          await mainWindow.loadURL(devUrl);
+          mainWindow.webContents.openDevTools();
+          return;
+        }
+      } catch {}
+    }
+    await mainWindow.loadFile(path.join(__dirname, 'frontend', 'src', 'renderer', 'build', 'index.html'));
+  })();
 
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
@@ -93,25 +106,38 @@ function createMainWindow() {
 
 function startBackend() {
   console.log('Starting backend...');
+  const isPackaged = app.isPackaged;
+  const resourcesRoot = process.resourcesPath;
+  const backendRoot = isPackaged
+    ? path.join(resourcesRoot, 'backend')
+    : path.join(__dirname, '..', '..', 'backend');
+  const unpackedBackendRoot = isPackaged
+    ? path.join(resourcesRoot, 'app.asar.unpacked', 'backend')
+    : backendRoot;
+  ensureConfigDir();
+  const logsDir = path.join(CONFIG_DIR, 'logs');
+  try { fs.mkdirSync(logsDir, { recursive: true }); } catch {}
+  const logFile = path.join(logsDir, 'backend.log');
   
   // Try the compiled executable first
-  const backendPath = path.join(__dirname, 'backend', 'dist', 'PlanningBordServer.exe');
+  const backendPath = path.join(backendRoot, 'dist', 'PlanningBordServer.exe');
   console.log(`Checking for compiled backend at: ${backendPath}`);
   
   if (fs.existsSync(backendPath)) {
     console.log('Found compiled backend, starting...');
-    backendProcess = spawn(backendPath, [], {
-      stdio: 'pipe',
-      cwd: path.join(__dirname, 'backend')
-    });
+    try {
+      backendProcess = spawn(backendPath, [], {
+        stdio: 'pipe',
+        cwd: backendRoot
+      });
+    } catch (e) {
+      console.error('Failed to start compiled backend:', e.message);
+      return Promise.resolve();
+    }
     
-    backendProcess.stdout.on('data', (data) => {
-      console.log(`Backend: ${data}`);
-    });
-    
-    backendProcess.stderr.on('data', (data) => {
-      console.error(`Backend Error: ${data}`);
-    });
+    const out = fs.createWriteStream(logFile, { flags: 'a' });
+    backendProcess.stdout.on('data', (data) => { try { out.write(data); } catch {} });
+    backendProcess.stderr.on('data', (data) => { try { out.write(Buffer.from(`\nERROR: ${data}`)); } catch {} });
     
     backendProcess.on('close', (code) => {
       console.log(`Backend process exited with code ${code}`);
@@ -125,26 +151,60 @@ function startBackend() {
     console.log('Compiled backend executable not found at:', backendPath);
     
     // Check if we're running from a packaged app (no venv available)
-    const mainPyPath = path.join(__dirname, 'backend', 'main.py');
+    let mainPyPath = path.join(backendRoot, 'main.py');
+    if (!fs.existsSync(mainPyPath)) {
+      mainPyPath = path.join(unpackedBackendRoot, 'main.py');
+    }
     console.log(`Checking for main.py at: ${mainPyPath}`);
+    
+    // Check for bundled Python interpreter
+    const bundledPython = path.join(backendRoot, 'python.exe');
+    const bundledPythonUnpacked = path.join(unpackedBackendRoot, 'python.exe');
+    console.log(`Checking for bundled Python at: ${bundledPython}`);
+    console.log(`Checking for bundled Python at: ${bundledPythonUnpacked}`);
     
     if (fs.existsSync(mainPyPath)) {
       // In packaged app, skip venv check and go straight to system Python
       const isPackaged = !process.env.NODE_ENV || process.env.NODE_ENV === 'production';
       
       if (isPackaged) {
-        console.log('Running from packaged app, using system Python directly...');
-        backendProcess = spawn('python', [mainPyPath], {
-          stdio: 'pipe',
-          cwd: path.join(__dirname, 'backend')
+        console.log('Running from packaged app, looking for Python interpreter...');
+        
+        // Try bundled Python first
+        let pythonCommand = 'python'; // fallback to system Python
+        if (fs.existsSync(bundledPython)) {
+          pythonCommand = bundledPython;
+          console.log('Found bundled Python interpreter:', bundledPython);
+        } else if (fs.existsSync(bundledPythonUnpacked)) {
+          pythonCommand = bundledPythonUnpacked;
+          console.log('Found bundled Python interpreter in unpacked:', bundledPythonUnpacked);
+        } else {
+          console.log('No bundled Python found, falling back to system Python');
+        }
+        
+        try {
+          backendProcess = spawn(pythonCommand, [mainPyPath], {
+            stdio: 'pipe',
+            cwd: backendRoot
+          });
+        } catch (e) {
+          console.error('Failed to start Python backend:', e.message);
+          return Promise.resolve();
+        }
+        
+        const out = fs.createWriteStream(logFile, { flags: 'a' });
+        backendProcess.stdout.on('data', (data) => { 
+          try { 
+            out.write(data); 
+            console.log(`Backend: ${data}`);
+          } catch {} 
         });
         
-        backendProcess.stdout.on('data', (data) => {
-          console.log(`Backend: ${data}`);
-        });
-        
-        backendProcess.stderr.on('data', (data) => {
-          console.error(`Backend Error: ${data}`);
+        backendProcess.stderr.on('data', (data) => { 
+          try { 
+            out.write(Buffer.from(`\nERROR: ${data}`));
+            console.error(`Backend Error: ${data}`);
+          } catch {} 
         });
         
         backendProcess.on('close', (code) => {
@@ -156,24 +216,79 @@ function startBackend() {
         });
       } else {
         // Development mode - try venv first
-        const pythonVenvPath = path.join(__dirname, 'backend', 'venv', 'Scripts', 'python.exe');
+        const pythonVenvPath = fs.existsSync(path.join(backendRoot, 'venv', 'Scripts', 'python.exe'))
+          ? path.join(backendRoot, 'venv', 'Scripts', 'python.exe')
+          : path.join(unpackedBackendRoot, 'venv', 'Scripts', 'python.exe');
         console.log(`Checking for Python venv at: ${pythonVenvPath}`);
         
         if (fs.existsSync(pythonVenvPath)) {
           console.log('Found Python venv, starting backend with venv Python...');
+          try {
           backendProcess = spawn(pythonVenvPath, [mainPyPath], {
             stdio: 'pipe',
-            cwd: path.join(__dirname, 'backend')
+            cwd: fs.existsSync(backendRoot) ? backendRoot : unpackedBackendRoot
+          });
+          } catch (e) {
+            console.error('Failed to start venv Python backend:', e.message);
+            return Promise.resolve();
+          }
+          
+          const out = fs.createWriteStream(logFile, { flags: 'a' });
+          backendProcess.stdout.on('data', (data) => { 
+            try { 
+              out.write(data); 
+              console.log(`Backend: ${data}`);
+            } catch {} 
+          });
+          
+          backendProcess.stderr.on('data', (data) => { 
+            try { 
+              out.write(Buffer.from(`\nERROR: ${data}`));
+              console.error(`Backend Error: ${data}`);
+            } catch {} 
           });
           
           return new Promise((resolve) => {
             setTimeout(resolve, 5000);
           });
         } else {
-          console.log('Python venv not found, trying system Python...');
-          backendProcess = spawn('python', [mainPyPath], {
-            stdio: 'pipe',
-            cwd: path.join(__dirname, 'backend')
+          console.log('Python venv not found, trying bundled or system Python...');
+          
+          // Try bundled Python first, then system Python
+          let pythonCommand = 'python'; // fallback to system Python
+          if (fs.existsSync(bundledPython)) {
+            pythonCommand = bundledPython;
+            console.log('Using bundled Python interpreter:', bundledPython);
+          } else if (fs.existsSync(bundledPythonUnpacked)) {
+            pythonCommand = bundledPythonUnpacked;
+            console.log('Using bundled Python interpreter in unpacked:', bundledPythonUnpacked);
+          } else {
+            console.log('Using system Python');
+          }
+          
+          try {
+            backendProcess = spawn(pythonCommand, [mainPyPath], {
+              stdio: 'pipe',
+              cwd: fs.existsSync(backendRoot) ? backendRoot : unpackedBackendRoot
+            });
+          } catch (e) {
+            console.error('Failed to start Python backend:', e.message);
+            return Promise.resolve();
+          }
+          
+          const out = fs.createWriteStream(logFile, { flags: 'a' });
+          backendProcess.stdout.on('data', (data) => { 
+            try { 
+              out.write(data); 
+              console.log(`Backend: ${data}`);
+            } catch {} 
+          });
+          
+          backendProcess.stderr.on('data', (data) => { 
+            try { 
+              out.write(Buffer.from(`\nERROR: ${data}`));
+              console.error(`Backend Error: ${data}`);
+            } catch {} 
           });
           
           return new Promise((resolve) => {
@@ -183,9 +298,8 @@ function startBackend() {
       }
     } else {
       console.log('main.py not found at:', mainPyPath);
-      throw new Error('Neither compiled backend nor Python backend found. Checked paths:\n' +
-        `Compiled: ${backendPath}\n` +
-        `main.py: ${mainPyPath}`);
+      console.log('Continuing without backend. Some features may be unavailable.');
+      return Promise.resolve();
     }
   }
 }
@@ -200,9 +314,25 @@ async function checkBackendHealth() {
   }
 }
 
+async function waitForBackendHealthy(maxSeconds = 15) {
+  for (let i = 0; i < maxSeconds; i++) {
+    if (await checkBackendHealth()) return true;
+    await new Promise(r => setTimeout(r, 1000));
+  }
+  return false;
+}
+
+// Remove app menu
+Menu.setApplicationMenu(null);
+
 // IPC handlers
+if (!ipcMain || typeof ipcMain.handle !== 'function') {
+  throw new Error('Electron IPC not available. Start the app using Electron (e.g., npm run dev:frontend)');
+}
 ipcMain.handle('check-backend-status', async () => {
-  return await checkBackendHealth();
+  const ok = await checkBackendHealth();
+  try { mainWindow?.webContents.send('backend-status-changed', ok); } catch {}
+  return ok;
 });
 
 ipcMain.handle('complete-setup', async (event, setupData) => {
@@ -244,6 +374,14 @@ ipcMain.handle('complete-setup', async (event, setupData) => {
     
     // Save license key separately
     fs.writeFileSync(LICENSE_FILE, setupData.licenseKey);
+    
+    try {
+      if (!backendProcess) {
+        await startBackend();
+      }
+    } catch {}
+    const healthy = await waitForBackendHealthy(15);
+    try { setupWindow?.webContents.send('backend-status-changed', healthy); } catch {}
     
     return { success: true };
   } catch (error) {
@@ -325,9 +463,14 @@ app.on('activate', () => {
 });
 
 // Handle setup completion
-ipcMain.on('setup-complete', () => {
+ipcMain.on('setup-complete', async () => {
   if (setupWindow) {
     setupWindow.close();
   }
+  try {
+    if (!backendProcess) {
+      await startBackend();
+    }
+  } catch {}
   createMainWindow();
 });
