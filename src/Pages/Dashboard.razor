@@ -1,0 +1,131 @@
+@page "/"
+@inject ITauriService AppService
+@inject IJSRuntime JS
+
+<PageTitle>Dashboard - The Planning Bord</PageTitle>
+
+<div class="grid grid-cols-1 gap-6 mb-6 lg:grid-cols-3">
+    <div class="w-full px-4 py-5 bg-white rounded-lg shadow">
+        <div class="text-sm font-medium text-gray-500 truncate">Total Products</div>
+        <div class="mt-1 text-3xl font-semibold text-gray-900">@stats.TotalProducts</div>
+    </div>
+    <div class="w-full px-4 py-5 bg-white rounded-lg shadow">
+        <div class="text-sm font-medium text-gray-500 truncate">Low Stock Items</div>
+        <div class="mt-1 text-3xl font-semibold text-red-600">@stats.LowStockItems</div>
+    </div>
+    <div class="w-full px-4 py-5 bg-white rounded-lg shadow">
+        <div class="text-sm font-medium text-gray-500 truncate">Pending Tasks</div>
+        <div class="mt-1 text-3xl font-semibold text-gray-900">@pendingTasks</div>
+    </div>
+</div>
+
+@if (lowStockProducts.Any())
+{
+    <div class="bg-red-50 border-l-4 border-red-400 p-4 mb-6 shadow rounded-md">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                <svg class="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                </svg>
+            </div>
+            <div class="ml-3">
+                <h3 class="text-sm font-medium text-red-800">
+                    Low Stock Alerts (@lowStockProducts.Count)
+                </h3>
+                <div class="mt-2 text-sm text-red-700">
+                    <ul class="list-disc pl-5 space-y-1">
+                        @foreach (var p in lowStockProducts)
+                        {
+                            <li>
+                                <strong>@p.Name</strong> (SKU: @p.Sku) - Only @p.CurrentQuantity left (Min: @p.MinimumQuantity)
+                                <a href="inventory" class="font-bold underline ml-2">Restock</a>
+                            </li>
+                        }
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="bg-white shadow rounded-lg p-6">
+        <h3 class="text-lg font-medium leading-6 text-gray-900 mb-4">Quick Actions</h3>
+        <div class="grid grid-cols-2 gap-4">
+            <a href="inventory" class="flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                📦 Manage Inventory
+            </a>
+            <a href="tasks" class="flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700">
+                ✅ View Tasks
+            </a>
+            <a href="employees" class="flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
+                👥 Employees
+            </a>
+            <a href="finance" class="flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-yellow-600 hover:bg-yellow-700">
+                💰 Finance
+            </a>
+        </div>
+    </div>
+
+    <div class="bg-white shadow rounded-lg p-6">
+        <h3 class="text-lg font-medium leading-6 text-gray-900 mb-4">System Status</h3>
+        <ul class="divide-y divide-gray-200">
+            <li class="py-3 flex justify-between">
+                <span class="text-gray-600">Database</span>
+                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Connected</span>
+            </li>
+            <li class="py-3 flex justify-between">
+                <span class="text-gray-600">Last Backup</span>
+                <span class="text-gray-900">Today, 09:00 AM</span>
+            </li>
+            <li class="py-3 flex justify-between">
+                <span class="text-gray-600">Version</span>
+                <span class="text-gray-900">1.0.0</span>
+            </li>
+        </ul>
+    </div>
+</div>
+
+@code {
+    private DashboardStats stats = new();
+    private int pendingTasks = 0;
+    private List<Product> lowStockProducts = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // Fetch real stats in a real app
+            // stats = await AppService.GetDashboardStatsAsync();
+            // For now mock data or basic fetches
+            var products = await AppService.GetProductsAsync();
+            stats.TotalProducts = products.Count;
+            lowStockProducts = products.Where(p => p.CurrentQuantity <= p.MinimumQuantity).ToList();
+            stats.LowStockItems = lowStockProducts.Count;
+            
+            var tasks = await AppService.GetTasksAsync();
+            pendingTasks = tasks.Count(t => t.Status != "completed");
+
+            var setting = await JS.InvokeAsync<string>("getSetting", "notifications_enabled");
+            var enabled = setting == "true";
+            if (enabled && lowStockProducts.Any())
+            {
+                var names = string.Join(", ", lowStockProducts.Select(p => p.Name));
+                await JS.InvokeVoidAsync("notify", "Low Stock", $"Restock: {names}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading dashboard: {ex.Message}");
+        }
+    }
+
+    public class DashboardStats
+    {
+        public int TotalProducts { get; set; }
+        public int LowStockItems { get; set; }
+        public int TotalEmployees { get; set; }
+        public int TotalPaymentsPending { get; set; }
+        public double TotalRevenue { get; set; }
+    }
+}

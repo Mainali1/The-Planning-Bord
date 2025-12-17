@@ -1,0 +1,127 @@
+@page "/complaints"
+@inject ITauriService AppService
+
+<PageTitle>Complaints - The Planning Bord</PageTitle>
+
+<div class="flex flex-col h-full relative">
+    <div class="flex justify-between items-center mb-6">
+        <h3 class="text-lg font-medium leading-6 text-gray-900">Anonymous Complaint System</h3>
+        <button @onclick="OpenAddModal" class="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+            ➕ Submit Complaint
+        </button>
+    </div>
+
+    <div class="flex-1 overflow-auto bg-white shadow rounded-lg">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Content</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                    <th class="relative px-6 py-3"><span class="sr-only">Actions</span></th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                @if (complaints == null) { <tr><td colspan="4" class="px-6 py-4 text-center">Loading...</td></tr> }
+                else if (!complaints.Any()) { <tr><td colspan="4" class="px-6 py-4 text-center">No complaints found.</td></tr> }
+                else
+                {
+                    @foreach (var c in complaints)
+                    {
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">@c.Content</td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full @(c.Status == "resolved" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800")">
+                                    @c.Status
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">@c.CreatedAt</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <button @onclick="() => ResolveComplaint(c)" class="text-green-600 hover:text-green-900 mr-3">Resolve</button>
+                                <button @onclick="() => DeleteComplaint(c.Id ?? 0)" class="text-red-600 hover:text-red-900">Delete</button>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@if (showAddModal)
+{
+    <div class="fixed z-10 inset-0 overflow-y-auto">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 transition-opacity"><div class="absolute inset-0 bg-gray-500 opacity-75"></div></div>
+            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900">Submit Complaint (Anonymous)</h3>
+                    <div class="mt-4 grid grid-cols-1 gap-y-4">
+                        <textarea @bind="newComplaint.Content" placeholder="Describe your complaint here..." class="block w-full border-gray-300 rounded-md shadow-sm h-32"></textarea>
+                    </div>
+                </div>
+                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                    <button type="button" @onclick="SaveComplaint" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 sm:ml-3 sm:w-auto sm:text-sm">Submit</button>
+                    <button type="button" @onclick="() => showAddModal = false" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<Complaint>? complaints;
+    private bool showAddModal = false;
+    private Complaint newComplaint = new Complaint();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadComplaints();
+    }
+
+    private async Task LoadComplaints()
+    {
+        try { complaints = await AppService.GetComplaintsAsync(); }
+        catch (Exception ex) { Console.WriteLine(ex.Message); complaints = new List<Complaint>(); }
+    }
+
+    private void OpenAddModal()
+    {
+        newComplaint = new Complaint();
+        showAddModal = true;
+    }
+
+    private async Task SaveComplaint()
+    {
+        try
+        {
+            await AppService.SubmitComplaintAsync(newComplaint.Content);
+            showAddModal = false;
+            await LoadComplaints();
+        }
+        catch (Exception ex) { Console.WriteLine(ex.Message); }
+    }
+
+    private async Task ResolveComplaint(Complaint c)
+    {
+        try
+        {
+            if (c.Id.HasValue)
+            {
+                await AppService.ResolveComplaintAsync(c.Id.Value, "resolved", null);
+                await LoadComplaints();
+            }
+        }
+        catch (Exception ex) { Console.WriteLine(ex.Message); }
+    }
+
+    private async Task DeleteComplaint(int id)
+    {
+        try
+        {
+            await AppService.DeleteComplaintAsync(id);
+            await LoadComplaints();
+        }
+        catch (Exception ex) { Console.WriteLine(ex.Message); }
+    }
+}

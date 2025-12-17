@@ -1,0 +1,215 @@
+---
+
+# **The Planning Bord — Desktop Business Management Software**
+
+### **Inventory, Employee, and Operations Automation System for Small & Medium Businesses**
+
+---
+
+## **1. Project Overview**
+
+Build a **standalone desktop application** for **small and medium-sized businesses**.
+
+It should be distributed as an installer (EXE/Deb, AppImage, MSI, DMG).
+
+The system includes:
+
+* Inventory tracking
+* Auto-restock notifications (via Microsoft 365 email)
+* Employee management
+* Payment & finance management
+* Task assignment
+* Microsoft 365 integration
+* Local database storage
+* Optional cloud sync
+
+The software must have a **modern, commercial-grade UI**, run smoothly offline, and integrate automation for everyday business operations.
+
+---
+
+## **2. Core Features & Requirements**
+
+### **Inventory Management System**
+
+Users can manage their full product inventory directly from the desktop app.
+
+Each product includes:
+
+* Item name
+* Category
+* Supplier/distributor info
+* Current quantity
+* Minimum desired quantity ("stock limiter")
+* Auto-restock quantity
+
+**Automatic Restock Logic (Offline + Online)**
+
+* The desktop app monitors inventory levels automatically.
+* When an item falls below the threshold, the app prepares and sends a restock email through Microsoft Outlook (via Graph API).
+* Email includes:
+
+  * Business details
+  * Item details
+  * Quantity required
+  * Preferred delivery date
+
+**Optional Dashboard Analytics**
+
+* Fast-moving items
+* Low-stock alerts
+* Inventory value charts
+* Daily/weekly reports
+
+---
+
+## **3. Employee Management System**
+
+The desktop application must include a full HR/employee module:
+
+### **Employee Data Storage**
+
+* Personal details
+* Job role, department
+* Assigned tools/equipment
+* Attendance logs
+* Leave requests with optional proof/document upload
+
+### **Anonymous Complaint System**
+
+Employees can submit complaints directly within the app (encrypted, accessible only to admins).
+
+### **Tool & Equipment Tracking**
+
+* Assign tools
+* Track return status
+* Damage reports
+
+### **Task Assignment System**
+
+* Management assigns tasks to employees
+* Desktop notifications (OS native notifications if possible)
+* Task states: pending, active, completed, overdue
+
+---
+
+## **4. Payment & Finance Management**
+
+* Track payments to suppliers
+* Track employee salary schedules
+* Payment history database
+* Simple built-in calculator
+* Monthly and yearly financial summaries
+* Export financial reports (PDF, Excel, CSV)
+
+---
+
+## **5. Microsoft 365 Integration**
+
+Since this is a desktop app, integration must use **Microsoft Graph API** or the user’s signed-in local Outlook client.
+
+Features:
+
+* Send automatic restock emails via Outlook
+* Sync files to OneDrive
+* Sync tasks with Microsoft To Do / Planner
+* Use MS Teams for employee notifications (optional)
+
+---
+
+## **6. Technical Requirements**
+
+### **Desktop Technology Stack (Required)**
+
+You must build the software as a **desktop application**, not a web app.
+
+Recommended options:
+
+#### Option A — **Python Backend + Electron/Tauri Frontend**
+
+* Python handles logic, automation, DB, services
+* Electron/Svelte/React for UI
+* Packaged as one desktop app
+
+#### Option B — **Full Python Desktop App**
+
+Using:
+
+* PyQt / PySide
+* Kivy
+* Custom Python desktop framework
+
+#### Option C — **C# .NET (Windows Only)**
+
+* If Windows-only deployment is acceptable
+* Smoothest integration with Microsoft services
+
+### **Local Database**
+
+* PostgreSQL (local server or embedded)
+* SQLite (recommended for fully offline installs)
+
+### **Automation**
+
+* Use OS-based scheduled tasks or app-based background services
+* Daily inventory checks
+* Automated email triggers
+* Notification popups
+
+### **Security**
+
+* Encrypt local storage
+* Use OAuth2 for Microsoft logins
+* Optional password/PIN to open the app
+
+---
+
+## **7. Deliverables**
+
+Produce:
+
+* Complete desktop application source code
+* Build scripts for Windows/Linux/macOS installers
+* Database schema (ERD + SQL migrations)
+* API/services architecture documentation
+* Microsoft 365 integration modules
+* Inventory automation workflow
+* UI wireframes for all main screens
+* Test suite
+
+---
+
+## **8. Output Format Required from AI Coder**
+
+The AI coder should generate:
+
+### **1. Desktop App Folder Structure**
+
+For Python/Electron or your selected stack.
+
+### **2. Core Backend Logic**
+
+* Inventory services
+* Automation engine
+* Local DB handlers
+
+### **3. Full UI Component List**
+
+* Inventory UI
+* Employee UI
+* Task UI
+* Dashboard UI
+* Settings & Microsoft login UI
+
+### **4. Microsoft Integration Code Examples**
+
+* Outlook email sending
+* OneDrive sync
+* Graph API auth
+
+### **5. Automation Logic Documentation**
+
+* When restock triggers run
+* How emails are prepared
+* How notifications work
+
+---
