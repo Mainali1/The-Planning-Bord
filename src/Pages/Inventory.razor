@@ -1,7 +1,9 @@
 @page "/inventory"
-@inject ITauriService AppService
+@inject IInventoryService InventoryService
 @inject IJSRuntime JSRuntime
+@inject NotificationService NotificationService
 @using Microsoft.JSInterop
+@using ThePlanningBord.Models
 
 <PageTitle>Inventory - The Planning Bord</PageTitle>
 
@@ -9,6 +11,12 @@
     <div class="flex justify-between items-center mb-6">
         <h3 class="text-lg font-medium leading-6 text-gray-900">Inventory Management</h3>
         <div class="flex space-x-4">
+            <div class="relative rounded-md shadow-sm">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <span class="text-gray-500 sm:text-sm">🔍</span>
+                </div>
+                <input type="text" @bind="searchTerm" @bind:event="oninput" @bind:after="OnSearchChanged" placeholder="Search products..." class="focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md" />
+            </div>
             <button @onclick="ExportToExcel" class="flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
                 📥 Export to Excel
             </button>
@@ -18,47 +26,94 @@
         </div>
     </div>
 
-    <div class="flex-1 overflow-auto bg-white shadow rounded-lg">
-        <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
-                <tr>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th class="relative px-6 py-3"><span class="sr-only">Actions</span></th>
-                </tr>
-            </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-                @if (products == null) { <tr><td colspan="6" class="px-6 py-4 text-center">Loading...</td></tr> }
-                else if (!products.Any()) { <tr><td colspan="6" class="px-6 py-4 text-center">No products found.</td></tr> }
-                else
-                {
-                    @foreach (var p in products)
+    <div class="flex-1 overflow-auto bg-white shadow rounded-lg flex flex-col">
+        <div class="flex-1 overflow-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50 sticky top-0">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th class="relative px-6 py-3"><span class="sr-only">Actions</span></th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    @if (isLoading) { <tr><td colspan="6" class="px-6 py-4 text-center">Loading...</td></tr> }
+                    else if (products == null || !products.Any()) { <tr><td colspan="6" class="px-6 py-4 text-center">No products found.</td></tr> }
+                    else
                     {
-                        <tr>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <div class="text-sm font-medium text-gray-900">@p.Name</div>
-                                <div class="text-sm text-gray-500">@p.Sku</div>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">@p.Category</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">@p.CurrentQuantity / @p.MinimumQuantity</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">@p.UnitPrice.ToString("C")</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                @if (p.CurrentQuantity <= 0) { <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Out of Stock</span> }
-                                else if (p.CurrentQuantity <= p.MinimumQuantity) { <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Low Stock</span> }
-                                else { <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">In Stock</span> }
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                <button @onclick="() => EditProduct(p)" class="text-blue-600 hover:text-blue-900 mr-3">Edit</button>
-                                <button @onclick="() => DeleteProduct(p.Id ?? 0)" class="text-red-600 hover:text-red-900">Delete</button>
-                            </td>
-                        </tr>
+                        @foreach (var p in products)
+                        {
+                            <tr>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm font-medium text-gray-900">@p.Name</div>
+                                    <div class="text-sm text-gray-500">@p.Sku</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">@p.Category</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">@p.CurrentQuantity / @p.MinimumQuantity</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">@p.UnitPrice.ToString("C")</td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    @if (p.CurrentQuantity <= 0) { <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Out of Stock</span> }
+                                    else if (p.CurrentQuantity <= p.MinimumQuantity) { <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Low Stock</span> }
+                                    else { <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">In Stock</span> }
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                    <button @onclick="() => EditProduct(p)" class="text-blue-600 hover:text-blue-900 mr-3">Edit</button>
+                                    <button @onclick="() => DeleteProduct(p.Id ?? 0)" class="text-red-600 hover:text-red-900">Delete</button>
+                                </td>
+                            </tr>
+                        }
                     }
-                }
-            </tbody>
-        </table>
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Pagination -->
+        <div class="bg-white px-4 py-3 border-t border-gray-200 sm:px-6">
+            <div class="flex items-center justify-between">
+                <div class="flex-1 flex justify-between sm:hidden">
+                    <button @onclick="PreviousPage" disabled="@(!CanPreviousPage)" class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"> Previous </button>
+                    <button @onclick="NextPage" disabled="@(!CanNextPage)" class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"> Next </button>
+                </div>
+                <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                    <div>
+                        <p class="text-sm text-gray-700">
+                            Showing <span class="font-medium">@((currentPage - 1) * pageSize + 1)</span> to <span class="font-medium">@(Math.Min(currentPage * pageSize, totalItems))</span> of <span class="font-medium">@totalItems</span> results
+                        </p>
+                    </div>
+                    <div>
+                        <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                            <button @onclick="PreviousPage" disabled="@(!CanPreviousPage)" class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50">
+                                <span class="sr-only">Previous</span>
+                                <span>&larr;</span>
+                            </button>
+                            
+                            @for (int i = 1; i <= TotalPages; i++)
+                            {
+                                var pageNumber = i;
+                                if (i == 1 || i == TotalPages || (i >= currentPage - 2 && i <= currentPage + 2))
+                                {
+                                    <button @onclick="() => GoToPage(pageNumber)" class="@(currentPage == pageNumber ? "bg-blue-50 border-blue-500 text-blue-600" : "bg-white border-gray-300 text-gray-500 hover:bg-gray-50") relative inline-flex items-center px-4 py-2 border text-sm font-medium">
+                                        @i
+                                    </button>
+                                }
+                                else if (i == currentPage - 3 || i == currentPage + 3)
+                                {
+                                    <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">...</span>
+                                }
+                            }
+
+                            <button @onclick="NextPage" disabled="@(!CanNextPage)" class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50">
+                                <span class="sr-only">Next</span>
+                                <span>&rarr;</span>
+                            </button>
+                        </nav>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -94,33 +149,96 @@
     private List<Product>? products;
     private bool showAddModal = false;
     private Product newProduct = new Product();
+    private string searchTerm = "";
+    private int currentPage = 1;
+    private int pageSize = 10;
+    private int totalItems = 0;
+    private bool isLoading = false;
+    private System.Timers.Timer? debounceTimer;
+
+    private int TotalPages => (int)Math.Ceiling((double)totalItems / pageSize);
+    private bool CanPreviousPage => currentPage > 1;
+    private bool CanNextPage => currentPage < TotalPages;
 
     protected override async Task OnInitializedAsync()
     {
+        debounceTimer = new System.Timers.Timer(300);
+        debounceTimer.Elapsed += async (sender, e) => 
+        {
+            debounceTimer.Stop();
+            currentPage = 1;
+            await InvokeAsync(LoadProducts);
+        };
+        debounceTimer.AutoReset = false;
+        
         await LoadProducts();
+    }
+
+    private void OnSearchChanged()
+    {
+        debounceTimer?.Stop();
+        debounceTimer?.Start();
     }
 
     private async Task LoadProducts()
     {
+        isLoading = true;
+        StateHasChanged();
         try
         {
-            products = await AppService.GetProductsAsync();
+            var result = await InventoryService.GetProductsAsync(searchTerm, currentPage, pageSize);
+            products = result.Items;
+            totalItems = result.Total;
+            // Update current page from result in case it was adjusted
+            currentPage = result.Page; 
         }
         catch (Exception ex)
         {
             Console.WriteLine(ex.Message);
             products = new List<Product>();
         }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task GoToPage(int page)
+    {
+        if (page < 1 || page > TotalPages) return;
+        currentPage = page;
+        await LoadProducts();
+    }
+
+    private async Task PreviousPage()
+    {
+        if (CanPreviousPage)
+        {
+            currentPage--;
+            await LoadProducts();
+        }
+    }
+
+    private async Task NextPage()
+    {
+        if (CanNextPage)
+        {
+            currentPage++;
+            await LoadProducts();
+        }
     }
 
     private async Task ExportToExcel()
     {
-        if (products == null || !products.Any()) return;
-
+        // Export all items (fetch without pagination or large page size)
+        var allProducts = await InventoryService.GetProductsAsync(searchTerm, 1, 100000); 
+        if (allProducts.Items == null || !allProducts.Items.Any()) return;
+        
         var csvBuilder = new System.Text.StringBuilder();
         csvBuilder.AppendLine("Name,SKU,Category,Current Quantity,Minimum Quantity,Unit Price,Status");
 
-        foreach (var p in products)
+        foreach (var p in allProducts.Items)
         {
             var status = p.CurrentQuantity <= 0 ? "Out of Stock" : (p.CurrentQuantity <= p.MinimumQuantity ? "Low Stock" : "In Stock");
             csvBuilder.AppendLine($"\"{p.Name}\",\"{p.Sku}\",\"{p.Category}\",{p.CurrentQuantity},{p.MinimumQuantity},{p.UnitPrice},\"{status}\"");
@@ -147,18 +265,37 @@
     {
         try
         {
-            if (newProduct.Id.HasValue) await AppService.UpdateProductAsync(newProduct);
-            else await AppService.AddProductAsync(newProduct);
+            if (newProduct.Id.HasValue) 
+            { 
+                await InventoryService.UpdateProductAsync(newProduct); 
+                NotificationService.ShowSuccess("Product updated."); 
+            }
+            else 
+            { 
+                await InventoryService.AddProductAsync(newProduct); 
+                NotificationService.ShowSuccess("Product added."); 
+            }
             showAddModal = false;
             await LoadProducts();
         }
-        catch (Exception ex) { Console.WriteLine(ex.Message); }
+        catch (Exception ex) 
+        { 
+            NotificationService.ShowError("Failed to save product: " + ex.Message); 
+        }
     }
 
     private async Task DeleteProduct(int id)
     {
         if (id == 0) return;
-        try { await AppService.DeleteProductAsync(id); await LoadProducts(); }
-        catch (Exception ex) { Console.WriteLine(ex.Message); }
+        try 
+        { 
+            await InventoryService.DeleteProductAsync(id); 
+            await LoadProducts(); 
+            NotificationService.ShowSuccess("Product deleted."); 
+        }
+        catch (Exception ex) 
+        { 
+            NotificationService.ShowError("Failed to delete product: " + ex.Message); 
+        }
     }
 }

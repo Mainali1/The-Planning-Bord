@@ -1,11 +1,152 @@
 @page "/attendance"
-@inject ITauriService AppService
+@inject IHrService HrService
+@using ThePlanningBord.Models
+@inject IJSRuntime JS
+@inject NotificationService NotificationService
 
 <PageTitle>Attendance - The Planning Bord</PageTitle>
 
 <div class="flex flex-col h-full">
     <h3 class="text-lg font-medium leading-6 text-gray-900 mb-6">Attendance Tracking</h3>
-    <div class="bg-white shadow rounded-lg p-6">
-        <p class="text-gray-500">Attendance tracking module. Employees can check in/out here.</p>
+    
+    <div class="bg-white shadow rounded-lg p-6 mb-6">
+        <h4 class="text-base font-medium text-gray-900 mb-4">Clock In/Out</h4>
+        <div class="flex gap-4">
+            <button @onclick="ClockIn" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50" disabled="@isClockedIn">Clock In</button>
+            <button @onclick="ClockOut" class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50" disabled="@(!isClockedIn)">Clock Out</button>
+        </div>
+    </div>
+
+    <div class="flex-1 overflow-auto bg-white shadow rounded-lg">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee ID</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Clock In</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Clock Out</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                @if (attendances == null) { <tr><td colspan="5" class="px-6 py-4 text-center">Loading...</td></tr> }
+                else if (!attendances.Any()) { <tr><td colspan="5" class="px-6 py-4 text-center">No attendance records found.</td></tr> }
+                else
+                {
+                    @foreach (var a in attendances)
+                    {
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">@a.EmployeeId</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">@a.CheckIn</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">@a.CheckIn</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">@a.CheckOut</td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full @(a.Status == "present" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800")">
+                                    @a.Status
+                                </span>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
     </div>
 </div>
+
+@code {
+    private List<AttendanceModel>? attendances;
+    private bool isClockedIn = false;
+    
+    protected override async Task OnInitializedAsync()
+    {
+         await LoadAttendances();
+         CheckCurrentStatus();
+    }
+
+    private void CheckCurrentStatus()
+    {
+        // Simple logic: if last record for today has no checkout time, user is clocked in.
+        // In real app, this should be an API call or check session.
+        if (attendances != null && attendances.Any())
+        {
+            var last = attendances.OrderByDescending(a => a.CheckIn).FirstOrDefault();
+            if (last != null && IsToday(last.CheckIn) && string.IsNullOrEmpty(last.CheckOut))
+            {
+                isClockedIn = true;
+            }
+            else
+            {
+                isClockedIn = false;
+            }
+        }
+    }
+
+    private async Task LoadAttendances()
+    {
+        try 
+        { 
+            attendances = await HrService.GetAttendancesAsync();
+            CheckCurrentStatus();
+        }
+        catch (Exception ex) 
+        { 
+            NotificationService.ShowError("Failed to load attendance records: " + ex.Message);
+            attendances = new List<AttendanceModel>(); 
+        }
+    }
+
+    private async Task ClockIn()
+    {
+        // For demo purposes, we'll assume Employee ID 1. In real app, get from session.
+        var att = new AttendanceModel 
+        { 
+            EmployeeId = 1, 
+            CheckIn = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+            Status = "present"
+        };
+        
+        try
+        {
+            await HrService.ClockInAsync(att);
+            NotificationService.ShowSuccess("Clocked in successfully");
+            await LoadAttendances();
+        }
+        catch (Exception ex) { NotificationService.ShowError(ex.Message); }
+    }
+
+    private async Task ClockOut()
+    {
+         var open = attendances?
+            .Where(a => a.EmployeeId == 1 && IsToday(a.CheckIn) && string.IsNullOrEmpty(a.CheckOut))
+            .OrderByDescending(a => a.CheckIn)
+            .FirstOrDefault();
+         if (open?.Id == null) 
+         { 
+             NotificationService.ShowWarning("No active clock-in found for today."); 
+             return; 
+         }
+         var att = new AttendanceModel 
+        { 
+            Id = open.Id,
+            CheckOut = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+            Status = "present"
+        };
+        
+        try
+        {
+            await HrService.ClockOutAsync(att);
+            NotificationService.ShowSuccess("Clocked out successfully");
+            await LoadAttendances();
+        }
+        catch (Exception ex) { NotificationService.ShowError(ex.Message); }
+    }
+    
+    private bool IsToday(string checkIn)
+    {
+        if (DateTime.TryParse(checkIn, out var dt))
+        {
+            return dt.Date == DateTime.Today;
+        }
+        return false;
+    }
+}

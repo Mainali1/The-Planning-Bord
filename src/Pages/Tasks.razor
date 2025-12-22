@@ -1,6 +1,7 @@
 @page "/tasks"
-@inject ITauriService AppService
+@inject ITaskService TaskService
 @inject IJSRuntime JSRuntime
+@using ThePlanningBord.Models
 
 <PageTitle>Tasks - The Planning Bord</PageTitle>
 
@@ -97,7 +98,7 @@
     {
         try
         {
-            tasks = await AppService.GetTasksAsync();
+            tasks = await TaskService.GetTasksAsync();
         }
         catch (Exception ex)
         {
@@ -129,11 +130,11 @@
         {
             if (newTask.Id.HasValue)
             {
-                await AppService.UpdateTaskAsync(newTask);
+                await TaskService.UpdateTaskAsync(newTask);
             }
             else
             {
-                await AppService.AddTaskAsync(newTask);
+                await TaskService.AddTaskAsync(newTask);
             }
             showAddModal = false;
             await LoadTasks();
@@ -148,7 +149,7 @@
     {
         if (await JSRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to delete this task?"))
         {
-            await AppService.DeleteTaskAsync(id);
+            await TaskService.DeleteTaskAsync(id);
             await LoadTasks();
         }
     }

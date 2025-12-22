@@ -1,5 +1,8 @@
 @page "/complaints"
-@inject ITauriService AppService
+@inject IComplaintService ComplaintService
+@inject IJSRuntime JS
+@inject NotificationService NotificationService
+@using ThePlanningBord.Models
 
 <PageTitle>Complaints - The Planning Bord</PageTitle>
 
@@ -29,7 +32,11 @@
                     @foreach (var c in complaints)
                     {
                         <tr>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">@c.Content</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                <div class="max-w-xs overflow-hidden text-ellipsis" title="@c.Content">
+                                    @c.Content
+                                </div>
+                            </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full @(c.Status == "resolved" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800")">
                                     @c.Status
@@ -37,8 +44,11 @@
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">@c.CreatedAt</td>
                             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                <button @onclick="() => ResolveComplaint(c)" class="text-green-600 hover:text-green-900 mr-3">Resolve</button>
-                                <button @onclick="() => DeleteComplaint(c.Id ?? 0)" class="text-red-600 hover:text-red-900">Delete</button>
+                                @if (c.Status != "resolved")
+                                {
+                                    <button @onclick="() => OpenResolveModal(c)" class="text-green-600 hover:text-green-900 mr-3">Resolve</button>
+                                }
+                                <button @onclick="() => DeleteComplaint(c)" class="@(c.Status == "resolved" ? "text-red-600 hover:text-red-900" : "text-gray-400 cursor-not-allowed")" disabled="@(c.Status != "resolved")">Delete</button>
                             </td>
                         </tr>
                     }
@@ -69,10 +79,43 @@
     </div>
 }
 
+@if (showResolveModal)
+{
+    <div class="fixed z-10 inset-0 overflow-y-auto">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 transition-opacity"><div class="absolute inset-0 bg-gray-500 opacity-75"></div></div>
+            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900">Resolve Complaint</h3>
+                    <div class="mt-4 grid grid-cols-1 gap-y-4">
+                        <label class="block text-sm font-medium text-gray-700">Resolution Action</label>
+                        <input type="text" @bind="resolveResolution" placeholder="What was done?" class="block w-full border-gray-300 rounded-md shadow-sm" />
+                        
+                        <label class="block text-sm font-medium text-gray-700">Resolved By</label>
+                        <input type="text" @bind="resolveBy" placeholder="Name" class="block w-full border-gray-300 rounded-md shadow-sm" />
+                        
+                        <label class="block text-sm font-medium text-gray-700">Admin Notes</label>
+                        <textarea @bind="resolveNotes" class="block w-full border-gray-300 rounded-md shadow-sm" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                    <button type="button" @onclick="ConfirmResolve" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 sm:ml-3 sm:w-auto sm:text-sm">Mark Resolved</button>
+                    <button type="button" @onclick="() => showResolveModal = false" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     private List<Complaint>? complaints;
     private bool showAddModal = false;
+    private bool showResolveModal = false;
     private Complaint newComplaint = new Complaint();
+    private Complaint? selectedComplaint;
+    private string resolveResolution = "";
+    private string resolveBy = "Admin";
+    private string resolveNotes = "";
 
     protected override async Task OnInitializedAsync()
     {
@@ -81,7 +124,7 @@
 
     private async Task LoadComplaints()
     {
-        try { complaints = await AppService.GetComplaintsAsync(); }
+        try { complaints = await ComplaintService.GetComplaintsAsync(); }
         catch (Exception ex) { Console.WriteLine(ex.Message); complaints = new List<Complaint>(); }
     }
 
@@ -95,32 +138,54 @@
     {
         try
         {
-            await AppService.SubmitComplaintAsync(newComplaint.Content);
+            await ComplaintService.SubmitComplaintAsync(newComplaint.Content);
             showAddModal = false;
             await LoadComplaints();
+            NotificationService.ShowSuccess("Complaint submitted successfully.");
         }
         catch (Exception ex) { Console.WriteLine(ex.Message); }
     }
 
-    private async Task ResolveComplaint(Complaint c)
+    private void OpenResolveModal(Complaint c)
     {
-        try
-        {
-            if (c.Id.HasValue)
-            {
-                await AppService.ResolveComplaintAsync(c.Id.Value, "resolved", null);
-                await LoadComplaints();
-            }
-        }
-        catch (Exception ex) { Console.WriteLine(ex.Message); }
+        selectedComplaint = c;
+        resolveResolution = "";
+        resolveBy = "Admin";
+        resolveNotes = "";
+        showResolveModal = true;
     }
 
-    private async Task DeleteComplaint(int id)
+    private async Task ConfirmResolve()
     {
+        if (selectedComplaint == null || !selectedComplaint.Id.HasValue) return;
         try
         {
-            await AppService.DeleteComplaintAsync(id);
+            await ComplaintService.ResolveComplaintAsync(selectedComplaint.Id.Value, "resolved", resolveResolution, resolveBy, resolveNotes);
+            showResolveModal = false;
             await LoadComplaints();
+            NotificationService.ShowSuccess("Complaint resolved successfully.");
+        }
+        catch (Exception ex) { Console.WriteLine(ex.Message); }
+    }
+
+    private async Task DeleteComplaint(Complaint c)
+    {
+        if (c.Status != "resolved")
+        {
+            NotificationService.ShowWarning("Only resolved complaints can be deleted.");
+            return;
+        }
+        
+        bool confirmed = await JS.InvokeAsync<bool>("confirm", "Are you sure you want to delete this complaint? This action cannot be undone.");
+        if (!confirmed) return;
+        
+        if (!c.Id.HasValue) { NotificationService.ShowError("Complaint has no ID."); return; }
+        
+        try
+        {
+            await ComplaintService.DeleteComplaintAsync(c.Id.Value);
+            await LoadComplaints();
+            NotificationService.ShowSuccess("Complaint deleted.");
         }
         catch (Exception ex) { Console.WriteLine(ex.Message); }
     }

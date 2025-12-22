@@ -5,15 +5,17 @@ namespace ThePlanningBord.Services
 {
     public class BackgroundJobService : IDisposable
     {
-        private readonly ITauriService _tauriService;
+        private readonly IInventoryService _inventoryService;
         private readonly IJSRuntime _jsRuntime;
+        private readonly MicrosoftGraphService _graphService;
         private System.Timers.Timer? _timer;
         private bool _isRunning;
 
-        public BackgroundJobService(ITauriService tauriService, IJSRuntime jsRuntime)
+        public BackgroundJobService(IInventoryService inventoryService, IJSRuntime jsRuntime, MicrosoftGraphService graphService)
         {
-            _tauriService = tauriService;
+            _inventoryService = inventoryService;
             _jsRuntime = jsRuntime;
+            _graphService = graphService;
         }
 
         public void Start()
@@ -37,7 +39,9 @@ namespace ThePlanningBord.Services
                     return;
                 }
 
-                var products = await _tauriService.GetProductsAsync();
+                // Fetch all products for check (using a large page size for now)
+                var result = await _inventoryService.GetProductsAsync(null, 1, 1000);
+                var products = result.Items;
                 var lowStock = products.Where(p => p.CurrentQuantity <= p.MinimumQuantity).ToList();
 
                 if (lowStock.Any())
@@ -49,8 +53,18 @@ namespace ThePlanningBord.Services
                     var emailEnabledStr = await _jsRuntime.InvokeAsync<string>("getSetting", "email_alerts_enabled");
                     if (bool.TryParse(emailEnabledStr, out bool emailEnabled) && emailEnabled)
                     {
-                        // TODO: Call Graph API to send email
-                        Console.WriteLine("Would send email here...");
+                        var adminEmail = await _jsRuntime.InvokeAsync<string>("getSetting", "admin_email");
+                        if (!string.IsNullOrEmpty(adminEmail))
+                        {
+                            var sb = new System.Text.StringBuilder();
+                            sb.AppendLine("The following items are low on stock:");
+                            foreach (var item in lowStock)
+                            {
+                                sb.AppendLine($"- {item.Name} (SKU: {item.Sku}): {item.CurrentQuantity} / {item.MinimumQuantity}");
+                            }
+                            
+                            await _graphService.SendRestockEmailAsync(adminEmail, "Low Stock Alert", sb.ToString());
+                        }
                     }
                 }
             }

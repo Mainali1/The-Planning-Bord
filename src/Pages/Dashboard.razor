@@ -1,5 +1,7 @@
 @page "/"
-@inject ITauriService AppService
+@inject IReportService ReportService
+@inject IInventoryService InventoryService
+@inject ITaskService TaskService
 @inject IJSRuntime JS
 
 <PageTitle>Dashboard - The Planning Bord</PageTitle>
@@ -86,6 +88,8 @@
     </div>
 </div>
 
+@using ThePlanningBord.Models
+
 @code {
     private DashboardStats stats = new();
     private int pendingTasks = 0;
@@ -96,14 +100,15 @@
         try
         {
             // Fetch real stats in a real app
-            // stats = await AppService.GetDashboardStatsAsync();
+            // stats = await ReportService.GetDashboardStatsAsync();
             // For now mock data or basic fetches
-            var products = await AppService.GetProductsAsync();
-            stats.TotalProducts = products.Count;
+            var productResult = await InventoryService.GetProductsAsync(null, 1, 1000);
+            var products = productResult.Items;
+            stats.TotalProducts = productResult.Total;
             lowStockProducts = products.Where(p => p.CurrentQuantity <= p.MinimumQuantity).ToList();
             stats.LowStockItems = lowStockProducts.Count;
             
-            var tasks = await AppService.GetTasksAsync();
+            var tasks = await TaskService.GetTasksAsync();
             pendingTasks = tasks.Count(t => t.Status != "completed");
 
             var setting = await JS.InvokeAsync<string>("getSetting", "notifications_enabled");
@@ -118,14 +123,5 @@
         {
             Console.WriteLine($"Error loading dashboard: {ex.Message}");
         }
-    }
-
-    public class DashboardStats
-    {
-        public int TotalProducts { get; set; }
-        public int LowStockItems { get; set; }
-        public int TotalEmployees { get; set; }
-        public int TotalPaymentsPending { get; set; }
-        public double TotalRevenue { get; set; }
     }
 }

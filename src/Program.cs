@@ -8,8 +8,19 @@ builder.RootComponents.Add<Application>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
 builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
-builder.Services.AddScoped<ITauriService, TauriService>();
+
+// Register Domain Services
+builder.Services.AddScoped<IInventoryService, InventoryService>();
+builder.Services.AddScoped<IHrService, HrService>();
+builder.Services.AddScoped<IFinanceService, FinanceService>();
+builder.Services.AddScoped<ITaskService, TaskService>();
+builder.Services.AddScoped<IComplaintService, ComplaintService>();
+builder.Services.AddScoped<IReportService, ReportService>();
+builder.Services.AddScoped<ISystemService, SystemService>();
+builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<MicrosoftGraphService>();
+builder.Services.AddScoped<NotificationService>();
+builder.Services.AddScoped<TauriInterop>();
 builder.Services.AddScoped<BackgroundJobService>();
 
 await builder.Build().RunAsync();

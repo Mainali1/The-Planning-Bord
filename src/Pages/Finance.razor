@@ -1,5 +1,6 @@
 @page "/finance"
-@inject ITauriService AppService
+@inject IFinanceService FinanceService
+@using ThePlanningBord.Models
 
 <PageTitle>Finance - The Planning Bord</PageTitle>
 
@@ -93,7 +94,7 @@
 
     private async Task LoadPayments()
     {
-        try { payments = await AppService.GetPaymentsAsync(); }
+        try { payments = await FinanceService.GetPaymentsAsync(); }
         catch (Exception ex) { Console.WriteLine(ex.Message); payments = new List<Payment>(); }
     }
 
@@ -107,7 +108,8 @@
     {
         try
         {
-            await AppService.AddPaymentAsync(newPayment);
+            if (newPayment.Id.HasValue) await FinanceService.UpdatePaymentAsync(newPayment);
+            else await FinanceService.AddPaymentAsync(newPayment);
             showAddModal = false;
             await LoadPayments();
         }
@@ -117,7 +119,7 @@
     private async Task DeletePayment(int id)
     {
         if (id == 0) return;
-        try { await AppService.DeletePaymentAsync(id); await LoadPayments(); }
+        try { await FinanceService.DeletePaymentAsync(id); await LoadPayments(); }
         catch (Exception ex) { Console.WriteLine(ex.Message); }
     }
 }

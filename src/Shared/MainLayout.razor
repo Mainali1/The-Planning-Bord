@@ -1,5 +1,8 @@
 @inherits LayoutComponentBase
 @inject BackgroundJobService BackgroundService
+@inject ISystemService SystemService
+@inject NavigationManager Navigation
+@inject NotificationService NotificationService
 
 <div class="flex h-screen bg-gray-100 font-sans">
     <NavMenu />
@@ -21,15 +24,32 @@
 
         <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100">
             <div class="container mx-auto px-6 py-8">
-                @Body
+                <ErrorBoundary>
+                    @Body
+                </ErrorBoundary>
             </div>
         </main>
     </div>
 </div>
+<ToastContainer />
 
 @code {
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
+        try
+        {
+            var isSetup = await SystemService.GetSetupStatusAsync();
+            if (!isSetup)
+            {
+                Navigation.NavigateTo("/setup", true);
+                return;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Setup check failed: {ex.Message}");
+        }
+
         BackgroundService.Start();
     }
 }

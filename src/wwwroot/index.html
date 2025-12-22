@@ -12,6 +12,26 @@
     <div id="app"></div>
     <script src="_framework/blazor.webassembly.js"></script>
     <script>
+        // Apply theme on load
+        (function() {
+            try {
+                var darkMode = localStorage.getItem('dark_mode_enabled') === 'True';
+                if (darkMode) document.documentElement.classList.add('dark');
+            } catch {}
+        })();
+
+        function applyTheme(theme) {
+            try {
+                if (theme === 'dark') {
+                    document.documentElement.classList.add('dark');
+                    localStorage.setItem('dark_mode_enabled', 'True');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                    localStorage.setItem('dark_mode_enabled', 'False');
+                }
+            } catch {}
+        }
+
         function saveAsFile(filename, contentBase64) {
             var link = document.createElement('a');
             link.download = filename;

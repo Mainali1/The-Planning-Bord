@@ -1,0 +1,146 @@
+@page "/setup"
+@layout EmptyLayout
+@inject ISystemService SystemService
+@inject NavigationManager Navigation
+@inject NotificationService NotificationService
+@using ThePlanningBord.Models
+
+<PageTitle>System Setup - The Planning Bord</PageTitle>
+
+<div class="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+    <div class="sm:mx-auto sm:w-full sm:max-w-md">
+        <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
+            System Setup
+        </h2>
+        <p class="mt-2 text-center text-sm text-gray-600">
+            Welcome to The Planning Bord. Let's get you set up.
+        </p>
+    </div>
+
+    <div class="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+        <div class="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+            @if (step == 1)
+            {
+                <div>
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Step 1: Company Details</h3>
+                    <div class="space-y-6">
+                        <div>
+                            <label for="companyName" class="block text-sm font-medium text-gray-700">Company Name</label>
+                            <div class="mt-1">
+                                <input id="companyName" type="text" @bind="companyName" required class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" />
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <button @onclick="NextStep" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                Next
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+            else if (step == 2)
+            {
+                <div>
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Step 2: Feature Selection</h3>
+                    <p class="text-sm text-gray-500 mb-4">Choose the modules you want to enable initially.</p>
+                    <div class="space-y-4">
+                        @if (featureToggles != null)
+                        {
+                            @foreach (var toggle in featureToggles)
+                            {
+                                <div class="relative flex items-start">
+                                    <div class="flex items-center h-5">
+                                        <input id="@toggle.Key" type="checkbox" checked="@toggle.IsEnabled" @onchange="@(e => ToggleFeature(toggle, e.Value))" class="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded" />
+                                    </div>
+                                    <div class="ml-3 text-sm">
+                                        <label for="@toggle.Key" class="font-medium text-gray-700">@toggle.Key</label>
+                                    </div>
+                                </div>
+                            }
+                        }
+                        
+                        <div class="flex space-x-3 mt-6">
+                            <button @onclick="PrevStep" class="w-1/2 flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none">
+                                Back
+                            </button>
+                            <button @onclick="FinishSetup" class="w-1/2 flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                                Finish
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private int step = 1;
+    private string companyName = "";
+    private List<FeatureToggle>? featureToggles;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Check if already set up
+        bool isSetup = await SystemService.GetSetupStatusAsync();
+        if (isSetup)
+        {
+             // If strictly enforcing setup only once, redirect. 
+             // However, user might be re-running wizard from Settings.
+             // We'll allow it but maybe pre-fill data in a real scenario.
+        }
+
+        try { featureToggles = await SystemService.GetFeatureTogglesAsync(); }
+        catch (Exception ex) { NotificationService.ShowError(ex.Message); featureToggles = new List<FeatureToggle>(); }
+    }
+
+    private void NextStep()
+    {
+        if (string.IsNullOrWhiteSpace(companyName))
+        {
+            NotificationService.ShowWarning("Company Name is required");
+            return;
+        }
+        step++;
+    }
+
+    private void PrevStep()
+    {
+        step--;
+    }
+
+    private void ToggleFeature(FeatureToggle toggle, object? value)
+    {
+        if (value is bool isChecked)
+        {
+            toggle.IsEnabled = isChecked;
+        }
+    }
+
+    private async Task FinishSetup()
+    {
+        try
+        {
+            // Save company details (mocked for now, needs backend support or just local storage via JS)
+            // await SystemService.SaveCompanyDetails(companyName); 
+            
+            // Save toggles
+            if (featureToggles != null)
+            {
+                foreach (var toggle in featureToggles)
+                {
+                    await SystemService.SetFeatureToggleAsync(toggle.Key, toggle.IsEnabled);
+                }
+            }
+            
+            await SystemService.CompleteSetupAsync(companyName);
+            NotificationService.ShowSuccess("Setup completed successfully!");
+            Navigation.NavigateTo("/");
+        }
+        catch (Exception ex)
+        {
+            NotificationService.ShowError("Setup failed: " + ex.Message);
+        }
+    }
+}

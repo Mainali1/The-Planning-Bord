@@ -193,5 +193,85 @@ pub fn init_db(db_path: &str) -> Result<Connection> {
         [],
     )?;
 
+    // 6. Enhancements (RBAC, Toggles, Audit)
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS roles (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE NOT NULL,
+            description TEXT,
+            is_custom BOOLEAN DEFAULT FALSE
+        )",
+        [],
+    )?;
+
+    // Insert default roles if they don't exist
+    conn.execute("INSERT OR IGNORE INTO roles (name, description, is_custom) VALUES ('CEO', 'Chief Executive Officer', FALSE)", [])?;
+    conn.execute("INSERT OR IGNORE INTO roles (name, description, is_custom) VALUES ('Manager', 'Managerial Role', FALSE)", [])?;
+    conn.execute("INSERT OR IGNORE INTO roles (name, description, is_custom) VALUES ('Employee', 'Standard Employee', FALSE)", [])?;
+    conn.execute("INSERT OR IGNORE INTO roles (name, description, is_custom) VALUES ('Technical', 'System Admin / Technical Support', FALSE)", [])?;
+
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS permissions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            code TEXT UNIQUE NOT NULL,
+            description TEXT
+        )",
+        [],
+    )?;
+    
+    // Seed basic permissions (can be expanded)
+    let permissions = vec![
+        ("MANAGE_INVENTORY", "Can add/edit/delete products"),
+        ("VIEW_INVENTORY", "Can view products"),
+        ("MANAGE_EMPLOYEES", "Can add/edit/delete employees"),
+        ("ASSIGN_TOOLS", "Can assign tools to employees"),
+        ("MANAGE_COMPLAINTS", "Can view and resolve complaints"),
+        ("MANAGE_SETTINGS", "Can change system settings"),
+        ("MANAGE_ROLES", "Can create and modify roles"),
+    ];
+    for (code, desc) in permissions {
+        conn.execute("INSERT OR IGNORE INTO permissions (code, description) VALUES (?1, ?2)", [code, desc])?;
+    }
+
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS role_permissions (
+            role_id INTEGER,
+            permission_id INTEGER,
+            PRIMARY KEY (role_id, permission_id),
+            FOREIGN KEY(role_id) REFERENCES roles(id),
+            FOREIGN KEY(permission_id) REFERENCES permissions(id)
+        )",
+        [],
+    )?;
+
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS feature_toggles (
+            key TEXT PRIMARY KEY,
+            is_enabled BOOLEAN DEFAULT TRUE
+        )",
+        [],
+    )?;
+
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS tool_assignments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            employee_id INTEGER,
+            tool_id INTEGER,
+            assigned_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            returned_at DATETIME,
+            condition_on_assignment TEXT,
+            condition_on_return TEXT,
+            notes TEXT,
+            FOREIGN KEY(employee_id) REFERENCES employees(id),
+            FOREIGN KEY(tool_id) REFERENCES tools(id)
+        )",
+        [],
+    )?;
+
+    // Migrations for existing tables (safe to run multiple times)
+    let _ = conn.execute("ALTER TABLE complaints ADD COLUMN resolution TEXT", []);
+    let _ = conn.execute("ALTER TABLE complaints ADD COLUMN resolved_at DATETIME", []);
+    let _ = conn.execute("ALTER TABLE complaints ADD COLUMN resolved_by TEXT", []);
+    
     Ok(conn)
 }

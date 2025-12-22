@@ -1,11 +1,115 @@
 @page "/reports"
-@inject ITauriService AppService
+@inject IReportService ReportService
+@using ThePlanningBord.Models
 
 <PageTitle>Reports - The Planning Bord</PageTitle>
 
 <div class="flex flex-col h-full">
     <h3 class="text-lg font-medium leading-6 text-gray-900 mb-6">Reports & Analytics</h3>
-    <div class="bg-white shadow rounded-lg p-6">
-        <p class="text-gray-500">Reports functionality coming soon. This will include sales reports, inventory logs, and employee performance metrics.</p>
-    </div>
+    
+    @if (summary == null)
+    {
+        <div class="text-center py-10">
+            <p class="text-gray-500">Loading reports...</p>
+        </div>
+    }
+    else
+    {
+        <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 mb-8">
+            <div class="bg-white overflow-hidden shadow rounded-lg">
+                <div class="px-4 py-5 sm:p-6">
+                    <dt class="text-sm font-medium text-gray-500 truncate">Total Revenue</dt>
+                    <dd class="mt-1 text-3xl font-semibold text-gray-900">@summary.TotalRevenue.ToString("C")</dd>
+                </div>
+            </div>
+            <div class="bg-white overflow-hidden shadow rounded-lg">
+                <div class="px-4 py-5 sm:p-6">
+                    <dt class="text-sm font-medium text-gray-500 truncate">Total Expenses</dt>
+                    <dd class="mt-1 text-3xl font-semibold text-gray-900">@summary.TotalExpenses.ToString("C")</dd>
+                </div>
+            </div>
+            <div class="bg-white overflow-hidden shadow rounded-lg">
+                <div class="px-4 py-5 sm:p-6">
+                    <dt class="text-sm font-medium text-gray-500 truncate">Net Profit</dt>
+                    <dd class="mt-1 text-3xl font-semibold text-green-600">@summary.NetProfit.ToString("C")</dd>
+                </div>
+            </div>
+            <div class="bg-white overflow-hidden shadow rounded-lg">
+                <div class="px-4 py-5 sm:p-6">
+                    <dt class="text-sm font-medium text-gray-500 truncate">Inventory Value</dt>
+                    <dd class="mt-1 text-3xl font-semibold text-gray-900">@summary.InventoryValue.ToString("C")</dd>
+                </div>
+            </div>
+            <div class="bg-white overflow-hidden shadow rounded-lg">
+                <div class="px-4 py-5 sm:p-6">
+                    <dt class="text-sm font-medium text-gray-500 truncate">Active Employees</dt>
+                    <dd class="mt-1 text-3xl font-semibold text-gray-900">@summary.ActiveEmployees</dd>
+                </div>
+            </div>
+            <div class="bg-white overflow-hidden shadow rounded-lg">
+                <div class="px-4 py-5 sm:p-6">
+                    <dt class="text-sm font-medium text-gray-500 truncate">Pending Tasks</dt>
+                    <dd class="mt-1 text-3xl font-semibold text-gray-900">@summary.PendingTasks</dd>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white shadow rounded-lg p-6 mb-8">
+            <h4 class="text-base font-medium text-gray-900 mb-4">Monthly Cashflow</h4>
+            @if (cashflow != null && cashflow.Any())
+            {
+                <div class="relative h-64">
+                    <!-- Simple bar chart visualization -->
+                    <div class="flex items-end h-full space-x-2">
+                        @foreach (var point in cashflow)
+                        {
+                            <div class="flex flex-col items-center flex-1 h-full justify-end">
+                                <div class="w-full bg-blue-500 rounded-t transition-all duration-500 ease-in-out" style="height: @GetBarHeight(point.Value)"></div>
+                                <span class="text-xs text-gray-500 mt-1">@point.Label</span>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+            else
+            {
+                <p class="text-gray-500 text-sm">No cashflow data available.</p>
+            }
+        </div>
+    }
 </div>
+
+@inject NotificationService NotificationService
+@using ThePlanningBord.Services
+
+@code {
+    private ReportSummary? summary;
+    private List<ChartDataPoint>? cashflow;
+    private double maxCashflowValue = 1;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try 
+        {
+             summary = await ReportService.GetReportSummaryAsync();
+             cashflow = await ReportService.GetMonthlyCashflowAsync();
+             if (cashflow != null && cashflow.Any())
+             {
+                 maxCashflowValue = cashflow.Max(p => p.Value);
+                 if (maxCashflowValue <= 0) maxCashflowValue = 1;
+             }
+        } 
+        catch (Exception ex) 
+        { 
+            NotificationService.ShowError("Failed to load reports: " + ex.Message);
+            summary = new ReportSummary();
+            cashflow = new List<ChartDataPoint>();
+        }
+    }
+    
+    private string GetBarHeight(double value)
+    {
+        var percent = (value / maxCashflowValue) * 100;
+        return $"{Math.Max(percent, 1)}%"; // Ensure at least 1% height
+    }
+}

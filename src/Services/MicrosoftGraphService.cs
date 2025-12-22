@@ -10,12 +10,14 @@ namespace ThePlanningBord.Services
     {
         private readonly HttpClient _httpClient;
         private readonly IJSRuntime _jsRuntime;
+        private readonly NotificationService _notificationService;
         private const string GraphApiUrl = "https://graph.microsoft.com/v1.0";
 
-        public MicrosoftGraphService(HttpClient httpClient, IJSRuntime jsRuntime)
+        public MicrosoftGraphService(HttpClient httpClient, IJSRuntime jsRuntime, NotificationService notificationService)
         {
             _httpClient = httpClient;
             _jsRuntime = jsRuntime;
+            _notificationService = notificationService;
         }
 
         public async Task<bool> IsConnected()
@@ -66,11 +68,20 @@ namespace ThePlanningBord.Services
                 request.Content = new StringContent(JsonSerializer.Serialize(message), Encoding.UTF8, "application/json");
 
                 var response = await _httpClient.SendAsync(request);
-                return response.IsSuccessStatusCode;
+                if (response.IsSuccessStatusCode)
+                {
+                    _notificationService.ShowSuccess("Email sent successfully via M365");
+                    return true;
+                }
+                else
+                {
+                     _notificationService.ShowError($"Failed to send email: {response.ReasonPhrase}");
+                     return false;
+                }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Graph API Error: {ex.Message}");
+                _notificationService.ShowError($"Graph API Error: {ex.Message}");
                 return false;
             }
         }

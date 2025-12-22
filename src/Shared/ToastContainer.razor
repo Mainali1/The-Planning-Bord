@@ -1,0 +1,36 @@
+@inject ThePlanningBord.Services.NotificationService NotificationService
+
+<div class="fixed top-4 right-4 space-y-2 z-50">
+    @foreach (var msg in NotificationService.Messages)
+    {
+        var bg = msg.Type switch 
+        {
+            NotificationType.Success => "bg-green-50 border-green-400 text-green-800",
+            NotificationType.Error => "bg-red-50 border-red-400 text-red-800",
+            NotificationType.Warning => "bg-yellow-50 border-yellow-400 text-yellow-800",
+            _ => "bg-blue-50 border-blue-400 text-blue-800"
+        };
+        
+        <div class="@($"border-l-4 p-4 shadow rounded-md {bg}")">
+            <div class="flex">
+                <div class="flex-1">
+                    <p class="text-sm font-medium">@msg.Title</p>
+                    <p class="mt-1 text-sm">@msg.Message</p>
+                </div>
+                <button @onclick="() => NotificationService.Remove(msg)" class="ml-3 text-sm text-gray-500 hover:text-gray-700">✕</button>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        NotificationService.OnChange += StateHasChanged;
+    }
+
+    public void Dispose()
+    {
+        NotificationService.OnChange -= StateHasChanged;
+    }
+}

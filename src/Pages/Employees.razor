@@ -1,5 +1,6 @@
 @page "/employees"
-@inject ITauriService AppService
+@inject IHrService HrService
+@using ThePlanningBord.Models
 
 <PageTitle>Employees - The Planning Bord</PageTitle>
 
@@ -24,10 +25,10 @@
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
                 @if (employees == null) { <tr><td colspan="5" class="px-6 py-4 text-center">Loading...</td></tr> }
-                else if (!employees.Any()) { <tr><td colspan="5" class="px-6 py-4 text-center">No employees found.</td></tr> }
+                else if (!FilteredEmployees.Any()) { <tr><td colspan="5" class="px-6 py-4 text-center">No employees found.</td></tr> }
                 else
                 {
-                    @foreach (var e in employees)
+                    @foreach (var e in FilteredEmployees)
                     {
                         <tr>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">@e.FirstName @e.LastName</td>
@@ -85,6 +86,16 @@
     private List<Employee>? employees;
     private bool showAddModal = false;
     private Employee newEmployee = new Employee();
+    private string searchTerm = "";
+
+    private IEnumerable<Employee> FilteredEmployees => 
+        string.IsNullOrWhiteSpace(searchTerm) 
+            ? (employees ?? Enumerable.Empty<Employee>()) 
+            : (employees ?? Enumerable.Empty<Employee>())
+                .Where(e => (e.FirstName?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) || 
+                            (e.LastName?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                            (e.Email?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                            (e.Role?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false));
 
     protected override async Task OnInitializedAsync()
     {
@@ -93,7 +104,7 @@
 
     private async Task LoadEmployees()
     {
-        try { employees = await AppService.GetEmployeesAsync(); }
+        try { employees = await HrService.GetEmployeesAsync(); }
         catch (Exception ex) { Console.WriteLine(ex.Message); employees = new List<Employee>(); }
     }
 
@@ -113,8 +124,8 @@
     {
         try
         {
-            if (newEmployee.Id.HasValue) await AppService.UpdateEmployeeAsync(newEmployee);
-            else await AppService.AddEmployeeAsync(newEmployee);
+            if (newEmployee.Id.HasValue) await HrService.UpdateEmployeeAsync(newEmployee);
+            else await HrService.AddEmployeeAsync(newEmployee);
             showAddModal = false;
             await LoadEmployees();
         }
@@ -124,7 +135,7 @@
     private async Task DeleteEmployee(int id)
     {
         if (id == 0) return;
-        try { await AppService.DeleteEmployeeAsync(id); await LoadEmployees(); }
+        try { await HrService.DeleteEmployeeAsync(id); await LoadEmployees(); }
         catch (Exception ex) { Console.WriteLine(ex.Message); }
     }
 }

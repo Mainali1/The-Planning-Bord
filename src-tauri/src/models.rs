@@ -99,9 +99,12 @@ pub struct ChartDataPoint {
 pub struct Complaint {
     pub id: Option<i32>,
     pub content: String,
-    pub created_at: String, // ISO date
-    pub status: String, // "pending", "resolved", "dismissed"
+    pub created_at: Option<String>,
+    pub status: String,
     pub admin_notes: Option<String>,
+    pub resolution: Option<String>,
+    pub resolved_at: Option<String>,
+    pub resolved_by: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -113,4 +116,37 @@ pub struct Tool {
     pub assigned_to_employee_id: Option<i32>,
     pub purchase_date: Option<String>,
     pub condition: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ToolAssignment {
+    pub id: Option<i32>,
+    pub employee_id: Option<i32>,
+    pub tool_id: Option<i32>,
+    pub assigned_at: Option<String>,
+    pub returned_at: Option<String>,
+    pub condition_on_assignment: Option<String>,
+    pub condition_on_return: Option<String>,
+    pub notes: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Role {
+    pub id: Option<i32>,
+    pub name: String,
+    pub description: Option<String>,
+    pub is_custom: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Permission {
+    pub id: i32,
+    pub code: String,
+    pub description: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct FeatureToggle {
+    pub key: String,
+    pub is_enabled: bool,
 }
