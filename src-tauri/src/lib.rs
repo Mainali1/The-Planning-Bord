@@ -867,8 +867,9 @@ fn get_setup_status(state: State<AppState>) -> Result<bool, String> {
 #[tauri::command]
 fn complete_setup(state: State<AppState>, company_name: String) -> Result<(), String> {
     let conn = state.db.lock().map_err(|_| "Failed to lock db".to_string())?;
+    // Provide default values for NOT NULL columns (license_key, company_email)
     conn.execute(
-        "INSERT OR REPLACE INTO setup_config (id, company_name, setup_completed, setup_completed_at) VALUES (1, ?1, TRUE, CURRENT_TIMESTAMP)",
+        "INSERT OR REPLACE INTO setup_config (id, company_name, license_key, company_email, setup_completed, setup_completed_at) VALUES (1, ?1, 'COMMUNITY-EDITION', 'admin@local', TRUE, CURRENT_TIMESTAMP)",
         (&company_name,)
     ).map_err(|e| e.to_string())?;
     Ok(())

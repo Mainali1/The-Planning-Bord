@@ -237,6 +237,7 @@ _pkginfo.txt
 
 # Others
 ClientBin/
+.dist
 ~$*
 *~
 *.dbmdl
@@ -482,3 +483,5 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+/dist
+/tests

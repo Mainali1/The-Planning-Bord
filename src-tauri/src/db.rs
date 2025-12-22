@@ -252,6 +252,19 @@ pub fn init_db(db_path: &str) -> Result<Connection> {
         [],
     )?;
 
+    // Seed default feature toggles
+    let default_toggles = vec![
+        ("Inventory", true),
+        ("HR", true),
+        ("Finance", true),
+        ("Tasks", true),
+        ("Complaints", true),
+        ("Reports", true),
+    ];
+    for (key, enabled) in default_toggles {
+        conn.execute("INSERT OR IGNORE INTO feature_toggles (key, is_enabled) VALUES (?1, ?2)", (key, enabled))?;
+    }
+
     conn.execute(
         "CREATE TABLE IF NOT EXISTS tool_assignments (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
