@@ -1,0 +1,198 @@
+@page "/integrations"
+@using ThePlanningBord.Models
+@using ThePlanningBord.Services
+@inject IIntegrationService IntegrationService
+
+<PageTitle>Integrations - The Planning Bord</PageTitle>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="text-center mb-10">
+        <h1 class="text-3xl font-extrabold text-gray-900 sm:text-4xl">
+            Integrations
+        </h1>
+        <p class="mt-3 max-w-2xl mx-auto text-xl text-gray-500 sm:mt-4">
+            Connect your favorite tools to streamline your workflow.
+        </p>
+    </div>
+
+    <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        @foreach (var integration in integrations)
+        {
+            <div class="bg-white overflow-hidden shadow rounded-lg divide-y divide-gray-200">
+                <div class="px-4 py-5 sm:px-6 flex items-center justify-between">
+                    <div class="flex items-center">
+                        <div class="text-2xl mr-3">@integration.Icon</div>
+                        <h3 class="text-lg font-medium text-gray-900">@integration.Name</h3>
+                    </div>
+                    <span class="@(integration.IsConnected ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800") px-2 inline-flex text-xs leading-5 font-semibold rounded-full">
+                        @(integration.IsConnected ? "Connected" : "Disconnected")
+                    </span>
+                </div>
+                <div class="px-4 py-5 sm:p-6">
+                    <p class="text-sm text-gray-500 mb-4">@integration.Description</p>
+                    <div class="flex justify-between items-center">
+                        <button @onclick="() => ToggleIntegration(integration)" class="@(integration.IsConnected ? "bg-red-100 text-red-700 hover:bg-red-200" : "bg-blue-100 text-blue-700 hover:bg-blue-200") px-4 py-2 border border-transparent text-sm font-medium rounded-md focus:outline-none">
+                            @(integration.IsConnected ? "Disconnect" : "Connect")
+                        </button>
+                        <button @onclick="() => OpenConfigureModal(integration)" class="text-gray-400 hover:text-gray-500 flex items-center">
+                             <span class="mr-1">⚙️</span> Configure
+                        </button>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@if (showConfigModal && selectedIntegration != null)
+{
+    <div class="fixed z-10 inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" @onclick="CloseModal"></div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            <div class="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+                <div>
+                    <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100">
+                        <span class="text-2xl">@selectedIntegration.Icon</span>
+                    </div>
+                    <div class="mt-3 text-center sm:mt-5">
+                        <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
+                            Configure @selectedIntegration.Name
+                        </h3>
+                        <div class="mt-2">
+                            <p class="text-sm text-gray-500">
+                                Enter your credentials to connect to @selectedIntegration.Name.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="mt-4 space-y-4">
+                        <div>
+                            <label for="api-key" class="block text-sm font-medium text-gray-700">API Key / Token</label>
+                            <input type="password" @bind="configApiKey" id="api-key" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2 border" placeholder="Enter API Key">
+                        </div>
+                        <div>
+                            <label for="config-json" class="block text-sm font-medium text-gray-700">Additional Config (JSON)</label>
+                            <textarea @bind="configJson" id="config-json" rows="3" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2 border" placeholder="{ 'clientId': '...', 'option': 'value' }"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense">
+                    <button type="button" @onclick="SaveConfiguration" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:col-start-2 sm:text-sm">
+                        Save & Connect
+                    </button>
+                    <button type="button" @onclick="CloseModal" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:col-start-1 sm:text-sm">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<Integration> integrations = new List<Integration>();
+    private bool showConfigModal = false;
+    private Integration? selectedIntegration;
+    private string configApiKey = "";
+    private string configJson = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadIntegrations();
+    }
+
+    private async Task LoadIntegrations()
+    {
+        try
+        {
+            integrations = await IntegrationService.GetIntegrationsAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading integrations: {ex.Message}");
+        }
+    }
+
+    private async Task ToggleIntegration(Integration item)
+    {
+        try
+        {
+            if (!item.IsConnected)
+            {
+                // Connect flow
+                // Check if we need config first
+                if (string.IsNullOrWhiteSpace(item.ApiKey))
+                {
+                    OpenConfigureModal(item);
+                    return;
+                }
+
+                item.IsConnected = true;
+                if (item.Id.HasValue)
+                {
+                    await IntegrationService.ToggleIntegrationAsync(item.Id.Value, true);
+                }
+            }
+            else
+            {
+                // Disconnect flow
+                item.IsConnected = false;
+                if (item.Id.HasValue)
+                {
+                    await IntegrationService.ToggleIntegrationAsync(item.Id.Value, false);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error toggling integration: {ex.Message}");
+            // Reload to ensure UI matches DB state
+            await LoadIntegrations(); 
+        }
+    }
+
+    private void OpenConfigureModal(Integration item)
+    {
+        selectedIntegration = item;
+        configApiKey = item.ApiKey ?? "";
+        configJson = item.ConfigJson ?? "";
+        showConfigModal = true;
+    }
+
+    private void CloseModal()
+    {
+        showConfigModal = false;
+        selectedIntegration = null;
+        configApiKey = "";
+        configJson = "";
+    }
+
+    private async Task SaveConfiguration()
+    {
+        if (selectedIntegration != null && selectedIntegration.Id.HasValue)
+        {
+            try 
+            {
+                // Update local model
+                selectedIntegration.ApiKey = configApiKey;
+                selectedIntegration.ConfigJson = configJson;
+                
+                // Save to backend
+                await IntegrationService.ConfigureIntegrationAsync(selectedIntegration.Id.Value, configApiKey, configJson);
+                
+                // If we are saving config, we probably want to connect too
+                if (!selectedIntegration.IsConnected)
+                {
+                    selectedIntegration.IsConnected = true;
+                    await IntegrationService.ToggleIntegrationAsync(selectedIntegration.Id.Value, true);
+                }
+                
+                CloseModal();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error saving configuration: {ex.Message}");
+            }
+        }
+    }
+}

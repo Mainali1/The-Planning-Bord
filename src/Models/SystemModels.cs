@@ -85,4 +85,52 @@ namespace ThePlanningBord.Models
         [JsonPropertyName("value")]
         public double Value { get; set; }
     }
+
+    public class Integration
+    {
+        [JsonPropertyName("id")]
+        public int? Id { get; set; }
+
+        [JsonPropertyName("name")]
+        public string Name { get; set; } = string.Empty;
+
+        [JsonPropertyName("is_connected")]
+        public bool IsConnected { get; set; }
+
+        [JsonPropertyName("api_key")]
+        public string? ApiKey { get; set; }
+
+        [JsonPropertyName("config_json")]
+        public string? ConfigJson { get; set; }
+
+        [JsonPropertyName("connected_at")]
+        public string? ConnectedAt { get; set; }
+
+        // Helper for UI
+        public string Icon => Name switch
+        {
+            "QuickBooks" => "📗",
+            "Xero" => "📘",
+            "Salesforce" => "☁️",
+            "HubSpot" => "🟠",
+            "Slack" => "💬",
+            "Teams" => "👥",
+            "Google Calendar" => "📅",
+            "Outlook" => "📧",
+            _ => "🔌"
+        };
+        
+        public string Description => Name switch
+        {
+            "QuickBooks" => "Sync invoices and expenses automatically.",
+            "Xero" => "Seamless accounting integration.",
+            "Salesforce" => "Sync leads and customer data.",
+            "HubSpot" => "Marketing and CRM automation.",
+            "Slack" => "Get notifications and updates in channels.",
+            "Teams" => "Collaborate on projects within Teams.",
+            "Google Calendar" => "Sync tasks and meetings.",
+            "Outlook" => "Email and calendar synchronization.",
+            _ => "Connect external tool."
+        };
+    }
 }

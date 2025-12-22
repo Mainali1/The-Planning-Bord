@@ -1,4 +1,6 @@
 @page "/help"
+@inject ISystemService SystemService
+@inject NotificationService NotificationService
 
 <PageTitle>Help & Support - The Planning Bord</PageTitle>
 
@@ -8,6 +10,10 @@
         <h4>User Guide</h4>
         <p>Welcome to The Planning Bord. Here you can find guides on how to use the various features.</p>
         
+        <h4>Onboarding</h4>
+        <p>New to the system? Generate demo data to explore the features.</p>
+        <button @onclick="GenerateDemoData" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 mb-4">Generate Demo Data</button>
+
         <h5>Inventory</h5>
         <p>Manage your products, track stock levels, and set reorder points.</p>
         
@@ -18,3 +24,18 @@
         <p>If you need further assistance, please contact our support team at support@planningbord.com.</p>
     </div>
 </div>
+
+@code {
+    private async Task GenerateDemoData()
+    {
+        try
+        {
+            await SystemService.SeedDemoDataAsync();
+            NotificationService.ShowSuccess("Demo data generated successfully!");
+        }
+        catch (Exception ex)
+        {
+            NotificationService.ShowError($"Failed to generate data: {ex.Message}");
+        }
+    }
+}

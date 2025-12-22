@@ -18,6 +18,8 @@ builder.Services.AddScoped<IComplaintService, ComplaintService>();
 builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddScoped<ISystemService, SystemService>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IProjectService, ProjectService>();
+builder.Services.AddScoped<IIntegrationService, IntegrationService>();
 builder.Services.AddScoped<MicrosoftGraphService>();
 builder.Services.AddScoped<NotificationService>();
 builder.Services.AddScoped<TauriInterop>();

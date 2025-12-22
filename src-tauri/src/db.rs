@@ -286,5 +286,156 @@ pub fn init_db(db_path: &str) -> Result<Connection> {
     let _ = conn.execute("ALTER TABLE complaints ADD COLUMN resolved_at DATETIME", []);
     let _ = conn.execute("ALTER TABLE complaints ADD COLUMN resolved_by TEXT", []);
     
+    // 7. New Enterprise Features (Audit, Dashboard, Projects, Advanced Finance)
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS audit_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            action TEXT NOT NULL,
+            entity TEXT NOT NULL,
+            entity_id INTEGER,
+            details TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(user_id) REFERENCES users(id)
+        )",
+        [],
+    )?;
+
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS dashboard_configs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            name TEXT NOT NULL,
+            layout_json TEXT,
+            is_default BOOLEAN DEFAULT FALSE,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(user_id) REFERENCES users(id)
+        )",
+        [],
+    )?;
+
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS projects (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            description TEXT,
+            start_date DATETIME,
+            end_date DATETIME,
+            status TEXT DEFAULT 'planning',
+            manager_id INTEGER,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(manager_id) REFERENCES employees(id)
+        )",
+        [],
+    )?;
+
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS project_tasks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_id INTEGER,
+            name TEXT NOT NULL,
+            description TEXT,
+            assigned_to INTEGER,
+            status TEXT DEFAULT 'todo',
+            priority TEXT DEFAULT 'medium',
+            start_date DATETIME,
+            due_date DATETIME,
+            parent_task_id INTEGER,
+            dependencies_json TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(project_id) REFERENCES projects(id),
+            FOREIGN KEY(assigned_to) REFERENCES employees(id),
+            FOREIGN KEY(parent_task_id) REFERENCES project_tasks(id)
+        )",
+        [],
+    )?;
+
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS accounts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            code TEXT UNIQUE NOT NULL,
+            name TEXT NOT NULL,
+            type TEXT NOT NULL,
+            currency TEXT DEFAULT 'USD',
+            is_active BOOLEAN DEFAULT TRUE
+        )",
+        [],
+    )?;
+
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS transactions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            account_id INTEGER,
+            date DATETIME NOT NULL,
+            amount REAL NOT NULL,
+            type TEXT NOT NULL,
+            description TEXT,
+            reference TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(account_id) REFERENCES accounts(id)
+        )",
+        [],
+    )?;
+
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS invoices (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            customer_name TEXT NOT NULL,
+            customer_email TEXT,
+            invoice_date DATETIME NOT NULL,
+            due_date DATETIME,
+            total_amount REAL DEFAULT 0,
+            tax_rate REAL DEFAULT 0,
+            tax_amount REAL DEFAULT 0,
+            status TEXT DEFAULT 'draft',
+            currency TEXT DEFAULT 'USD',
+            notes TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )",
+        [],
+    )?;
+
+    // Add tax columns if they don't exist
+    let _ = conn.execute("ALTER TABLE invoices ADD COLUMN tax_rate REAL DEFAULT 0", []);
+    let _ = conn.execute("ALTER TABLE invoices ADD COLUMN tax_amount REAL DEFAULT 0", []);
+
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS invoice_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            invoice_id INTEGER,
+            description TEXT NOT NULL,
+            quantity REAL DEFAULT 1,
+            unit_price REAL DEFAULT 0,
+            total REAL DEFAULT 0,
+            FOREIGN KEY(invoice_id) REFERENCES invoices(id)
+        )",
+        [],
+    )?;
+
+    // 8. Integrations
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS integrations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE NOT NULL,
+            is_connected BOOLEAN DEFAULT FALSE,
+            api_key TEXT,
+            config_json TEXT,
+            connected_at DATETIME,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )",
+        [],
+    )?;
+
+    // Seed Integrations
+    let default_integrations = vec![
+        "QuickBooks", "Xero", "Salesforce", "HubSpot", 
+        "Slack", "Teams", "Google Calendar", "Outlook"
+    ];
+    for name in default_integrations {
+        conn.execute("INSERT OR IGNORE INTO integrations (name) VALUES (?1)", [name])?;
+    }
+
     Ok(conn)
 }

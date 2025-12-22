@@ -3,7 +3,7 @@ mod models;
 
 use std::sync::Mutex;
 use tauri::{State, Manager};
-use models::{Product, Employee, Payment, DashboardStats, Task, Attendance, ReportSummary, ChartDataPoint, Complaint, Tool, Role, Permission, FeatureToggle, ToolAssignment};
+use models::{Product, Employee, Payment, DashboardStats, Task, Attendance, ReportSummary, ChartDataPoint, Complaint, Tool, Role, Permission, FeatureToggle, ToolAssignment, AuditLog, DashboardConfig, Project, ProjectTask, Account, Transaction, Invoice, InvoiceItem, Integration};
 
 struct AppState {
     db: Mutex<rusqlite::Connection>,
@@ -875,6 +875,258 @@ fn complete_setup(state: State<AppState>, company_name: String) -> Result<(), St
     Ok(())
 }
 
+// --- Audit Log Commands ---
+
+#[tauri::command]
+fn get_audit_logs(state: State<AppState>, page: Option<i32>, page_size: Option<i32>) -> Result<Vec<AuditLog>, String> {
+    let conn = state.db.lock().map_err(|_| "Failed to lock db".to_string())?;
+    let limit = page_size.unwrap_or(50);
+    let offset = (page.unwrap_or(1) - 1) * limit;
+
+    let mut stmt = conn.prepare("SELECT id, user_id, action, entity, entity_id, details, created_at FROM audit_logs ORDER BY created_at DESC LIMIT ?1 OFFSET ?2").map_err(|e| e.to_string())?;
+    let logs_iter = stmt.query_map([limit, offset], |row| {
+        Ok(AuditLog {
+            id: Some(row.get(0)?),
+            user_id: row.get(1)?,
+            action: row.get(2)?,
+            entity: row.get(3)?,
+            entity_id: row.get(4)?,
+            details: row.get(5)?,
+            created_at: row.get(6)?,
+        })
+    }).map_err(|e| e.to_string())?;
+
+    let mut logs = Vec::new();
+    for log in logs_iter {
+        logs.push(log.map_err(|e| e.to_string())?);
+    }
+    Ok(logs)
+}
+
+// --- Dashboard Config Commands ---
+
+#[tauri::command]
+fn get_dashboard_configs(state: State<AppState>, user_id: i32) -> Result<Vec<DashboardConfig>, String> {
+    let conn = state.db.lock().map_err(|_| "Failed to lock db".to_string())?;
+    let mut stmt = conn.prepare("SELECT id, user_id, name, layout_json, is_default FROM dashboard_configs WHERE user_id = ?1").map_err(|e| e.to_string())?;
+    let configs = stmt.query_map([user_id], |row| {
+        Ok(DashboardConfig {
+            id: Some(row.get(0)?),
+            user_id: row.get(1)?,
+            name: row.get(2)?,
+            layout_json: row.get(3)?,
+            is_default: row.get(4)?,
+        })
+    }).map_err(|e| e.to_string())?;
+
+    let mut result = Vec::new();
+    for c in configs { result.push(c.map_err(|e| e.to_string())?); }
+    Ok(result)
+}
+
+#[tauri::command]
+fn save_dashboard_config(state: State<AppState>, config: DashboardConfig) -> Result<i64, String> {
+    let conn = state.db.lock().map_err(|_| "Failed to lock db".to_string())?;
+    if let Some(id) = config.id {
+        conn.execute("UPDATE dashboard_configs SET name = ?1, layout_json = ?2, is_default = ?3 WHERE id = ?4", 
+            (&config.name, &config.layout_json, &config.is_default, id)).map_err(|e| e.to_string())?;
+        Ok(id as i64)
+    } else {
+        conn.execute("INSERT INTO dashboard_configs (user_id, name, layout_json, is_default) VALUES (?1, ?2, ?3, ?4)",
+            (&config.user_id, &config.name, &config.layout_json, &config.is_default)).map_err(|e| e.to_string())?;
+        Ok(conn.last_insert_rowid())
+    }
+}
+
+// --- Project Management Commands ---
+
+#[tauri::command]
+fn get_projects(state: State<AppState>) -> Result<Vec<Project>, String> {
+    let conn = state.db.lock().map_err(|_| "Failed to lock db".to_string())?;
+    let mut stmt = conn.prepare("SELECT id, name, description, start_date, end_date, status, manager_id FROM projects").map_err(|e| e.to_string())?;
+    let projects = stmt.query_map([], |row| {
+        Ok(Project {
+            id: Some(row.get(0)?),
+            name: row.get(1)?,
+            description: row.get(2)?,
+            start_date: row.get(3)?,
+            end_date: row.get(4)?,
+            status: row.get(5)?,
+            manager_id: row.get(6)?,
+        })
+    }).map_err(|e| e.to_string())?;
+
+    let mut result = Vec::new();
+    for p in projects { result.push(p.map_err(|e| e.to_string())?); }
+    Ok(result)
+}
+
+#[tauri::command]
+fn add_project(state: State<AppState>, project: Project) -> Result<i64, String> {
+    let conn = state.db.lock().map_err(|_| "Failed to lock db".to_string())?;
+    conn.execute("INSERT INTO projects (name, description, start_date, end_date, status, manager_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+        (&project.name, &project.description, &project.start_date, &project.end_date, &project.status, &project.manager_id)).map_err(|e| e.to_string())?;
+    Ok(conn.last_insert_rowid())
+}
+
+#[tauri::command]
+fn get_project_tasks(state: State<AppState>, project_id: i32) -> Result<Vec<ProjectTask>, String> {
+    let conn = state.db.lock().map_err(|_| "Failed to lock db".to_string())?;
+    let mut stmt = conn.prepare("SELECT id, project_id, name, description, assigned_to, status, priority, start_date, due_date, parent_task_id, dependencies_json FROM project_tasks WHERE project_id = ?1").map_err(|e| e.to_string())?;
+    let tasks = stmt.query_map([project_id], |row| {
+        Ok(ProjectTask {
+            id: Some(row.get(0)?),
+            project_id: row.get(1)?,
+            name: row.get(2)?,
+            description: row.get(3)?,
+            assigned_to: row.get(4)?,
+            status: row.get(5)?,
+            priority: row.get(6)?,
+            start_date: row.get(7)?,
+            due_date: row.get(8)?,
+            parent_task_id: row.get(9)?,
+            dependencies_json: row.get(10)?,
+        })
+    }).map_err(|e| e.to_string())?;
+
+    let mut result = Vec::new();
+    for t in tasks { result.push(t.map_err(|e| e.to_string())?); }
+    Ok(result)
+}
+
+#[tauri::command]
+fn add_project_task(state: State<AppState>, task: ProjectTask) -> Result<i64, String> {
+    let conn = state.db.lock().map_err(|_| "Failed to lock db".to_string())?;
+    conn.execute("INSERT INTO project_tasks (project_id, name, description, assigned_to, status, priority, start_date, due_date, parent_task_id, dependencies_json) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+        (&task.project_id, &task.name, &task.description, &task.assigned_to, &task.status, &task.priority, &task.start_date, &task.due_date, &task.parent_task_id, &task.dependencies_json)).map_err(|e| e.to_string())?;
+    Ok(conn.last_insert_rowid())
+}
+
+#[tauri::command]
+fn update_project_task(state: State<AppState>, task: ProjectTask) -> Result<(), String> {
+    let conn = state.db.lock().map_err(|_| "Failed to lock db".to_string())?;
+    if let Some(id) = task.id {
+        conn.execute(
+            "UPDATE project_tasks SET project_id = ?1, name = ?2, description = ?3, assigned_to = ?4, status = ?5, priority = ?6, start_date = ?7, due_date = ?8, parent_task_id = ?9, dependencies_json = ?10 WHERE id = ?11",
+            (&task.project_id, &task.name, &task.description, &task.assigned_to, &task.status, &task.priority, &task.start_date, &task.due_date, &task.parent_task_id, &task.dependencies_json, id)
+        ).map_err(|e| e.to_string())?;
+        Ok(())
+    } else {
+        Err("Task ID is required for update".to_string())
+    }
+}
+
+// --- Advanced Finance Commands ---
+
+#[tauri::command]
+fn get_accounts(state: State<AppState>) -> Result<Vec<Account>, String> {
+    let conn = state.db.lock().map_err(|_| "Failed to lock db".to_string())?;
+    let mut stmt = conn.prepare("SELECT id, code, name, type, currency, is_active FROM accounts").map_err(|e| e.to_string())?;
+    let accounts = stmt.query_map([], |row| {
+        Ok(Account {
+            id: Some(row.get(0)?),
+            code: row.get(1)?,
+            name: row.get(2)?,
+            type_name: row.get(3)?,
+            currency: row.get(4)?,
+            is_active: row.get(5)?,
+        })
+    }).map_err(|e| e.to_string())?;
+
+    let mut result = Vec::new();
+    for a in accounts { result.push(a.map_err(|e| e.to_string())?); }
+    Ok(result)
+}
+
+#[tauri::command]
+fn add_account(state: State<AppState>, account: Account) -> Result<i64, String> {
+    let conn = state.db.lock().map_err(|_| "Failed to lock db".to_string())?;
+    conn.execute("INSERT INTO accounts (code, name, type, currency, is_active) VALUES (?1, ?2, ?3, ?4, ?5)",
+        (&account.code, &account.name, &account.type_name, &account.currency, &account.is_active)).map_err(|e| e.to_string())?;
+    Ok(conn.last_insert_rowid())
+}
+
+#[tauri::command]
+fn get_invoices(state: State<AppState>) -> Result<Vec<Invoice>, String> {
+    let conn = state.db.lock().map_err(|_| "Failed to lock db".to_string())?;
+    let mut stmt = conn.prepare("SELECT id, customer_name, customer_email, invoice_date, due_date, total_amount, tax_rate, tax_amount, status, currency, notes FROM invoices").map_err(|e| e.to_string())?;
+    let invoices = stmt.query_map([], |row| {
+        Ok(Invoice {
+            id: Some(row.get(0)?),
+            customer_name: row.get(1)?,
+            customer_email: row.get(2)?,
+            invoice_date: row.get(3)?,
+            due_date: row.get(4)?,
+            total_amount: row.get(5)?,
+            tax_rate: row.get(6)?,
+            tax_amount: row.get(7)?,
+            status: row.get(8)?,
+            currency: row.get(9)?,
+            notes: row.get(10)?,
+        })
+    }).map_err(|e| e.to_string())?;
+
+    let mut result = Vec::new();
+    for i in invoices { result.push(i.map_err(|e| e.to_string())?); }
+    Ok(result)
+}
+
+#[tauri::command]
+fn create_invoice(state: State<AppState>, invoice: Invoice) -> Result<i64, String> {
+    let conn = state.db.lock().map_err(|_| "Failed to lock db".to_string())?;
+    conn.execute("INSERT INTO invoices (customer_name, customer_email, invoice_date, due_date, total_amount, tax_rate, tax_amount, status, currency, notes) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+        (&invoice.customer_name, &invoice.customer_email, &invoice.invoice_date, &invoice.due_date, &invoice.total_amount, &invoice.tax_rate, &invoice.tax_amount, &invoice.status, &invoice.currency, &invoice.notes)).map_err(|e| e.to_string())?;
+    Ok(conn.last_insert_rowid())
+}
+
+// --- Integration Commands ---
+
+#[tauri::command]
+fn get_integrations(state: State<AppState>) -> Result<Vec<Integration>, String> {
+    let conn = state.db.lock().map_err(|_| "Failed to lock db".to_string())?;
+    let mut stmt = conn.prepare("SELECT id, name, is_connected, api_key, config_json, connected_at FROM integrations").map_err(|e| e.to_string())?;
+    let integrations = stmt.query_map([], |row| {
+        Ok(Integration {
+            id: Some(row.get(0)?),
+            name: row.get(1)?,
+            is_connected: row.get(2)?,
+            api_key: row.get(3)?,
+            config_json: row.get(4)?,
+            connected_at: row.get(5)?,
+        })
+    }).map_err(|e| e.to_string())?;
+
+    let mut result = Vec::new();
+    for i in integrations { result.push(i.map_err(|e| e.to_string())?); }
+    Ok(result)
+}
+
+#[tauri::command]
+fn toggle_integration(state: State<AppState>, id: i32, is_connected: bool) -> Result<(), String> {
+    let conn = state.db.lock().map_err(|_| "Failed to lock db".to_string())?;
+    let connected_at = if is_connected {
+        Some(chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string())
+    } else {
+        None
+    };
+    conn.execute("UPDATE integrations SET is_connected = ?1, connected_at = ?2 WHERE id = ?3", 
+        (is_connected, connected_at, id)).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+fn configure_integration(state: State<AppState>, id: i32, api_key: Option<String>, config_json: Option<String>) -> Result<(), String> {
+    let conn = state.db.lock().map_err(|_| "Failed to lock db".to_string())?;
+    conn.execute("UPDATE integrations SET api_key = ?1, config_json = ?2 WHERE id = ?3", 
+        (api_key, config_json, id)).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+fn seed_demo_data(_state: State<AppState>) -> Result<(), String> {
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -907,7 +1159,12 @@ pub fn run() {
             assign_tool, return_tool, get_tool_history,
             get_roles, add_role, get_permissions, get_role_permissions, update_role_permissions,
             get_feature_toggles, set_feature_toggle,
-            get_setup_status, complete_setup
+            get_setup_status, complete_setup,
+            get_audit_logs,
+            get_dashboard_configs, save_dashboard_config,
+            get_projects, add_project, get_project_tasks, add_project_task, update_project_task,
+            get_accounts, add_account, get_invoices, create_invoice,
+            get_integrations, toggle_integration, configure_integration, seed_demo_data
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -20,6 +20,16 @@ namespace ThePlanningBord.Services
         // Feature Toggles
         Task<List<FeatureToggle>> GetFeatureTogglesAsync();
         Task SetFeatureToggleAsync(string key, bool isEnabled);
+
+        // Audit Logs
+        Task<List<AuditLog>> GetAuditLogsAsync(int page = 1, int pageSize = 50);
+
+        // Dashboard Configs
+        Task<List<DashboardConfig>> GetDashboardConfigsAsync(int userId);
+        Task<long> SaveDashboardConfigAsync(DashboardConfig config);
+        
+        // Demo Data
+        Task SeedDemoDataAsync();
     }
 
     public class SystemService : ISystemService
@@ -79,6 +89,26 @@ namespace ThePlanningBord.Services
         public async Task SetFeatureToggleAsync(string key, bool isEnabled)
         {
             await _tauri.InvokeVoidAsync("set_feature_toggle", new { key, isEnabled });
+        }
+
+        public async Task<List<AuditLog>> GetAuditLogsAsync(int page = 1, int pageSize = 50)
+        {
+            return await _tauri.InvokeAsync<List<AuditLog>>("get_audit_logs", new { page, pageSize });
+        }
+
+        public async Task<List<DashboardConfig>> GetDashboardConfigsAsync(int userId)
+        {
+            return await _tauri.InvokeAsync<List<DashboardConfig>>("get_dashboard_configs", new { userId });
+        }
+
+        public async Task<long> SaveDashboardConfigAsync(DashboardConfig config)
+        {
+            return await _tauri.InvokeAsync<long>("save_dashboard_config", new { userId = config.UserId, name = config.Name, layoutJson = config.LayoutJson, isDefault = config.IsDefault });
+        }
+
+        public async Task SeedDemoDataAsync()
+        {
+            await _tauri.InvokeVoidAsync("seed_demo_data", new { });
         }
     }
 }

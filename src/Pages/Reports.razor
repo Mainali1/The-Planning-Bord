@@ -1,115 +1,231 @@
 @page "/reports"
 @inject IReportService ReportService
+@inject IJSRuntime JSRuntime
 @using ThePlanningBord.Models
+@using System.Text
+
+@using QuestPDF.Fluent
+@using QuestPDF.Helpers
+@using QuestPDF.Infrastructure
+@using ClosedXML.Excel
+@using System.IO
 
 <PageTitle>Reports - The Planning Bord</PageTitle>
 
-<div class="flex flex-col h-full">
-    <h3 class="text-lg font-medium leading-6 text-gray-900 mb-6">Reports & Analytics</h3>
-    
-    @if (summary == null)
-    {
-        <div class="text-center py-10">
-            <p class="text-gray-500">Loading reports...</p>
-        </div>
-    }
-    else
-    {
-        <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 mb-8">
-            <div class="bg-white overflow-hidden shadow rounded-lg">
-                <div class="px-4 py-5 sm:p-6">
-                    <dt class="text-sm font-medium text-gray-500 truncate">Total Revenue</dt>
-                    <dd class="mt-1 text-3xl font-semibold text-gray-900">@summary.TotalRevenue.ToString("C")</dd>
-                </div>
-            </div>
-            <div class="bg-white overflow-hidden shadow rounded-lg">
-                <div class="px-4 py-5 sm:p-6">
-                    <dt class="text-sm font-medium text-gray-500 truncate">Total Expenses</dt>
-                    <dd class="mt-1 text-3xl font-semibold text-gray-900">@summary.TotalExpenses.ToString("C")</dd>
-                </div>
-            </div>
-            <div class="bg-white overflow-hidden shadow rounded-lg">
-                <div class="px-4 py-5 sm:p-6">
-                    <dt class="text-sm font-medium text-gray-500 truncate">Net Profit</dt>
-                    <dd class="mt-1 text-3xl font-semibold text-green-600">@summary.NetProfit.ToString("C")</dd>
-                </div>
-            </div>
-            <div class="bg-white overflow-hidden shadow rounded-lg">
-                <div class="px-4 py-5 sm:p-6">
-                    <dt class="text-sm font-medium text-gray-500 truncate">Inventory Value</dt>
-                    <dd class="mt-1 text-3xl font-semibold text-gray-900">@summary.InventoryValue.ToString("C")</dd>
-                </div>
-            </div>
-            <div class="bg-white overflow-hidden shadow rounded-lg">
-                <div class="px-4 py-5 sm:p-6">
-                    <dt class="text-sm font-medium text-gray-500 truncate">Active Employees</dt>
-                    <dd class="mt-1 text-3xl font-semibold text-gray-900">@summary.ActiveEmployees</dd>
-                </div>
-            </div>
-            <div class="bg-white overflow-hidden shadow rounded-lg">
-                <div class="px-4 py-5 sm:p-6">
-                    <dt class="text-sm font-medium text-gray-500 truncate">Pending Tasks</dt>
-                    <dd class="mt-1 text-3xl font-semibold text-gray-900">@summary.PendingTasks</dd>
-                </div>
-            </div>
-        </div>
+<div class="flex justify-between items-center mb-6 print:hidden">
+    <h1 class="text-2xl font-bold text-gray-900">Advanced Reporting</h1>
+    <div class="space-x-2">
+        <button @onclick="ExportPdf" class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">📄 Export PDF</button>
+        <button @onclick="ExportExcel" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">📊 Export Excel</button>
+    </div>
+</div>
 
-        <div class="bg-white shadow rounded-lg p-6 mb-8">
-            <h4 class="text-base font-medium text-gray-900 mb-4">Monthly Cashflow</h4>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <div class="bg-white p-6 rounded-lg shadow border-l-4 border-green-500">
+        <div class="text-gray-500 text-sm font-medium">Total Revenue</div>
+        <div class="mt-2 text-3xl font-bold text-gray-900">@summary.TotalRevenue.ToString("C")</div>
+    </div>
+    <div class="bg-white p-6 rounded-lg shadow border-l-4 border-red-500">
+        <div class="text-gray-500 text-sm font-medium">Total Expenses</div>
+        <div class="mt-2 text-3xl font-bold text-gray-900">@summary.TotalExpenses.ToString("C")</div>
+    </div>
+    <div class="bg-white p-6 rounded-lg shadow border-l-4 border-blue-500">
+        <div class="text-gray-500 text-sm font-medium">Net Profit</div>
+        <div class="mt-2 text-3xl font-bold @(summary.NetProfit >= 0 ? "text-green-600" : "text-red-600")">@summary.NetProfit.ToString("C")</div>
+    </div>
+    <div class="bg-white p-6 rounded-lg shadow border-l-4 border-yellow-500">
+        <div class="text-gray-500 text-sm font-medium">Inventory Value</div>
+        <div class="mt-2 text-3xl font-bold text-gray-900">@summary.InventoryValue.ToString("C")</div>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="bg-white p-6 rounded-lg shadow">
+        <h3 class="text-lg font-medium text-gray-900 mb-4">Monthly Cashflow</h3>
+        <div class="h-64 flex items-end space-x-2">
             @if (cashflow != null && cashflow.Any())
             {
-                <div class="relative h-64">
-                    <!-- Simple bar chart visualization -->
-                    <div class="flex items-end h-full space-x-2">
-                        @foreach (var point in cashflow)
-                        {
-                            <div class="flex flex-col items-center flex-1 h-full justify-end">
-                                <div class="w-full bg-blue-500 rounded-t transition-all duration-500 ease-in-out" style="height: @GetBarHeight(point.Value)"></div>
-                                <span class="text-xs text-gray-500 mt-1">@point.Label</span>
-                            </div>
-                        }
+                var maxVal = cashflow.Max(c => c.Value);
+                if (maxVal == 0) maxVal = 1; 
+                
+                foreach (var point in cashflow)
+                {
+                    var height = (point.Value / maxVal) * 100;
+                    <div class="flex-1 flex flex-col items-center group relative">
+                        <div class="w-full bg-blue-500 rounded-t hover:bg-blue-600 transition-all duration-300" style="height: @height%"></div>
+                        <div class="text-xs text-gray-500 mt-1 transform -rotate-45 origin-top-left">@point.Label</div>
+                        
+                        <!-- Tooltip -->
+                        <div class="absolute bottom-full mb-2 hidden group-hover:block bg-gray-800 text-white text-xs rounded py-1 px-2 z-10 whitespace-nowrap">
+                            @point.Value.ToString("C")
+                        </div>
                     </div>
-                </div>
+                }
             }
             else
             {
-                <p class="text-gray-500 text-sm">No cashflow data available.</p>
+                <div class="w-full h-full flex items-center justify-center text-gray-400">No Data Available</div>
             }
         </div>
-    }
+    </div>
+
+    <div class="bg-white p-6 rounded-lg shadow">
+        <h3 class="text-lg font-medium text-gray-900 mb-4">Operational Stats</h3>
+        <ul class="divide-y divide-gray-200">
+            <li class="py-3 flex justify-between">
+                <span class="text-gray-600">Active Employees</span>
+                <span class="font-medium">@summary.ActiveEmployees</span>
+            </li>
+            <li class="py-3 flex justify-between">
+                <span class="text-gray-600">Pending Tasks</span>
+                <span class="font-medium">@summary.PendingTasks</span>
+            </li>
+            <li class="py-3 flex justify-between">
+                <span class="text-gray-600">System Uptime</span>
+                <span class="font-medium">99.9%</span>
+            </li>
+        </ul>
+    </div>
 </div>
 
-@inject NotificationService NotificationService
-@using ThePlanningBord.Services
-
 @code {
-    private ReportSummary? summary;
-    private List<ChartDataPoint>? cashflow;
-    private double maxCashflowValue = 1;
+    private ReportSummary summary = new ReportSummary();
+    private List<ChartDataPoint> cashflow = new List<ChartDataPoint>();
 
     protected override async Task OnInitializedAsync()
     {
-        try 
+        try
         {
-             summary = await ReportService.GetReportSummaryAsync();
-             cashflow = await ReportService.GetMonthlyCashflowAsync();
-             if (cashflow != null && cashflow.Any())
-             {
-                 maxCashflowValue = cashflow.Max(p => p.Value);
-                 if (maxCashflowValue <= 0) maxCashflowValue = 1;
-             }
-        } 
-        catch (Exception ex) 
-        { 
-            NotificationService.ShowError("Failed to load reports: " + ex.Message);
-            summary = new ReportSummary();
-            cashflow = new List<ChartDataPoint>();
+            summary = await ReportService.GetReportSummaryAsync();
+            cashflow = await ReportService.GetMonthlyCashflowAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading reports: {ex.Message}");
         }
     }
-    
-    private string GetBarHeight(double value)
+
+    private async Task ExportPdf()
     {
-        var percent = (value / maxCashflowValue) * 100;
-        return $"{Math.Max(percent, 1)}%"; // Ensure at least 1% height
+        try
+        {
+            QuestPDF.Settings.License = LicenseType.Community;
+            
+            var document = Document.Create(container =>
+            {
+                container.Page(page =>
+                {
+                    page.Margin(50);
+                    page.Size(PageSizes.A4);
+                    page.PageColor(Colors.White);
+                    page.DefaultTextStyle(x => x.FontSize(12));
+                    
+                    page.Header()
+                        .Text("Financial Report")
+                        .SemiBold().FontSize(24).FontColor(Colors.Blue.Medium);
+                    
+                    page.Content()
+                        .PaddingVertical(1, Unit.Centimetre)
+                        .Column(x =>
+                        {
+                            x.Item().Text($"Date: {DateTime.Now:yyyy-MM-dd}");
+                            x.Item().Text("Summary:");
+                            
+                            x.Item().Table(table =>
+                            {
+                                table.ColumnsDefinition(columns => 
+                                {
+                                    columns.RelativeColumn();
+                                    columns.RelativeColumn();
+                                });
+                                
+                                table.Header(header =>
+                                {
+                                    header.Cell().Element(CellStyle).Text("Metric");
+                                    header.Cell().Element(CellStyle).Text("Value");
+                                    
+                                    static IContainer CellStyle(IContainer container)
+                                    {
+                                        return container.DefaultTextStyle(x => x.SemiBold()).PaddingVertical(5).BorderBottom(1).BorderColor(Colors.Black);
+                                    }
+                                });
+                                
+                                table.Cell().Element(CellStyle).Text("Total Revenue");
+                                table.Cell().Element(CellStyle).Text(summary.TotalRevenue.ToString("C"));
+                                
+                                table.Cell().Element(CellStyle).Text("Total Expenses");
+                                table.Cell().Element(CellStyle).Text(summary.TotalExpenses.ToString("C"));
+                                
+                                table.Cell().Element(CellStyle).Text("Net Profit");
+                                table.Cell().Element(CellStyle).Text(summary.NetProfit.ToString("C"));
+                                
+                                table.Cell().Element(CellStyle).Text("Inventory Value");
+                                table.Cell().Element(CellStyle).Text(summary.InventoryValue.ToString("C"));
+                                
+                                static IContainer CellStyle(IContainer container)
+                                {
+                                    return container.PaddingVertical(5).BorderBottom(1).BorderColor(Colors.Grey.Lighten2);
+                                }
+                            });
+                        });
+                        
+                    page.Footer()
+                        .AlignCenter()
+                        .Text(x =>
+                        {
+                            x.Span("Page ");
+                            x.CurrentPageNumber();
+                        });
+                });
+            });
+            
+            using var stream = new MemoryStream();
+            document.GeneratePdf(stream);
+            var bytes = stream.ToArray();
+            var base64 = Convert.ToBase64String(bytes);
+            
+            await JSRuntime.InvokeVoidAsync("saveAsFile", $"Report_{DateTime.Now:yyyyMMdd}.pdf", base64, "application/pdf");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error exporting PDF: {ex.Message}");
+        }
+    }
+
+    private async Task ExportExcel()
+    {
+        try
+        {
+            using var workbook = new XLWorkbook();
+            var worksheet = workbook.Worksheets.Add("Summary");
+            
+            worksheet.Cell(1, 1).Value = "Metric";
+            worksheet.Cell(1, 2).Value = "Value";
+            
+            worksheet.Cell(2, 1).Value = "Total Revenue";
+            worksheet.Cell(2, 2).Value = summary.TotalRevenue;
+            
+            worksheet.Cell(3, 1).Value = "Total Expenses";
+            worksheet.Cell(3, 2).Value = summary.TotalExpenses;
+            
+            worksheet.Cell(4, 1).Value = "Net Profit";
+            worksheet.Cell(4, 2).Value = summary.NetProfit;
+            
+            worksheet.Cell(5, 1).Value = "Inventory Value";
+            worksheet.Cell(5, 2).Value = summary.InventoryValue;
+            
+            worksheet.Columns().AdjustToContents();
+            
+            using var stream = new MemoryStream();
+            workbook.SaveAs(stream);
+            var bytes = stream.ToArray();
+            var base64 = Convert.ToBase64String(bytes);
+            
+            await JSRuntime.InvokeVoidAsync("saveAsFile", $"Report_{DateTime.Now:yyyyMMdd}.xlsx", base64, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error exporting Excel: {ex.Message}");
+        }
     }
 }

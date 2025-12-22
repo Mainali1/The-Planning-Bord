@@ -150,3 +150,105 @@ pub struct FeatureToggle {
     pub key: String,
     pub is_enabled: bool,
 }
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct AuditLog {
+    pub id: Option<i32>,
+    pub user_id: Option<i32>,
+    pub action: String,
+    pub entity: String,
+    pub entity_id: Option<i32>,
+    pub details: Option<String>,
+    pub created_at: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct DashboardConfig {
+    pub id: Option<i32>,
+    pub user_id: Option<i32>,
+    pub name: String,
+    pub layout_json: Option<String>,
+    pub is_default: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Project {
+    pub id: Option<i32>,
+    pub name: String,
+    pub description: Option<String>,
+    pub start_date: Option<String>,
+    pub end_date: Option<String>,
+    pub status: String,
+    pub manager_id: Option<i32>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ProjectTask {
+    pub id: Option<i32>,
+    pub project_id: Option<i32>,
+    pub name: String,
+    pub description: Option<String>,
+    pub assigned_to: Option<i32>,
+    pub status: String,
+    pub priority: String,
+    pub start_date: Option<String>,
+    pub due_date: Option<String>,
+    pub parent_task_id: Option<i32>,
+    pub dependencies_json: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Account {
+    pub id: Option<i32>,
+    pub code: String,
+    pub name: String,
+    pub type_name: String, // 'type' is a reserved keyword in Rust
+    pub currency: String,
+    pub is_active: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Transaction {
+    pub id: Option<i32>,
+    pub account_id: Option<i32>,
+    pub date: String,
+    pub amount: f64,
+    pub type_name: String,
+    pub description: Option<String>,
+    pub reference: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Invoice {
+    pub id: Option<i32>,
+    pub customer_name: String,
+    pub customer_email: Option<String>,
+    pub invoice_date: String,
+    pub due_date: Option<String>,
+    pub total_amount: f64,
+    pub tax_rate: f64,
+    pub tax_amount: f64,
+    pub status: String,
+    pub currency: String,
+    pub notes: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct InvoiceItem {
+    pub id: Option<i32>,
+    pub invoice_id: Option<i32>,
+    pub description: String,
+    pub quantity: f64,
+    pub unit_price: f64,
+    pub total: f64,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Integration {
+    pub id: Option<i32>,
+    pub name: String,
+    pub is_connected: bool,
+    pub api_key: Option<String>,
+    pub config_json: Option<String>,
+    pub connected_at: Option<String>,
+}

@@ -3,23 +3,65 @@
 @inject IInventoryService InventoryService
 @inject ITaskService TaskService
 @inject IJSRuntime JS
+@using ThePlanningBord.Models
 
 <PageTitle>Dashboard - The Planning Bord</PageTitle>
 
-<div class="grid grid-cols-1 gap-6 mb-6 lg:grid-cols-3">
-    <div class="w-full px-4 py-5 bg-white rounded-lg shadow">
-        <div class="text-sm font-medium text-gray-500 truncate">Total Products</div>
-        <div class="mt-1 text-3xl font-semibold text-gray-900">@stats.TotalProducts</div>
-    </div>
-    <div class="w-full px-4 py-5 bg-white rounded-lg shadow">
-        <div class="text-sm font-medium text-gray-500 truncate">Low Stock Items</div>
-        <div class="mt-1 text-3xl font-semibold text-red-600">@stats.LowStockItems</div>
-    </div>
-    <div class="w-full px-4 py-5 bg-white rounded-lg shadow">
-        <div class="text-sm font-medium text-gray-500 truncate">Pending Tasks</div>
-        <div class="mt-1 text-3xl font-semibold text-gray-900">@pendingTasks</div>
+<div class="flex justify-between items-center mb-6">
+    <h1 class="text-2xl font-bold text-gray-900">Dashboard</h1>
+    <div class="flex space-x-2">
+        <button @onclick="ToggleEditMode" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-2 px-4 rounded inline-flex items-center">
+            <span>@(editMode ? "Done" : "Customize Layout")</span>
+        </button>
+        <a href="reports" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded inline-flex items-center">
+            <span>View Reports</span>
+        </a>
     </div>
 </div>
+
+<div class="grid grid-cols-1 gap-6 mb-6 lg:grid-cols-4">
+    @if (ShowWidget("products")) {
+    <div class="w-full px-4 py-5 bg-white rounded-lg shadow relative group">
+        <div class="text-sm font-medium text-gray-500 truncate">Total Products</div>
+        <div class="mt-1 text-3xl font-semibold text-gray-900">@stats.TotalProducts</div>
+        @if(editMode) { <button @onclick='() => ToggleWidget("products")' class="absolute top-2 right-2 text-red-500">Hide</button> }
+    </div>
+    }
+    @if (ShowWidget("lowstock")) {
+    <div class="w-full px-4 py-5 bg-white rounded-lg shadow relative group">
+        <div class="text-sm font-medium text-gray-500 truncate">Low Stock Items</div>
+        <div class="mt-1 text-3xl font-semibold text-red-600">@stats.LowStockItems</div>
+        @if(editMode) { <button @onclick='() => ToggleWidget("lowstock")' class="absolute top-2 right-2 text-red-500">Hide</button> }
+    </div>
+    }
+    @if (ShowWidget("employees")) {
+    <div class="w-full px-4 py-5 bg-white rounded-lg shadow relative group">
+        <div class="text-sm font-medium text-gray-500 truncate">Active Employees</div>
+        <div class="mt-1 text-3xl font-semibold text-gray-900">@stats.TotalEmployees</div>
+        @if(editMode) { <button @onclick='() => ToggleWidget("employees")' class="absolute top-2 right-2 text-red-500">Hide</button> }
+    </div>
+    }
+    @if (ShowWidget("revenue")) {
+    <div class="w-full px-4 py-5 bg-white rounded-lg shadow relative group">
+        <div class="text-sm font-medium text-gray-500 truncate">Est. Revenue (Mock)</div>
+        <div class="mt-1 text-3xl font-semibold text-green-600">@stats.TotalRevenue.ToString("C")</div>
+        @if(editMode) { <button @onclick='() => ToggleWidget("revenue")' class="absolute top-2 right-2 text-red-500">Hide</button> }
+    </div>
+    }
+</div>
+
+@if (editMode)
+{
+    <div class="mb-6 p-4 bg-gray-100 rounded border border-gray-300">
+        <h3 class="font-bold mb-2">Hidden Widgets</h3>
+        <div class="flex space-x-2">
+            @foreach(var w in hiddenWidgets)
+            {
+                <button @onclick="() => ToggleWidget(w)" class="bg-white border border-gray-300 px-3 py-1 rounded text-sm hover:bg-gray-50">Show @w</button>
+            }
+        </div>
+    </div>
+}
 
 @if (lowStockProducts.Any())
 {
@@ -70,58 +112,75 @@
     </div>
 
     <div class="bg-white shadow rounded-lg p-6">
-        <h3 class="text-lg font-medium leading-6 text-gray-900 mb-4">System Status</h3>
-        <ul class="divide-y divide-gray-200">
-            <li class="py-3 flex justify-between">
-                <span class="text-gray-600">Database</span>
-                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Connected</span>
-            </li>
-            <li class="py-3 flex justify-between">
-                <span class="text-gray-600">Last Backup</span>
-                <span class="text-gray-900">Today, 09:00 AM</span>
-            </li>
-            <li class="py-3 flex justify-between">
-                <span class="text-gray-600">Version</span>
-                <span class="text-gray-900">1.0.0</span>
-            </li>
-        </ul>
+        <h3 class="text-lg font-medium leading-6 text-gray-900 mb-4">Cashflow Trend</h3>
+        <div class="h-48 flex items-end space-x-2">
+             @if (cashflow != null && cashflow.Any())
+            {
+                var maxVal = cashflow.Max(c => c.Value);
+                if (maxVal == 0) maxVal = 1; 
+                
+                foreach (var point in cashflow)
+                {
+                    var height = (point.Value / maxVal) * 100;
+                    <div class="flex-1 flex flex-col items-center group relative">
+                        <div class="w-full bg-green-500 rounded-t hover:bg-green-600 transition-all duration-300" style="height: @height%"></div>
+                        <div class="text-xs text-gray-500 mt-1 transform -rotate-45 origin-top-left">@point.Label</div>
+                         <div class="absolute bottom-full mb-2 hidden group-hover:block bg-gray-800 text-white text-xs rounded py-1 px-2 z-10 whitespace-nowrap">
+                            @point.Value.ToString("C")
+                        </div>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="w-full h-full flex items-center justify-center text-gray-400">No Data Available</div>
+            }
+        </div>
     </div>
 </div>
 
-@using ThePlanningBord.Models
-
 @code {
     private DashboardStats stats = new();
-    private int pendingTasks = 0;
     private List<Product> lowStockProducts = new();
+    private List<ChartDataPoint> cashflow = new();
+    
+    private bool editMode = false;
+    private HashSet<string> hiddenWidgets = new();
 
     protected override async Task OnInitializedAsync()
     {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
         try
         {
-            // Fetch real stats in a real app
-            // stats = await ReportService.GetDashboardStatsAsync();
-            // For now mock data or basic fetches
-            var productResult = await InventoryService.GetProductsAsync(null, 1, 1000);
-            var products = productResult.Items;
-            stats.TotalProducts = productResult.Total;
-            lowStockProducts = products.Where(p => p.CurrentQuantity <= p.MinimumQuantity).ToList();
-            stats.LowStockItems = lowStockProducts.Count;
+            stats = await ReportService.GetDashboardStatsAsync();
+            cashflow = await ReportService.GetMonthlyCashflowAsync();
             
-            var tasks = await TaskService.GetTasksAsync();
-            pendingTasks = tasks.Count(t => t.Status != "completed");
-
-            var setting = await JS.InvokeAsync<string>("getSetting", "notifications_enabled");
-            var enabled = setting == "true";
-            if (enabled && lowStockProducts.Any())
-            {
-                var names = string.Join(", ", lowStockProducts.Select(p => p.Name));
-                await JS.InvokeVoidAsync("notify", "Low Stock", $"Restock: {names}");
-            }
+            // Get low stock for alert
+            var productResult = await InventoryService.GetProductsAsync(null, 1, 1000);
+            lowStockProducts = productResult.Items.Where(p => p.CurrentQuantity <= p.MinimumQuantity).ToList();
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error loading dashboard: {ex.Message}");
         }
+    }
+
+    private void ToggleEditMode()
+    {
+        editMode = !editMode;
+    }
+
+    private bool ShowWidget(string id) => !hiddenWidgets.Contains(id);
+
+    private void ToggleWidget(string id)
+    {
+        if (hiddenWidgets.Contains(id))
+            hiddenWidgets.Remove(id);
+        else
+            hiddenWidgets.Add(id);
     }
 }

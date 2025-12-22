@@ -1,0 +1,702 @@
+@page "/projects"
+@using ThePlanningBord.Models
+@using ThePlanningBord.Services
+@using System.Linq
+@using Microsoft.AspNetCore.Components.Web
+@inject IProjectService ProjectService
+@inject IHrService HrService
+
+<div class="p-6">
+    <div class="mb-4 flex items-center justify-between">
+        <h1 class="text-2xl font-bold text-gray-800">Projects</h1>
+        <div class="flex items-center space-x-2">
+            <div class="inline-flex rounded-md shadow-sm" role="group">
+                <button type="button" class="@GetTabButtonClass("overview", true)" @onclick="ShowOverview">Overview</button>
+                <button type="button" class="@GetTabButtonClass("timeline", false)" @onclick="ShowTimeline">Timeline</button>
+            </div>
+            <button class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700" @onclick="OpenAddModal">
+                + New Project
+            </button>
+        </div>
+    </div>
+
+    @if (activeTab == "overview")
+    {
+        @if (projects == null)
+        {
+            <p>Loading projects...</p>
+        }
+        else if (!projects.Any())
+        {
+            <div class="text-center py-10 bg-white rounded-lg shadow">
+                <p class="text-gray-500">No projects found. Start by creating one!</p>
+            </div>
+        }
+        else
+        {
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                @foreach (var project in projects)
+                {
+                    <div class="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow cursor-pointer" @onclick="() => SelectProject(project.Id)">
+                        <h3 class="text-xl font-semibold mb-2">@project.Name</h3>
+                        <p class="text-gray-600 mb-4 line-clamp-2">@project.Description</p>
+                        <div class="flex justify-between items-center text-sm text-gray-500">
+                            <span>Status: <span class="font-medium text-blue-600">@project.Status</span></span>
+                            <span>@project.StartDate</span>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    }
+    else if (activeTab == "timeline")
+    {
+        <div class="bg-white p-6 rounded-lg shadow">
+            <div class="flex items-center space-x-3 mb-4">
+                <select class="px-3 py-2 border rounded-md" value="@selectedProjectId" @onchange="OnProjectChanged">
+                    @if (projects != null && projects.Any())
+                    {
+                        @foreach (var p in projects)
+                        {
+                            <option value="@p.Id">@p.Name</option>
+                        }
+                    }
+                </select>
+                <button class="px-3 py-2 border rounded-md text-sm" @onclick="ReloadTasks">Reload Tasks</button>
+                <button class="px-3 py-2 bg-green-600 text-white rounded-md text-sm hover:bg-green-700" @onclick="OpenAddTaskModal">
+                    + Add Task
+                </button>
+            </div>
+            @if (projectTasks == null)
+            {
+                <p>Loading tasks...</p>
+            }
+            else if (!projectTasks.Any())
+            {
+                <p class="text-gray-500">No tasks for the selected project.</p>
+            }
+            else
+            {
+                <div class="mb-2 text-sm text-gray-600">From @minDate.ToString("yyyy-MM-dd") to @maxDate.ToString("yyyy-MM-dd") (@totalDays days)</div>
+                <div class="flex items-center space-x-4 mb-2 text-xs">
+                    <div class="inline-flex items-center space-x-1"><span class="inline-block w-3 h-3 bg-blue-500 rounded"></span><span>Task</span></div>
+                    <div class="inline-flex items-center space-x-1"><span class="inline-block w-3 h-3 bg-yellow-500" style="transform: rotate(45deg)"></span><span>Milestone</span></div>
+                    <div class="inline-flex items-center space-x-1"><span class="inline-block w-3 h-3 bg-red-600 rounded"></span><span>Critical</span></div>
+                </div>
+                <div class="relative border rounded overflow-auto" style="height:@(projectTasks.Count * rowHeight + 40)px; width:@(timelineWidthPx)px" @onmousemove="OnTimelineMouseMove" @onmouseup="OnTimelineMouseUp">
+                    @foreach (var gl in gridLines)
+                    {
+                        <div class="absolute top-0" style="left:@gl.pct%; height:100%; width:1px; background-color:#eee"></div>
+                        <div class="absolute text-[10px] text-gray-500" style="left:calc(@gl.pct% + 2px); top:0;">@gl.label</div>
+                    }
+                    <svg class="absolute top-0 left-0 w-full h-full pointer-events-none" style="z-index: 0;" viewBox="0 0 100 @(projectTasks.Count * rowHeight + 40)" preserveAspectRatio="none">
+                        <defs>
+                            <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto" markerUnits="userSpaceOnUse">
+                                <polygon points="0 0, 10 3.5, 0 7" fill="#9CA3AF" />
+                            </marker>
+                        </defs>
+                        @foreach (var line in dependencyLines)
+                        {
+                            <path d="@line.Path" stroke="#9CA3AF" stroke-width="1" vector-effect="non-scaling-stroke" fill="none" />
+                        }
+                    </svg>
+
+                    @for (int i = 0; i < projectTasks.Count; i++)
+                    {
+                        var t = projectTasks[i];
+                        var pos = GetBarPosition(t);
+                        var isMilestone = t.StartDate == t.DueDate;
+                        
+                        <div class="absolute left-0 right-0" style="top:@(i * rowHeight + 20)px; height:@(rowHeight)px; z-index: 1;">
+                            @if (isMilestone)
+                            {
+                                <div class="absolute bg-yellow-500 transform rotate-45" 
+                                     style="left:@pos.left%; width:@(rowHeight-12)px; height:@(rowHeight-12)px; top:6px;"
+                                     title="@t.Name: @t.StartDate">
+                                </div>
+                                <span class="absolute text-xs text-gray-700 truncate ml-2" style="left:calc(@pos.left% + 24px); top:6px;">@t.Name</span>
+                            }
+                            else
+                            {
+                                <div class="absolute @(IsCritical(t) ? "bg-red-600" : "bg-blue-500") rounded text-white text-xs flex items-center justify-between px-2 overflow-hidden cursor-pointer hover:bg-blue-600 transition-colors shadow-sm" 
+                                     style="left:@pos.left%; width:@pos.width%; height:@(rowHeight-8)px; top:4px;"
+                                     title="@t.Name (@t.StartDate - @t.DueDate)" @onclick="@(() => OpenEditTask(t))">
+                                    <span class="truncate">@t.Name</span>
+                                    <div class="absolute left-0 top-0 h-full w-2 cursor-ew-resize" @onmousedown="@(() => StartDrag(t, true))"></div>
+                                    <div class="absolute right-0 top-0 h-full w-2 cursor-ew-resize" @onmousedown="@(() => StartDrag(t, false))"></div>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@if (showModal)
+{
+    <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div class="mt-3 text-center">
+                <h3 class="text-lg leading-6 font-medium text-gray-900">Add New Project</h3>
+                <div class="mt-2 px-7 py-3">
+                    <input @bind="newProject.Name" placeholder="Project Name" class="mb-3 px-3 py-2 border rounded w-full" />
+                    <textarea @bind="newProject.Description" placeholder="Description" class="mb-3 px-3 py-2 border rounded w-full"></textarea>
+                    <input value="@newProject.StartDate" type="date" class="mb-3 px-3 py-2 border rounded w-full" @onchange="OnStartDateChanged" />
+                </div>
+                <div class="items-center px-4 py-3">
+                    <button @onclick="AddProject" class="px-4 py-2 bg-blue-500 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300">
+                        Create Project
+                    </button>
+                    <button @onclick="CloseModal" class="mt-3 px-4 py-2 bg-gray-100 text-gray-700 text-base font-medium rounded-md w-full shadow-sm hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-300">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (showTaskModal)
+{
+    <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">@((newTask.Id.HasValue ? "Edit" : "Add")) Task</h3>
+            <div class="space-y-4">
+                <input @bind="newTask.Name" placeholder="Task Name" class="w-full border rounded px-3 py-2" />
+                <textarea @bind="newTask.Description" placeholder="Description" class="w-full border rounded px-3 py-2"></textarea>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="text-xs text-gray-500">Start</label>
+                        <input type="date" value="@newTask.StartDate" class="w-full border rounded px-3 py-2" @onchange="OnTaskStartChanged" />
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-500">Due</label>
+                        <input type="date" value="@newTask.DueDate" class="w-full border rounded px-3 py-2" @onchange="OnTaskDueChanged" />
+                    </div>
+                </div>
+                <select @bind="newTask.AssignedTo" class="w-full border rounded px-3 py-2">
+                    <option value="">Assign to...</option>
+                    @if (employees != null)
+                    {
+                        @foreach (var emp in employees)
+                        {
+                            <option value="@emp.Id">@emp.FirstName @emp.LastName</option>
+                        }
+                    }
+                </select>
+                <select @bind="newTask.Priority" class="w-full border rounded px-3 py-2">
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="critical">Critical</option>
+                </select>
+                <select @bind="newTask.Status" class="w-full border rounded px-3 py-2">
+                    <option value="todo">To Do</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="review">Review</option>
+                    <option value="done">Done</option>
+                </select>
+                
+                <div class="border-t pt-4 mt-4">
+                    <label class="flex items-center space-x-2 mb-2">
+                        <input type="checkbox" @bind="isMilestone" class="rounded text-blue-600" />
+                        <span class="text-sm font-medium">Is Milestone</span>
+                    </label>
+                    
+                    @if (!isMilestone)
+                    {
+                        <label class="block text-xs text-gray-500 mb-1">Depends On</label>
+                        <div class="max-h-40 overflow-auto border rounded p-2">
+                            @if (projectTasks != null)
+                            {
+                                @foreach (var t in projectTasks.Where(t => t.Id != newTask.Id))
+                                {
+                                    <label class="flex items-center space-x-2 py-1">
+                                        <input type="checkbox" checked="@selectedPredecessorIds.Contains(t.Id ?? 0)" @onchange="(e) => TogglePredecessor(t.Id ?? 0, e)" />
+                                        <span class="text-sm">@t.Name</span>
+                                    </label>
+                                }
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+            <div class="mt-4 flex justify-end space-x-2">
+                <button @onclick="CloseTaskModal" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">Cancel</button>
+                <button @onclick="SaveTask" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Save</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<Project>? projects;
+    private List<ProjectTask>? projectTasks;
+    private bool showModal = false;
+    private Project newProject = new();
+    private string activeTab = "overview";
+    private int rowHeight = 32;
+    private int? selectedProjectId;
+    private DateTime minDate;
+    private DateTime maxDate;
+    private double totalDays;
+    private List<(string pct, string label)> gridLines = new();
+    
+    // Task Modal
+    private bool showTaskModal = false;
+    private ProjectTask newTask = new();
+    private List<Employee>? employees;
+    
+    // Dependencies
+    private struct DependencyLine { public string Path { get; set; } }
+    private List<DependencyLine> dependencyLines = new();
+    private HashSet<int> selectedPredecessorIds = new HashSet<int>();
+    private List<string> selectedPredecessorIdsStrings = new List<string>();
+    private bool isMilestone = false;
+    
+    // Edit and drag
+    private HashSet<int> criticalTaskIds = new HashSet<int>();
+    private bool isDragging = false;
+    private bool dragLeft = false;
+    private int dragTaskId = 0;
+    private int timelineWidthPx = 1000;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProjects();
+        try { employees = await HrService.GetEmployeesAsync(); } catch {}
+        InitializeSelection();
+    }
+
+    private async Task LoadProjects()
+    {
+        projects = await ProjectService.GetProjectsAsync();
+        InitializeSelection();
+    }
+
+    private void OpenAddModal()
+    {
+        newProject = new Project { StartDate = DateTime.Now.ToString("yyyy-MM-dd") };
+        showModal = true;
+    }
+
+    private void CloseModal()
+    {
+        showModal = false;
+    }
+
+    private async Task AddProject()
+    {
+        if (string.IsNullOrWhiteSpace(newProject.Name)) return;
+
+        await ProjectService.AddProjectAsync(newProject);
+        showModal = false;
+        await LoadProjects();
+    }
+    
+    private void SelectProject(int? id)
+    {
+        if (id.HasValue)
+        {
+            selectedProjectId = id;
+            SetTab("timeline");
+        }
+    }
+
+    private void OnStartDateChanged(ChangeEventArgs e)
+    {
+        newProject.StartDate = e.Value?.ToString() ?? "";
+    }
+
+    private void SetTab(string tab)
+    {
+        activeTab = tab;
+        if (activeTab == "timeline")
+        {
+            _ = ReloadTasks();
+        }
+    }
+
+    private void ShowOverview() => SetTab("overview");
+    private void ShowTimeline() => SetTab("timeline");
+
+    private string GetTabButtonClass(string tab, bool isLeft)
+    {
+        var baseCls = "px-4 py-2 text-sm font-medium border " + (isLeft ? "rounded-l-md" : "rounded-r-md");
+        var active = "bg-blue-600 text-white border-blue-600";
+        var inactive = "bg-white text-gray-700 border-gray-300";
+        return baseCls + " " + (activeTab == tab ? active : inactive);
+    }
+
+    private void InitializeSelection()
+    {
+        if (selectedProjectId == null && projects != null && projects.Any())
+        {
+            selectedProjectId = projects.First().Id;
+        }
+    }
+
+    private async Task OnProjectChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var id))
+        {
+            selectedProjectId = id;
+            await ReloadTasks();
+        }
+    }
+
+    private async Task ReloadTasks()
+    {
+        if (selectedProjectId.HasValue)
+        {
+            projectTasks = await ProjectService.GetProjectTasksAsync(selectedProjectId.Value);
+            ComputeRange();
+            ComputeDependencies();
+            ComputeCriticalPath();
+        }
+    }
+    
+    private void ComputeDependencies()
+    {
+        dependencyLines.Clear();
+        if (projectTasks == null || !projectTasks.Any()) return;
+
+        var taskMap = projectTasks.Select((t, i) => new { Task = t, Index = i }).ToDictionary(x => x.Task.Id ?? 0, x => x);
+
+        foreach (var t in projectTasks)
+        {
+            if (string.IsNullOrEmpty(t.DependenciesJson)) continue;
+            try
+            {
+                var deps = System.Text.Json.JsonSerializer.Deserialize<List<int>>(t.DependenciesJson);
+                if (deps == null) continue;
+
+                foreach (var predId in deps)
+                {
+                    if (taskMap.TryGetValue(predId, out var pred))
+                    {
+                        var pPos = GetBarPosition(pred.Task);
+                        var tPos = GetBarPosition(t);
+
+                        if (double.TryParse(pPos.left.TrimEnd('%'), out double pLeft) &&
+                            double.TryParse(pPos.width.TrimEnd('%'), out double pWidth) &&
+                            double.TryParse(tPos.left.TrimEnd('%'), out double tLeft))
+                        {
+                            var pRight = pLeft + pWidth;
+                            var pY = pred.Index * rowHeight + 20 + ((rowHeight - 8) / 2); // Center of bar
+                            var tY = taskMap[t.Id ?? 0].Index * rowHeight + 20 + ((rowHeight - 8) / 2);
+
+                            string path;
+                            if (tLeft > pRight + 2)
+                            {
+                                var midX = pRight + (tLeft - pRight) / 2;
+                                path = $"M {pRight} {pY} L {midX} {pY} L {midX} {tY} L {tLeft} {tY}";
+                            }
+                            else
+                            {
+                                var outX = pRight + 2;
+                                var inX = tLeft - 2;
+                                if (inX < 0) inX = 0;
+                                path = $"M {pRight} {pY} L {outX} {pY} L {outX} {tY} L {tLeft} {tY}";
+                            }
+                            
+                            dependencyLines.Add(new DependencyLine { Path = path });
+                        }
+                    }
+                }
+            }
+            catch {}
+        }
+    }
+
+    private void OpenAddTaskModal()
+    {
+        if (selectedProjectId.HasValue)
+        {
+            newTask = new ProjectTask 
+            { 
+                ProjectId = selectedProjectId.Value,
+                StartDate = DateTime.Now.ToString("yyyy-MM-dd"),
+                DueDate = DateTime.Now.AddDays(7).ToString("yyyy-MM-dd"),
+                Status = "todo",
+                Priority = "medium"
+            };
+            isMilestone = false;
+            selectedPredecessorIds.Clear();
+            showTaskModal = true;
+        }
+    }
+
+    private void CloseTaskModal()
+    {
+        showTaskModal = false;
+    }
+
+    private async Task SaveTask()
+    {
+        if (string.IsNullOrWhiteSpace(newTask.Name) || !newTask.ProjectId.HasValue) return;
+
+        if (isMilestone)
+        {
+            newTask.DueDate = newTask.StartDate;
+        }
+        
+        if (selectedPredecessorIdsStrings.Count > 0)
+        {
+            var deps = selectedPredecessorIdsStrings.Select(s => { int.TryParse(s, out var id); return id; }).Where(id => id > 0).Distinct().ToList();
+            selectedPredecessorIds = new HashSet<int>(deps);
+            newTask.DependenciesJson = System.Text.Json.JsonSerializer.Serialize(deps);
+        }
+        else
+        {
+            newTask.DependenciesJson = null;
+        }
+
+        EnforceDependencyConstraints(newTask);
+        
+        if (newTask.Id.HasValue)
+        {
+            await ProjectService.UpdateProjectTaskAsync(newTask);
+        }
+        else
+        {
+            await ProjectService.AddProjectTaskAsync(newTask);
+        }
+        showTaskModal = false;
+        await ReloadTasks();
+    }
+    
+    private void OnTaskStartChanged(ChangeEventArgs e)
+    {
+        newTask.StartDate = e.Value?.ToString() ?? "";
+    }
+    
+    private void OnTaskDueChanged(ChangeEventArgs e)
+    {
+        newTask.DueDate = e.Value?.ToString() ?? "";
+    }
+    
+    
+    
+    private void OpenEditTask(ProjectTask t)
+    {
+        newTask = new ProjectTask
+        {
+            Id = t.Id,
+            ProjectId = t.ProjectId,
+            Name = t.Name,
+            Description = t.Description,
+            AssignedTo = t.AssignedTo,
+            Status = t.Status,
+            Priority = t.Priority,
+            StartDate = t.StartDate,
+            DueDate = t.DueDate,
+            ParentTaskId = t.ParentTaskId,
+            DependenciesJson = t.DependenciesJson
+        };
+        isMilestone = t.StartDate == t.DueDate;
+        selectedPredecessorIds = new HashSet<int>(DeserializeDependencies(t.DependenciesJson));
+        selectedPredecessorIdsStrings = selectedPredecessorIds.Select(id => id.ToString()).ToList();
+        showTaskModal = true;
+    }
+    
+    private List<int> DeserializeDependencies(string? json)
+    {
+        try
+        {
+            var deps = System.Text.Json.JsonSerializer.Deserialize<List<int>>(json ?? "[]");
+            return deps ?? new List<int>();
+        }
+        catch { return new List<int>(); }
+    }
+    
+    private void EnforceDependencyConstraints(ProjectTask t)
+    {
+        var preds = DeserializeDependencies(t.DependenciesJson);
+        if (preds.Count == 0) return;
+        var map = projectTasks?.ToDictionary(x => x.Id ?? 0, x => x) ?? new Dictionary<int, ProjectTask>();
+        var maxEnd = preds.Select(pid => map.ContainsKey(pid) ? Parse(string.IsNullOrWhiteSpace(map[pid].DueDate) ? map[pid].StartDate : map[pid].DueDate) : DateTime.MinValue).Max();
+        var start = Parse(t.StartDate);
+        if (start < maxEnd)
+        {
+            t.StartDate = maxEnd.ToString("yyyy-MM-dd");
+            var due = Parse(t.DueDate);
+            if (due < maxEnd) t.DueDate = maxEnd.ToString("yyyy-MM-dd");
+        }
+    }
+    
+    private void TogglePredecessor(int id, ChangeEventArgs e)
+    {
+        var isChecked = string.Equals(e.Value?.ToString(), "true", StringComparison.OrdinalIgnoreCase);
+        if (isChecked) selectedPredecessorIds.Add(id);
+        else selectedPredecessorIds.Remove(id);
+        selectedPredecessorIdsStrings = selectedPredecessorIds.Select(x => x.ToString()).ToList();
+    }
+
+    private DateTime Parse(string? s)
+    {
+        if (DateTime.TryParse(s, out var dt)) return dt;
+        return DateTime.Today;
+    }
+
+    private void ComputeRange()
+    {
+        if (projectTasks == null || !projectTasks.Any())
+        {
+            minDate = DateTime.Today;
+            maxDate = DateTime.Today.AddDays(1);
+            totalDays = 1;
+            return;
+        }
+        var starts = projectTasks.Select(t => Parse(t.StartDate));
+        var ends = projectTasks.Select(t => Parse(string.IsNullOrWhiteSpace(t.DueDate) ? t.StartDate : t.DueDate));
+        minDate = starts.Min();
+        maxDate = ends.Max();
+        if (maxDate < minDate) maxDate = minDate;
+        totalDays = (maxDate - minDate).TotalDays + 1;
+        if (totalDays <= 0) totalDays = 1;
+        ComputeGrid();
+    }
+
+    private (string left, string width) GetBarPosition(ProjectTask t)
+    {
+        var start = Parse(t.StartDate);
+        var end = Parse(string.IsNullOrWhiteSpace(t.DueDate) ? t.StartDate : t.DueDate);
+        if (end < start) end = start;
+        var leftPct = ((start - minDate).TotalDays / totalDays) * 100.0;
+        var widthPct = (((end - start).TotalDays + 1) / totalDays) * 100.0;
+        if (widthPct < 0.5) widthPct = 0.5;
+        return (leftPct.ToString("0.##") + "%", widthPct.ToString("0.##") + "%");
+    }
+    
+    private void ComputeGrid()
+    {
+        gridLines.Clear();
+        var days = (int)Math.Round(totalDays);
+        for (int d = 0; d <= days; d += 7)
+        {
+            var pct = (d / totalDays) * 100.0;
+            var labelDate = minDate.AddDays(d).ToString("MM-dd");
+            gridLines.Add((pct.ToString("0.##"), labelDate));
+        }
+    }
+    
+    private void ComputeCriticalPath()
+    {
+        criticalTaskIds.Clear();
+        if (projectTasks == null || !projectTasks.Any()) return;
+        var tasks = projectTasks;
+        var idMap = tasks.ToDictionary(t => t.Id ?? 0, t => t);
+        var deps = tasks.ToDictionary(t => t.Id ?? 0, t => DeserializeDependencies(t.DependenciesJson));
+        var succs = tasks.ToDictionary(t => t.Id ?? 0, t => new List<int>());
+        foreach (var kv in deps)
+        {
+            foreach (var p in kv.Value)
+            {
+                if (succs.ContainsKey(p)) succs[p].Add(kv.Key);
+            }
+        }
+        var visited = new HashSet<int>();
+        var order = new List<int>();
+        foreach (var t in tasks)
+        {
+            DfsTopological(t.Id ?? 0, deps, visited, order);
+        }
+        var es = new Dictionary<int, DateTime>();
+        var ef = new Dictionary<int, DateTime>();
+        foreach (var id in order)
+        {
+            var t = idMap[id];
+            var duration = (Parse(string.IsNullOrWhiteSpace(t.DueDate) ? t.StartDate : t.DueDate) - Parse(t.StartDate)).TotalDays + 1;
+            if (duration < 1) duration = 1;
+            var predEF = deps[id].Select(pid => ef.ContainsKey(pid) ? ef[pid] : minDate).DefaultIfEmpty(minDate).Max();
+            var start = Parse(t.StartDate);
+            var taskES = predEF > start ? predEF : start;
+            es[id] = taskES;
+            ef[id] = taskES.AddDays(duration);
+        }
+        var projectFinish = ef.Values.DefaultIfEmpty(minDate).Max();
+        var ls = new Dictionary<int, DateTime>();
+        var lf = new Dictionary<int, DateTime>();
+        for (int i = order.Count - 1; i >= 0; i--)
+        {
+            var id = order[i];
+            var t = idMap[id];
+            var duration = (Parse(string.IsNullOrWhiteSpace(t.DueDate) ? t.StartDate : t.DueDate) - Parse(t.StartDate)).TotalDays + 1;
+            if (duration < 1) duration = 1;
+            var succLS = succs[id].Select(sid => ls.ContainsKey(sid) ? ls[sid] : projectFinish).DefaultIfEmpty(projectFinish).Min();
+            lf[id] = succLS;
+            ls[id] = lf[id].AddDays(-duration);
+            var slack = (ls[id] - es[id]).TotalDays;
+            if (Math.Abs(slack) < 0.0001)
+            {
+                criticalTaskIds.Add(id);
+            }
+        }
+    }
+    
+    private void DfsTopological(int id, Dictionary<int, List<int>> deps, HashSet<int> visited, List<int> order)
+    {
+        if (visited.Contains(id)) return;
+        visited.Add(id);
+        if (deps.TryGetValue(id, out var predList))
+        {
+            foreach (var p in predList) DfsTopological(p, deps, visited, order);
+        }
+        order.Add(id);
+    }
+    
+    private bool IsCritical(ProjectTask t)
+    {
+        var id = t.Id ?? 0;
+        return criticalTaskIds.Contains(id);
+    }
+    
+    private void StartDrag(ProjectTask t, bool left)
+    {
+        isDragging = true;
+        dragLeft = left;
+        dragTaskId = t.Id ?? 0;
+    }
+    
+    private void OnTimelineMouseMove(MouseEventArgs e)
+    {
+        if (!isDragging || projectTasks == null || dragTaskId == 0) return;
+        var task = projectTasks.FirstOrDefault(x => (x.Id ?? 0) == dragTaskId);
+        if (task == null) return;
+        var x = e.OffsetX;
+        var pxPerDay = timelineWidthPx / totalDays;
+        var dayOffset = Math.Round(x / pxPerDay);
+        var newDate = minDate.AddDays(dayOffset).ToString("yyyy-MM-dd");
+        if (dragLeft)
+        {
+            task.StartDate = newDate;
+            if (Parse(task.DueDate) < Parse(task.StartDate)) task.DueDate = task.StartDate;
+        }
+        else
+        {
+            task.DueDate = newDate;
+            if (Parse(task.DueDate) < Parse(task.StartDate)) task.StartDate = task.DueDate;
+        }
+        ComputeRange();
+        ComputeDependencies();
+        ComputeCriticalPath();
+    }
+    
+    private async Task OnTimelineMouseUp(MouseEventArgs e)
+    {
+        if (!isDragging) return;
+        isDragging = false;
+        if (projectTasks == null) return;
+        var task = projectTasks.FirstOrDefault(x => (x.Id ?? 0) == dragTaskId);
+        if (task != null)
+        {
+            EnforceDependencyConstraints(task);
+            await ProjectService.UpdateProjectTaskAsync(task);
+            await ReloadTasks();
+        }
+        dragTaskId = 0;
+    }
+}

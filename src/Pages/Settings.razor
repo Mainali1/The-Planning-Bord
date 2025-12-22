@@ -15,6 +15,7 @@
                 <button @onclick='() => ChangeTab("general")' class="@(activeTab == "general" ? "border-blue-500 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300") whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">General</button>
                 <button @onclick='() => ChangeTab("access")' class="@(activeTab == "access" ? "border-blue-500 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300") whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">Access Control</button>
                 <button @onclick='() => ChangeTab("features")' class="@(activeTab == "features" ? "border-blue-500 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300") whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">Features</button>
+                <button @onclick='() => ChangeTab("audit")' class="@(activeTab == "audit" ? "border-blue-500 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300") whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">Audit Logs</button>
                 <button @onclick='() => ChangeTab("system")' class="@(activeTab == "system" ? "border-blue-500 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300") whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">System</button>
             </nav>
         </div>
@@ -163,6 +164,54 @@
                 }
             </div>
         }
+        else if (activeTab == "audit")
+        {
+            <div class="flex flex-col">
+                <div class="mb-4">
+                    <h4 class="text-base font-medium text-gray-900">Audit Logs</h4>
+                    <p class="text-sm text-gray-500">View system activity and user actions.</p>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Entity</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Details</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            @if (auditLogs != null)
+                            {
+                                @foreach (var log in auditLogs)
+                                {
+                                    <tr>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">@log.CreatedAt</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">User @log.UserId</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">@log.Action</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">@log.Entity (@log.EntityId)</td>
+                                        <td class="px-6 py-4 text-sm text-gray-500">@log.Details</td>
+                                    </tr>
+                                }
+                            }
+                            else
+                            {
+                                <tr>
+                                    <td colspan="5" class="px-6 py-4 text-center text-sm text-gray-500">Loading logs...</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                <div class="mt-4 flex justify-between">
+                    <button class="px-3 py-1 border rounded text-sm text-gray-600 hover:bg-gray-50" @onclick="PrevPage" disabled="@(auditPage == 1)">Previous</button>
+                    <span class="text-sm text-gray-600 self-center">Page @auditPage</span>
+                    <button class="px-3 py-1 border rounded text-sm text-gray-600 hover:bg-gray-50" @onclick="NextPage">Next</button>
+                </div>
+            </div>
+        }
         else if (activeTab == "system")
         {
              <div class="space-y-6">
@@ -237,6 +286,10 @@
     // Features
     private List<FeatureToggle>? featureToggles;
 
+    // Audit
+    private List<AuditLog>? auditLogs;
+    private int auditPage = 1;
+
     protected override async Task OnInitializedAsync()
     {
         var enabledStr = await JS.InvokeAsync<string>("getSetting", "notifications_enabled");
@@ -249,6 +302,7 @@
         await LoadRoles();
         await LoadPermissions();
         await LoadFeatureToggles();
+        await LoadAuditLogs();
     }
 
     private void ChangeTab(string tab)
@@ -369,5 +423,34 @@
     private void RunSetupWizard()
     {
         Navigation.NavigateTo("/setup");
+    }
+
+    // Audit
+    private async Task LoadAuditLogs()
+    {
+        try
+        {
+            auditLogs = await SystemService.GetAuditLogsAsync(auditPage, 50);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+            auditLogs = new List<AuditLog>();
+        }
+    }
+
+    private async Task PrevPage()
+    {
+        if (auditPage > 1)
+        {
+            auditPage--;
+            await LoadAuditLogs();
+        }
+    }
+
+    private async Task NextPage()
+    {
+        auditPage++;
+        await LoadAuditLogs();
     }
 }
