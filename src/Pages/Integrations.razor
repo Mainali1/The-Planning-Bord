@@ -106,6 +106,30 @@
         try
         {
             integrations = await IntegrationService.GetIntegrationsAsync();
+            
+            // Seed default integrations if missing (Client-side seeding for UI demo)
+            var defaults = new List<Integration>
+            {
+                new Integration { Name = "QuickBooks", Icon = "📗", Description = "Sync invoices and expenses automatically.", Provider = "intuit" },
+                new Integration { Name = "Xero", Icon = "📘", Description = "Beautiful accounting software for small business.", Provider = "xero" },
+                new Integration { Name = "Salesforce", Icon = "☁️", Description = "Connect your CRM data with project planning.", Provider = "salesforce" },
+                new Integration { Name = "HubSpot", Icon = "🟧", Description = "Inbound marketing, sales, and service software.", Provider = "hubspot" },
+                new Integration { Name = "Slack", Icon = "💬", Description = "Get notifications and updates in your channels.", Provider = "slack" },
+                new Integration { Name = "Microsoft Teams", Icon = "👥", Description = "Collaborate with your team directly.", Provider = "microsoft" },
+                new Integration { Name = "Google Calendar", Icon = "📅", Description = "Sync project milestones and tasks.", Provider = "google" },
+                new Integration { Name = "Outlook Calendar", Icon = "📆", Description = "Stay organized with Outlook integration.", Provider = "microsoft" }
+            };
+
+            foreach (var def in defaults)
+            {
+                if (!integrations.Any(i => i.Name == def.Name))
+                {
+                    // In a real app, we might save this to DB here, or just show it as 'available'
+                    // For now, we just display it as disconnected
+                    def.IsConnected = false;
+                    integrations.Add(def);
+                }
+            }
         }
         catch (Exception ex)
         {

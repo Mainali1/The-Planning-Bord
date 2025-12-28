@@ -9,7 +9,14 @@ namespace ThePlanningBord.Services
         Task<long> AddProjectAsync(Project project);
         Task<List<ProjectTask>> GetProjectTasksAsync(int projectId);
         Task<long> AddProjectTaskAsync(ProjectTask task);
+        Task UpdateProjectAsync(Project project);
         Task UpdateProjectTaskAsync(ProjectTask task);
+        Task DeleteProjectTaskAsync(int id);
+        Task DeleteProjectAsync(int id);
+        Task AssignProjectEmployeeAsync(int projectId, int employeeId, string role);
+        Task<List<ProjectAssignment>> GetProjectAssignmentsAsync(int projectId);
+        Task<List<ProjectAssignment>> GetAllProjectAssignmentsAsync();
+        Task RemoveProjectAssignmentAsync(int projectId, int employeeId);
     }
 
     public class ProjectService : IProjectService
@@ -41,9 +48,44 @@ namespace ThePlanningBord.Services
             return await _tauri.InvokeAsync<long>("add_project_task", new { task });
         }
         
+        public async Task UpdateProjectAsync(Project project)
+        {
+            await _tauri.InvokeVoidAsync("update_project", new { project });
+        }
+
         public async Task UpdateProjectTaskAsync(ProjectTask task)
         {
             await _tauri.InvokeVoidAsync("update_project_task", new { task });
+        }
+
+        public async Task DeleteProjectTaskAsync(int id)
+        {
+            await _tauri.InvokeVoidAsync("delete_project_task", new { id });
+        }
+
+        public async Task DeleteProjectAsync(int id)
+        {
+            await _tauri.InvokeVoidAsync("delete_project", new { id });
+        }
+
+        public async Task AssignProjectEmployeeAsync(int projectId, int employeeId, string role)
+        {
+            await _tauri.InvokeVoidAsync("assign_project_employee", new { projectId, employeeId, role });
+        }
+
+        public async Task<List<ProjectAssignment>> GetProjectAssignmentsAsync(int projectId)
+        {
+            return await _tauri.InvokeAsync<List<ProjectAssignment>>("get_project_assignments", new { projectId });
+        }
+
+        public async Task<List<ProjectAssignment>> GetAllProjectAssignmentsAsync()
+        {
+            return await _tauri.InvokeAsync<List<ProjectAssignment>>("get_all_project_assignments", new { });
+        }
+
+        public async Task RemoveProjectAssignmentAsync(int projectId, int employeeId)
+        {
+            await _tauri.InvokeVoidAsync("remove_project_assignment", new { projectId, employeeId });
         }
     }
 }

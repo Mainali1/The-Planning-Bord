@@ -56,7 +56,7 @@ namespace ThePlanningBord.Models
         public int? AssignedToEmployeeId { get; set; }
 
         [JsonPropertyName("purchase_date")]
-        public DateTime? PurchaseDate { get; set; }
+        public string? PurchaseDate { get; set; }
 
         [JsonPropertyName("condition")]
         public string? Condition { get; set; }

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Product {
     pub id: Option<i32>,
     pub name: String,
@@ -15,7 +15,7 @@ pub struct Product {
     pub is_active: bool,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Employee {
     pub id: Option<i32>,
     pub employee_id: Option<String>,
@@ -30,7 +30,7 @@ pub struct Employee {
     pub status: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Payment {
     pub id: Option<i32>,
     pub payment_type: String,
@@ -46,7 +46,7 @@ pub struct Payment {
     pub supplier_name: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DashboardStats {
     pub total_products: i32,
     pub low_stock_items: i32,
@@ -55,7 +55,7 @@ pub struct DashboardStats {
     pub total_revenue: f64, // Mock revenue or derived
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Task {
     pub id: Option<i32>,
     pub employee_id: Option<i32>,
@@ -68,7 +68,7 @@ pub struct Task {
     pub completed_date: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Attendance {
     pub id: Option<i32>,
     pub employee_id: Option<i32>,
@@ -79,7 +79,7 @@ pub struct Attendance {
     pub location: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ReportSummary {
     pub total_revenue: f64,
     pub total_expenses: f64,
@@ -89,13 +89,13 @@ pub struct ReportSummary {
     pub active_employees: i32,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ChartDataPoint {
     pub label: String,
     pub value: f64,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Complaint {
     pub id: Option<i32>,
     pub content: String,
@@ -107,7 +107,7 @@ pub struct Complaint {
     pub resolved_by: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Tool {
     pub id: Option<i32>,
     pub name: String,
@@ -118,7 +118,7 @@ pub struct Tool {
     pub condition: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ToolAssignment {
     pub id: Option<i32>,
     pub employee_id: Option<i32>,
@@ -130,7 +130,7 @@ pub struct ToolAssignment {
     pub notes: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Role {
     pub id: Option<i32>,
     pub name: String,
@@ -138,20 +138,20 @@ pub struct Role {
     pub is_custom: bool,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Permission {
     pub id: i32,
     pub code: String,
     pub description: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct FeatureToggle {
     pub key: String,
     pub is_enabled: bool,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AuditLog {
     pub id: Option<i32>,
     pub user_id: Option<i32>,
@@ -162,7 +162,7 @@ pub struct AuditLog {
     pub created_at: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DashboardConfig {
     pub id: Option<i32>,
     pub user_id: Option<i32>,
@@ -171,7 +171,7 @@ pub struct DashboardConfig {
     pub is_default: bool,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Project {
     pub id: Option<i32>,
     pub name: String,
@@ -182,7 +182,7 @@ pub struct Project {
     pub manager_id: Option<i32>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ProjectTask {
     pub id: Option<i32>,
     pub project_id: Option<i32>,
@@ -197,7 +197,16 @@ pub struct ProjectTask {
     pub dependencies_json: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ProjectAssignment {
+    pub id: Option<i32>,
+    pub project_id: i32,
+    pub employee_id: i32,
+    pub role: Option<String>,
+    pub assigned_at: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Account {
     pub id: Option<i32>,
     pub code: String,
@@ -207,7 +216,7 @@ pub struct Account {
     pub is_active: bool,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Transaction {
     pub id: Option<i32>,
     pub account_id: Option<i32>,
@@ -218,7 +227,7 @@ pub struct Transaction {
     pub reference: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Invoice {
     pub id: Option<i32>,
     pub customer_name: String,
@@ -233,7 +242,7 @@ pub struct Invoice {
     pub notes: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct InvoiceItem {
     pub id: Option<i32>,
     pub invoice_id: Option<i32>,
@@ -243,7 +252,7 @@ pub struct InvoiceItem {
     pub total: f64,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Integration {
     pub id: Option<i32>,
     pub name: String,

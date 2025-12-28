@@ -13,7 +13,7 @@ graph TD
     Services --> Interop[TauriInterop Service]
     Interop --> Bridge[Tauri Bridge (IPC)]
     Bridge --> Backend[Rust Backend]
-    Backend --> DB[(SQLite Database)]
+    Backend --> DB[(PostgreSQL Database)]
 ```
 
 ## Component Specifications
@@ -33,7 +33,7 @@ graph TD
 ### Backend (Rust / Tauri)
 - **Framework:** Tauri 2.0 (v2)
 - **Language:** Rust
-- **Database:** SQLite (managed via `rusqlite`)
+- **Database:** PostgreSQL (managed via `rust-postgres`)
 - **Modules:**
     - `lib.rs`: Command registration and entry point.
     - `db.rs`: Database initialization and schema migration.
@@ -46,7 +46,7 @@ graph TD
 3.  **Interop:** `InventoryService` calls `TauriInterop.InvokeAsync("add_product", product)`.
 4.  **IPC:** Tauri transmits the request to the Rust backend.
 5.  **Command Execution:** Rust `add_product` function executes, locking the `AppState` mutex to access the database.
-6.  **Persistence:** SQL `INSERT` statement runs against `planningbord.db`.
+6.  **Persistence:** SQL `INSERT` statement runs against the PostgreSQL database.
 7.  **Response:** Result (e.g., new ID) is returned to Rust, then over IPC to C#, and finally updates the UI.
 
 ## API Documentation (Tauri Commands)

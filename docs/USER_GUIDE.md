@@ -16,15 +16,19 @@ Welcome to **The Planning Bord**, a comprehensive management tool for your busin
 
 ### 3. Tool & Equipment Tracking
 - Manage your company's tools.
-- Track who is using what tool.
+- **Assignments:** Track who is using what tool and view assignment history.
+- **Permissions:** Only Managers can delete tools.
 
 ### 4. Employee Management
 - Maintain a database of your employees.
 - Track roles and contact information.
+- **Permissions:** Managers can delete employee records (with confirmation).
 
-### 5. Task Assignment
-- Create and assign tasks to employees.
-- Set due dates and track completion status.
+### 5. Task & Project Management
+- **Projects:** Create and manage projects with start/end dates.
+- **Gantt Chart:** Visualize project timelines and dependencies.
+- **Task Assignment:** Assign specific tasks to employees.
+- **Permissions:** Only Managers can delete projects.
 
 ### 6. Finance / Payments
 - Record payments and financial transactions.

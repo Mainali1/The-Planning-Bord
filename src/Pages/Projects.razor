@@ -5,15 +5,20 @@
 @using Microsoft.AspNetCore.Components.Web
 @inject IProjectService ProjectService
 @inject IHrService HrService
+@inject NotificationService NotificationService
+@inject IUserService UserService
 
 <div class="p-6">
     <div class="mb-4 flex items-center justify-between">
         <h1 class="text-2xl font-bold text-gray-800">Projects</h1>
         <div class="flex items-center space-x-2">
             <div class="inline-flex rounded-md shadow-sm" role="group">
-                <button type="button" class="@GetTabButtonClass("overview", true)" @onclick="ShowOverview">Overview</button>
-                <button type="button" class="@GetTabButtonClass("timeline", false)" @onclick="ShowTimeline">Timeline</button>
+                <button type="button" class="@GetTabButtonClass("overview", "left")" @onclick="ShowOverview">Overview</button>
+                <button type="button" class="@GetTabButtonClass("timeline", "middle")" @onclick="ShowTimeline">Timeline</button>
+                <button type="button" class="@GetTabButtonClass("tasks", "middle")" @onclick="ShowTasks">Tasks</button>
+                <button type="button" class="@GetTabButtonClass("team", "right")" @onclick="ShowTeam">Team</button>
             </div>
+            <!-- Role check removed for development/local usage -->
             <button class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700" @onclick="OpenAddModal">
                 + New Project
             </button>
@@ -37,13 +42,51 @@
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 @foreach (var project in projects)
                 {
-                    <div class="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow cursor-pointer" @onclick="() => SelectProject(project.Id)">
-                        <h3 class="text-xl font-semibold mb-2">@project.Name</h3>
-                        <p class="text-gray-600 mb-4 line-clamp-2">@project.Description</p>
-                        <div class="flex justify-between items-center text-sm text-gray-500">
+                    <div class="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow cursor-pointer flex flex-col h-full border border-gray-100" @onclick="() => SelectProject(project.Id)">
+                        <div class="flex justify-between items-start mb-3">
+                            <h3 class="text-xl font-semibold text-gray-800 break-words flex-1 pr-2">@project.Name</h3>
+                            <!-- Role check removed for development -->
+                            <div class="flex items-center space-x-1 -mt-1 -mr-2">
+                                <button class="text-gray-400 hover:text-blue-500 transition-colors p-1.5 rounded-full hover:bg-blue-50" @onclick:stopPropagation @onclick="() => EditProject(project)" title="Edit Project">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                        <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                                    </svg>
+                                </button>
+                                <button class="text-gray-400 hover:text-red-500 transition-colors p-1.5 rounded-full hover:bg-red-50" @onclick:stopPropagation @onclick="() => QuickDeleteProject(project.Id)" title="Delete Project">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                        <p class="text-gray-600 mb-6 flex-grow line-clamp-3 text-sm leading-relaxed">@project.Description</p>
+                        <div class="flex justify-between items-center text-sm text-gray-500 mb-4">
                             <span>Status: <span class="font-medium text-blue-600">@project.Status</span></span>
                             <span>@project.StartDate</span>
                         </div>
+
+                        <!-- Team Avatars -->
+                        @if (project.Id.HasValue && projectAssignmentsMap.ContainsKey(project.Id.Value))
+                        {
+                            <div class="flex -space-x-2 overflow-hidden">
+                                @foreach (var assign in projectAssignmentsMap[project.Id.Value].Take(5))
+                                {
+                                    var emp = employees?.FirstOrDefault(e => e.Id == assign.EmployeeId);
+                                    if (emp != null)
+                                    {
+                                        <div class="inline-block h-8 w-8 rounded-full ring-2 ring-white bg-gray-200 flex items-center justify-center text-xs font-medium text-gray-600" title="@emp.FirstName @emp.LastName (@assign.Role)">
+                                            @GetInitials(emp.FirstName, emp.LastName)
+                                        </div>
+                                    }
+                                }
+                                @if (projectAssignmentsMap[project.Id.Value].Count > 5)
+                                {
+                                    <div class="inline-block h-8 w-8 rounded-full ring-2 ring-white bg-gray-100 flex items-center justify-center text-xs font-medium text-gray-500">
+                                        +@(projectAssignmentsMap[project.Id.Value].Count - 5)
+                                    </div>
+                                }
+                            </div>
+                        }
                     </div>
                 }
             </div>
@@ -52,8 +95,8 @@
     else if (activeTab == "timeline")
     {
         <div class="bg-white p-6 rounded-lg shadow">
-            <div class="flex items-center space-x-3 mb-4">
-                <select class="px-3 py-2 border rounded-md" value="@selectedProjectId" @onchange="OnProjectChanged">
+            <div class="flex flex-wrap items-center gap-4 mb-6">
+                <select class="px-3 py-2 border rounded-md bg-white shadow-sm focus:ring-blue-500 focus:border-blue-500" value="@selectedProjectId" @onchange="OnProjectChanged">
                     @if (projects != null && projects.Any())
                     {
                         @foreach (var p in projects)
@@ -62,8 +105,14 @@
                         }
                     }
                 </select>
-                <button class="px-3 py-2 border rounded-md text-sm" @onclick="ReloadTasks">Reload Tasks</button>
-                <button class="px-3 py-2 bg-green-600 text-white rounded-md text-sm hover:bg-green-700" @onclick="OpenAddTaskModal">
+                <select class="px-3 py-2 border rounded-md bg-white shadow-sm focus:ring-blue-500 focus:border-blue-500" value="@selectedProjectStatus" @onchange="OnProjectStatusChanged">
+                    @foreach (var s in projectStatusOptions)
+                    {
+                        <option value="@s">@s</option>
+                    }
+                </select>
+                <button class="px-3 py-2 border rounded-md text-sm hover:bg-gray-50 transition-colors" @onclick="ReloadTasks">Reload Tasks</button>
+                <button class="px-3 py-2 bg-green-600 text-white rounded-md text-sm hover:bg-green-700 shadow-sm transition-colors" @onclick="OpenAddTaskModal">
                     + Add Task
                 </button>
             </div>
@@ -97,7 +146,7 @@
                         </defs>
                         @foreach (var line in dependencyLines)
                         {
-                            <path d="@line.Path" stroke="#9CA3AF" stroke-width="1" vector-effect="non-scaling-stroke" fill="none" />
+                            <path d="@line.Path" stroke="#9CA3AF" stroke-width="1.5" vector-effect="non-scaling-stroke" fill="none" marker-end="url(#arrowhead)" />
                         }
                     </svg>
 
@@ -118,14 +167,164 @@
                             }
                             else
                             {
-                                <div class="absolute @(IsCritical(t) ? "bg-red-600" : "bg-blue-500") rounded text-white text-xs flex items-center justify-between px-2 overflow-hidden cursor-pointer hover:bg-blue-600 transition-colors shadow-sm" 
+                                <div class="absolute @(IsCritical(t) ? "bg-red-600" : "bg-blue-500") rounded text-white text-xs flex items-center justify-between px-2 overflow-hidden cursor-move hover:bg-blue-600 transition-colors shadow-sm" 
                                      style="left:@pos.left%; width:@pos.width%; height:@(rowHeight-8)px; top:4px;"
-                                     title="@t.Name (@t.StartDate - @t.DueDate)" @onclick="@(() => OpenEditTask(t))">
-                                    <span class="truncate">@t.Name</span>
-                                    <div class="absolute left-0 top-0 h-full w-2 cursor-ew-resize" @onmousedown="@(() => StartDrag(t, true))"></div>
-                                    <div class="absolute right-0 top-0 h-full w-2 cursor-ew-resize" @onmousedown="@(() => StartDrag(t, false))"></div>
+                                     title="@t.Name (@t.StartDate - @t.DueDate)" 
+                                     @onmousedown="@(() => StartDrag(t, DragMode.Move))"
+                                     @ondblclick="@(() => OpenEditTask(t))">
+                                    <span class="truncate select-none pointer-events-none">@t.Name</span>
+                                    <div class="absolute left-0 top-0 h-full w-2 cursor-ew-resize z-10 hover:bg-white/20" @onmousedown="@(() => StartDrag(t, DragMode.ResizeLeft))" @onmousedown:stopPropagation></div>
+                                    <div class="absolute right-0 top-0 h-full w-2 cursor-ew-resize z-10 hover:bg-white/20" @onmousedown="@(() => StartDrag(t, DragMode.ResizeRight))" @onmousedown:stopPropagation></div>
                                 </div>
                             }
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    }
+    else if (activeTab == "tasks")
+    {
+        <div class="bg-white p-6 rounded-lg shadow">
+            <div class="flex justify-between items-center mb-6">
+                <div class="flex items-center space-x-3">
+                    <select class="px-3 py-2 border rounded-md" value="@selectedProjectId" @onchange="OnProjectChanged">
+                        @if (projects != null && projects.Any())
+                        {
+                            @foreach (var p in projects)
+                            {
+                                <option value="@p.Id">@p.Name</option>
+                            }
+                        }
+                    </select>
+                    <h2 class="text-xl font-bold text-gray-800">Project Tasks</h2>
+                </div>
+                <button class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700" @onclick="OpenAddTaskModal">
+                    + Add Task
+                </button>
+            </div>
+
+            @if (projectTasks == null)
+            {
+                <p>Loading tasks...</p>
+            }
+            else if (!projectTasks.Any())
+            {
+                <div class="text-center py-10 bg-gray-50 rounded-lg">
+                    <p class="text-gray-500">No tasks found for this project.</p>
+                </div>
+            }
+            else
+            {
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Task</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assigned To</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            @foreach (var task in projectTasks)
+                            {
+                                var assignee = employees?.FirstOrDefault(e => e.Id == task.AssignedTo);
+                                <tr>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm font-medium text-gray-900">@task.Name</div>
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <div class="text-sm text-gray-500 line-clamp-2" title="@task.Description">@task.Description</div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm text-gray-900">@(assignee?.FirstName ?? "Unassigned") @(assignee?.LastName ?? "")</div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                            @(task.Priority == "critical" ? "bg-red-100 text-red-800" : 
+                                              task.Priority == "high" ? "bg-orange-100 text-orange-800" : 
+                                              task.Priority == "medium" ? "bg-yellow-100 text-yellow-800" : 
+                                              "bg-green-100 text-green-800")">
+                                            @task.Priority
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                            @(task.Status == "done" ? "bg-green-100 text-green-800" : 
+                                              task.Status == "in_progress" ? "bg-blue-100 text-blue-800" : 
+                                              task.Status == "review" ? "bg-purple-100 text-purple-800" : 
+                                              "bg-gray-100 text-gray-800")">
+                                            @task.Status
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        @Parse(task.DueDate).ToString("yyyy-MM-dd")
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                        <button @onclick="() => OpenEditTask(task)" class="text-indigo-600 hover:text-indigo-900 mr-4">Edit</button>
+                                        <button @onclick="() => ConfirmDeleteTask(task)" class="text-red-600 hover:text-red-900">Delete</button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    }
+    else if (activeTab == "team")
+    {
+        <div class="bg-white p-6 rounded-lg shadow">
+            <div class="flex justify-between items-center mb-6">
+                <div class="flex items-center space-x-3">
+                    <select class="px-3 py-2 border rounded-md" value="@selectedProjectId" @onchange="OnProjectChanged">
+                        @if (projects != null && projects.Any())
+                        {
+                            @foreach (var p in projects)
+                            {
+                                <option value="@p.Id">@p.Name</option>
+                            }
+                        }
+                    </select>
+                    <h2 class="text-xl font-bold text-gray-800">Project Team</h2>
+                </div>
+                <button class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700" @onclick="OpenAddMemberModal" aria-label="Assign Employee">
+                    + Assign Employee
+                </button>
+            </div>
+
+            @if (projectAssignments == null)
+            {
+                <p>Loading team members...</p>
+            }
+            else if (!projectAssignments.Any())
+            {
+                <div class="text-center py-10 bg-gray-50 rounded-lg">
+                    <p class="text-gray-500">No team members assigned to this project.</p>
+                </div>
+            }
+            else
+            {
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    @foreach (var assignment in projectAssignments)
+                    {
+                        var emp = employees?.FirstOrDefault(e => e.Id == assignment.EmployeeId);
+                        <div class="border rounded-lg p-4 flex justify-between items-center">
+                            <div>
+                                <h4 class="font-medium text-gray-900">@(emp?.FirstName ?? "Unknown") @(emp?.LastName ?? "Employee")</h4>
+                                <p class="text-sm text-gray-500">@assignment.Role</p>
+                                <p class="text-xs text-gray-400">Assigned: @assignment.AssignedAt</p>
+                            </div>
+                            <!-- Role check removed for development -->
+                            <button class="text-red-500 hover:text-red-700 p-2" @onclick="() => RemoveMember(assignment)">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                </svg>
+                            </button>
                         </div>
                     }
                 </div>
@@ -136,23 +335,49 @@
 
 @if (showModal)
 {
-    <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-            <div class="mt-3 text-center">
-                <h3 class="text-lg leading-6 font-medium text-gray-900">Add New Project</h3>
-                <div class="mt-2 px-7 py-3">
-                    <input @bind="newProject.Name" placeholder="Project Name" class="mb-3 px-3 py-2 border rounded w-full" />
-                    <textarea @bind="newProject.Description" placeholder="Description" class="mb-3 px-3 py-2 border rounded w-full"></textarea>
-                    <input value="@newProject.StartDate" type="date" class="mb-3 px-3 py-2 border rounded w-full" @onchange="OnStartDateChanged" />
+    <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
+        <div class="relative w-full max-w-lg bg-white rounded-lg shadow-xl overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                <h3 class="text-xl font-semibold text-gray-800">@((newProject.Id.HasValue ? "Edit" : "Add New")) Project</h3>
+            </div>
+            <div class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Project Name</label>
+                    <input @bind="newProject.Name" placeholder="Project Name" class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 px-4 py-2 border" />
                 </div>
-                <div class="items-center px-4 py-3">
-                    <button @onclick="AddProject" class="px-4 py-2 bg-blue-500 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300">
-                        Create Project
-                    </button>
-                    <button @onclick="CloseModal" class="mt-3 px-4 py-2 bg-gray-100 text-gray-700 text-base font-medium rounded-md w-full shadow-sm hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-300">
-                        Cancel
-                    </button>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                    <textarea @bind="newProject.Description" placeholder="Description" rows="3" class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 px-4 py-2 border"></textarea>
                 </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                        <input value="@newProject.StartDate" type="date" class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 px-4 py-2 border" @onchange="OnStartDateChanged" />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                        <select @bind="newProject.Status" class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 px-4 py-2 border">
+                            <option value="planning">Planning</option>
+                            <option value="active">Active</option>
+                            <option value="on_hold">On Hold</option>
+                            <option value="completed">Completed</option>
+                            <option value="cancelled">Cancelled</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-3">
+                <button @onclick="CloseModal" disabled="@isLoading" class="px-4 py-2 bg-white text-gray-700 border border-gray-300 font-medium rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 shadow-sm transition-colors">Cancel</button>
+                <button @onclick="AddProject" disabled="@isLoading" class="px-4 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 shadow-sm transition-colors flex items-center">
+                    @if (isLoading)
+                    {
+                        <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                    }
+                    Create Project
+                </button>
             </div>
         </div>
     </div>
@@ -160,72 +385,199 @@
 
 @if (showTaskModal)
 {
-    <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-            <h3 class="text-lg font-medium text-gray-900 mb-4">@((newTask.Id.HasValue ? "Edit" : "Add")) Task</h3>
-            <div class="space-y-4">
-                <input @bind="newTask.Name" placeholder="Task Name" class="w-full border rounded px-3 py-2" />
-                <textarea @bind="newTask.Description" placeholder="Description" class="w-full border rounded px-3 py-2"></textarea>
-                <div class="grid grid-cols-2 gap-2">
+    <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
+        <div class="relative w-full max-w-3xl bg-white rounded-lg shadow-xl overflow-hidden my-8">
+            <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
+                <h3 class="text-xl font-semibold text-gray-800">@((newTask.Id.HasValue ? "Edit" : "Add")) Task</h3>
+                <button @onclick="CloseTaskModal" class="text-gray-400 hover:text-gray-500 transition-colors">
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <div class="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
+                <div class="space-y-4">
                     <div>
-                        <label class="text-xs text-gray-500">Start</label>
-                        <input type="date" value="@newTask.StartDate" class="w-full border rounded px-3 py-2" @onchange="OnTaskStartChanged" />
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Task Name</label>
+                        <input @bind="newTask.Name" placeholder="Enter task name" class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 px-4 py-2 border" />
                     </div>
-                    <div>
-                        <label class="text-xs text-gray-500">Due</label>
-                        <input type="date" value="@newTask.DueDate" class="w-full border rounded px-3 py-2" @onchange="OnTaskDueChanged" />
-                    </div>
-                </div>
-                <select @bind="newTask.AssignedTo" class="w-full border rounded px-3 py-2">
-                    <option value="">Assign to...</option>
-                    @if (employees != null)
-                    {
-                        @foreach (var emp in employees)
-                        {
-                            <option value="@emp.Id">@emp.FirstName @emp.LastName</option>
-                        }
-                    }
-                </select>
-                <select @bind="newTask.Priority" class="w-full border rounded px-3 py-2">
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                    <option value="critical">Critical</option>
-                </select>
-                <select @bind="newTask.Status" class="w-full border rounded px-3 py-2">
-                    <option value="todo">To Do</option>
-                    <option value="in_progress">In Progress</option>
-                    <option value="review">Review</option>
-                    <option value="done">Done</option>
-                </select>
-                
-                <div class="border-t pt-4 mt-4">
-                    <label class="flex items-center space-x-2 mb-2">
-                        <input type="checkbox" @bind="isMilestone" class="rounded text-blue-600" />
-                        <span class="text-sm font-medium">Is Milestone</span>
-                    </label>
                     
-                    @if (!isMilestone)
-                    {
-                        <label class="block text-xs text-gray-500 mb-1">Depends On</label>
-                        <div class="max-h-40 overflow-auto border rounded p-2">
-                            @if (projectTasks != null)
-                            {
-                                @foreach (var t in projectTasks.Where(t => t.Id != newTask.Id))
-                                {
-                                    <label class="flex items-center space-x-2 py-1">
-                                        <input type="checkbox" checked="@selectedPredecessorIds.Contains(t.Id ?? 0)" @onchange="(e) => TogglePredecessor(t.Id ?? 0, e)" />
-                                        <span class="text-sm">@t.Name</span>
-                                    </label>
-                                }
-                            }
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                        <textarea @bind="newTask.Description" rows="3" placeholder="Enter task description" class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 px-4 py-2 border"></textarea>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                            <input type="date" value="@newTask.StartDate" class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 px-4 py-2 border" @onchange="OnTaskStartChanged" />
                         </div>
-                    }
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
+                            <input type="date" value="@newTask.DueDate" class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 px-4 py-2 border" @onchange="OnTaskDueChanged" />
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Assigned To</label>
+                            <select @bind="newTask.AssignedTo" class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 px-4 py-2 border">
+                                <option value="">Assign to...</option>
+                                @if (employees != null)
+                                {
+                                    @foreach (var emp in employees)
+                                    {
+                                        <option value="@emp.Id">@emp.FirstName @emp.LastName</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+                            <select @bind="newTask.Priority" class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 px-4 py-2 border">
+                                <option value="low">Low</option>
+                                <option value="medium">Medium</option>
+                                <option value="high">High</option>
+                                <option value="critical">Critical</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                            <select @bind="newTask.Status" class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 px-4 py-2 border">
+                                <option value="todo">To Do</option>
+                                <option value="in_progress">In Progress</option>
+                                <option value="review">Review</option>
+                                <option value="done">Done</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="border-t border-gray-200 pt-6 mt-6">
+                        <label class="flex items-center space-x-3 mb-4 cursor-pointer">
+                            <input type="checkbox" @bind="isMilestone" class="rounded text-blue-600 focus:ring-blue-500 h-5 w-5 border-gray-300" />
+                            <span class="text-sm font-medium text-gray-700">Mark as Milestone</span>
+                        </label>
+                        
+                        @if (!isMilestone)
+                        {
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Dependencies (Select tasks that must be completed first)</label>
+                                <div class="max-h-48 overflow-y-auto border border-gray-300 rounded-md p-3 bg-gray-50">
+                                    @if (projectTasks != null && projectTasks.Any(t => t.Id != newTask.Id))
+                                    {
+                                        <div class="space-y-2">
+                                            @foreach (var t in projectTasks.Where(t => t.Id != newTask.Id))
+                                            {
+                                                <label class="flex items-center space-x-3 p-2 hover:bg-white rounded cursor-pointer transition-colors">
+                                                    <input type="checkbox" checked="@selectedPredecessorIds.Contains(t.Id ?? 0)" @onchange="(e) => TogglePredecessor(t.Id ?? 0, e)" class="rounded text-blue-600 focus:ring-blue-500 h-4 w-4 border-gray-300" />
+                                                    <span class="text-sm text-gray-700">@t.Name</span>
+                                                </label>
+                                            }
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <p class="text-sm text-gray-500 italic">No other tasks available for dependency.</p>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
                 </div>
             </div>
-            <div class="mt-4 flex justify-end space-x-2">
-                <button @onclick="CloseTaskModal" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">Cancel</button>
-                <button @onclick="SaveTask" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Save</button>
+            <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-3">
+                <button @onclick="CloseTaskModal" class="px-4 py-2 bg-white text-gray-700 border border-gray-300 font-medium rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 shadow-sm transition-colors">Cancel</button>
+                <button @onclick="SaveTask" class="px-4 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 shadow-sm transition-colors">Save Task</button>
+            </div>
+        </div>
+    </div>
+}
+
+@if (showDeleteConfirmModal)
+{
+    <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="deleteProjectTitle">
+        <div class="relative w-full max-w-md bg-white rounded-lg shadow-xl overflow-hidden">
+            <div class="px-6 py-4 bg-red-50 border-b border-red-100 flex items-center">
+                <div class="flex-shrink-0 bg-red-100 rounded-full p-2 mr-3" aria-hidden="true">
+                    <svg class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                </div>
+                <h3 id="deleteProjectTitle" class="text-lg font-semibold text-red-800">Delete Project</h3>
+            </div>
+            <div class="p-6">
+                <p class="text-gray-600 mb-4">Are you sure you want to delete this project? This action cannot be undone and will permanently remove all associated tasks and team assignments.</p>
+            </div>
+            <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-3">
+                <button @onclick="() => showDeleteConfirmModal = false" class="px-4 py-2 bg-white text-gray-700 border border-gray-300 font-medium rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 shadow-sm transition-colors">Cancel</button>
+                <button @onclick="DeleteProject" class="px-4 py-2 bg-red-600 text-white font-medium rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 shadow-sm transition-colors" aria-label="Confirm delete project">Delete Project</button>
+            </div>
+        </div>
+    </div>
+}
+
+@if (showTaskDeleteConfirmModal)
+{
+    <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
+        <div class="relative w-full max-w-md bg-white rounded-lg shadow-xl overflow-hidden">
+            <div class="px-6 py-4 bg-red-50 border-b border-red-100 flex items-center">
+                <div class="flex-shrink-0 bg-red-100 rounded-full p-2 mr-3">
+                    <svg class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                </div>
+                <h3 class="text-lg font-semibold text-red-800">Delete Task</h3>
+            </div>
+            <div class="p-6">
+                <p class="text-gray-600 mb-4">Are you sure you want to delete this task?</p>
+            </div>
+            <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-3">
+                <button @onclick="() => showTaskDeleteConfirmModal = false" class="px-4 py-2 bg-white text-gray-700 border border-gray-300 font-medium rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 shadow-sm transition-colors">Cancel</button>
+                <button @onclick="DeleteTask" class="px-4 py-2 bg-red-600 text-white font-medium rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 shadow-sm transition-colors">Delete</button>
+            </div>
+        </div>
+    </div>
+}
+
+@if (showAddMemberModal)
+{
+    <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
+        <div class="relative w-full max-w-md bg-white rounded-lg shadow-xl overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
+                <h3 class="text-lg font-semibold text-gray-800">Add Team Member</h3>
+                <button @onclick="CloseAddMemberModal" class="text-gray-400 hover:text-gray-500 transition-colors">
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <div class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Employee</label>
+                    <select @bind="newMemberEmployeeId" class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 px-4 py-2 border">
+                        <option value="0">Select Employee...</option>
+                        @if (employees != null)
+                        {
+                            @foreach (var emp in employees)
+                            {
+                                <option value="@emp.Id">@emp.FirstName @emp.LastName</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                    <select @bind="newMemberRole" class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 px-4 py-2 border">
+                        <option value="member">Member</option>
+                        <option value="lead">Project Lead</option>
+                        <option value="manager">Manager</option>
+                        <option value="viewer">Viewer</option>
+                    </select>
+                </div>
+            </div>
+            <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-3">
+                <button @onclick="CloseAddMemberModal" class="px-4 py-2 bg-white text-gray-700 border border-gray-300 font-medium rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 shadow-sm transition-colors">Cancel</button>
+                <button @onclick="AddMember" class="px-4 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 shadow-sm transition-colors">Add Member</button>
             </div>
         </div>
     </div>
@@ -235,15 +587,30 @@
     private List<Project>? projects;
     private List<ProjectTask>? projectTasks;
     private bool showModal = false;
+    private bool showDeleteConfirmModal = false;
+    private int? projectToDeleteId;
+    private bool showTaskDeleteConfirmModal = false;
+    private bool isLoading = false;
+    private ProjectTask? taskToDelete;
     private Project newProject = new();
     private string activeTab = "overview";
-    private int rowHeight = 32;
+
+    private int rowHeight = 48;
     private int? selectedProjectId;
+    private string selectedProjectStatus = "planning";
+    private readonly string[] projectStatusOptions = new[] { "planning", "active", "on_hold", "completed", "cancelled" };
     private DateTime minDate;
     private DateTime maxDate;
     private double totalDays;
     private List<(string pct, string label)> gridLines = new();
     
+    // Team
+    private bool showAddMemberModal = false;
+    private int newMemberEmployeeId;
+    private string newMemberRole = "member";
+    private List<ProjectAssignment>? projectAssignments;
+    private Dictionary<int, List<ProjectAssignment>> projectAssignmentsMap = new();
+
     // Task Modal
     private bool showTaskModal = false;
     private ProjectTask newTask = new();
@@ -257,16 +624,25 @@
     private bool isMilestone = false;
     
     // Edit and drag
+    private enum DragMode { None, ResizeLeft, ResizeRight, Move }
+    private DragMode currentDragMode = DragMode.None;
+    private DateTime? dragStartMouseDate;
+    private DateTime dragOriginalStart;
+    private DateTime dragOriginalEnd;
+    
     private HashSet<int> criticalTaskIds = new HashSet<int>();
     private bool isDragging = false;
-    private bool dragLeft = false;
     private int dragTaskId = 0;
     private int timelineWidthPx = 1000;
 
+    private User? currentUser;
+
     protected override async Task OnInitializedAsync()
     {
-        await LoadProjects();
+        currentUser = await UserService.GetCurrentUserAsync();
         try { employees = await HrService.GetEmployeesAsync(); } catch {}
+        await LoadProjects();
+        await LoadAllAssignments();
         InitializeSelection();
     }
 
@@ -282,6 +658,21 @@
         showModal = true;
     }
 
+    private void EditProject(Project p)
+    {
+        newProject = new Project 
+        { 
+            Id = p.Id, 
+            Name = p.Name, 
+            Description = p.Description, 
+            StartDate = p.StartDate, 
+            Status = p.Status,
+            ManagerId = p.ManagerId,
+            EndDate = p.EndDate
+        };
+        showModal = true;
+    }
+
     private void CloseModal()
     {
         showModal = false;
@@ -289,11 +680,36 @@
 
     private async Task AddProject()
     {
-        if (string.IsNullOrWhiteSpace(newProject.Name)) return;
-
-        await ProjectService.AddProjectAsync(newProject);
-        showModal = false;
-        await LoadProjects();
+        if (string.IsNullOrWhiteSpace(newProject.Name)) 
+        {
+            NotificationService.ShowError("Project Name is required.");
+            return;
+        }
+        isLoading = true;
+        try
+        {
+            if (newProject.Id.HasValue)
+            {
+                await ProjectService.UpdateProjectAsync(newProject);
+                NotificationService.ShowSuccess("Project updated successfully.");
+            }
+            else
+            {
+                await ProjectService.AddProjectAsync(newProject);
+                NotificationService.ShowSuccess("Project created successfully.");
+            }
+            showModal = false;
+            await LoadProjects();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+            NotificationService.ShowError($"Failed to save project: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
     }
     
     private void SelectProject(int? id)
@@ -313,7 +729,7 @@
     private void SetTab(string tab)
     {
         activeTab = tab;
-        if (activeTab == "timeline")
+        if (activeTab == "timeline" || activeTab == "tasks")
         {
             _ = ReloadTasks();
         }
@@ -321,10 +737,80 @@
 
     private void ShowOverview() => SetTab("overview");
     private void ShowTimeline() => SetTab("timeline");
-
-    private string GetTabButtonClass(string tab, bool isLeft)
+    private void ShowTasks() => SetTab("tasks");
+    private async Task ShowTeam()
     {
-        var baseCls = "px-4 py-2 text-sm font-medium border " + (isLeft ? "rounded-l-md" : "rounded-r-md");
+        // Ensure a project is selected before loading team
+        if (selectedProjectId == null && projects != null && projects.Any())
+        {
+            selectedProjectId = projects.First().Id;
+            var sp = projects.FirstOrDefault(p => p.Id == selectedProjectId);
+            if (sp != null) selectedProjectStatus = sp.Status ?? "planning";
+        }
+        SetTab("team");
+        await LoadAssignments();
+    }
+
+    private void ConfirmDeleteProject(int? id)
+    {
+        projectToDeleteId = id;
+        showDeleteConfirmModal = true;
+    }
+    
+    private async Task QuickDeleteProject(int? id)
+    {
+        if (id.HasValue)
+        {
+            try
+            {
+                await ProjectService.DeleteProjectAsync(id.Value);
+                await LoadProjects();
+                NotificationService.ShowSuccess("Project deleted successfully.");
+            }
+            catch (Exception ex)
+            {
+                NotificationService.ShowError($"Failed to delete project: {ex.Message}");
+            }
+        }
+    }
+
+    private async Task DeleteProject()
+    {
+        if (projectToDeleteId.HasValue)
+        {
+            await ProjectService.DeleteProjectAsync(projectToDeleteId.Value);
+            showDeleteConfirmModal = false;
+            projectToDeleteId = null;
+            await LoadProjects();
+        }
+    }
+
+    private void ConfirmDeleteTask(ProjectTask task)
+    {
+        taskToDelete = task;
+        showTaskDeleteConfirmModal = true;
+    }
+
+    private async Task DeleteTask()
+    {
+        if (taskToDelete != null && taskToDelete.Id.HasValue)
+        {
+            await ProjectService.DeleteProjectTaskAsync(taskToDelete.Id.Value);
+            showTaskDeleteConfirmModal = false;
+            taskToDelete = null;
+            await ReloadTasks();
+        }
+    }
+
+    private string GetTabButtonClass(string tab, string position)
+    {
+        var roundedClass = position switch
+        {
+            "left" => "rounded-l-md",
+            "right" => "rounded-r-md",
+            _ => ""
+        };
+        var baseCls = $"px-4 py-2 text-sm font-medium border {roundedClass}";
         var active = "bg-blue-600 text-white border-blue-600";
         var inactive = "bg-white text-gray-700 border-gray-300";
         return baseCls + " " + (activeTab == tab ? active : inactive);
@@ -335,6 +821,8 @@
         if (selectedProjectId == null && projects != null && projects.Any())
         {
             selectedProjectId = projects.First().Id;
+            var sp = projects.FirstOrDefault(p => p.Id == selectedProjectId);
+            if (sp != null) selectedProjectStatus = sp.Status ?? "planning";
         }
     }
 
@@ -343,6 +831,8 @@
         if (int.TryParse(e.Value?.ToString(), out var id))
         {
             selectedProjectId = id;
+            var sp = projects?.FirstOrDefault(p => p.Id == selectedProjectId);
+            if (sp != null) selectedProjectStatus = sp.Status ?? "planning";
             await ReloadTasks();
         }
     }
@@ -352,12 +842,128 @@
         if (selectedProjectId.HasValue)
         {
             projectTasks = await ProjectService.GetProjectTasksAsync(selectedProjectId.Value);
+            var sp = projects?.FirstOrDefault(p => p.Id == selectedProjectId);
+            if (sp != null) selectedProjectStatus = sp.Status ?? "planning";
             ComputeRange();
             ComputeDependencies();
             ComputeCriticalPath();
+            if (activeTab == "team")
+            {
+                await LoadAssignments();
+            }
+        }
+    }
+
+    private async Task OnProjectStatusChanged(ChangeEventArgs e)
+    {
+        var newStatus = e.Value?.ToString() ?? "planning";
+        selectedProjectStatus = newStatus;
+        var sp = projects?.FirstOrDefault(p => p.Id == selectedProjectId);
+        if (sp != null)
+        {
+            var updated = new Project
+            {
+                Id = sp.Id,
+                Name = sp.Name,
+                Description = sp.Description,
+                StartDate = sp.StartDate,
+                EndDate = sp.EndDate,
+                Status = newStatus,
+                ManagerId = sp.ManagerId
+            };
+            try
+            {
+                await ProjectService.UpdateProjectAsync(updated);
+                await LoadProjects();
+                NotificationService.ShowSuccess("Project status updated.");
+            }
+            catch (Exception ex)
+            {
+                NotificationService.ShowError($"Failed to update status: {ex.Message}");
+            }
         }
     }
     
+    private async Task LoadAssignments()
+    {
+        if (selectedProjectId.HasValue)
+        {
+            try
+            {
+                projectAssignments = await ProjectService.GetProjectAssignmentsAsync(selectedProjectId.Value);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error loading assignments: {ex.Message}");
+                projectAssignments = new List<ProjectAssignment>();
+            }
+        }
+        else
+        {
+            // Avoid lingering loading state when no project is selected
+            projectAssignments = new List<ProjectAssignment>();
+        }
+        StateHasChanged();
+    }
+
+    private async Task OpenAddMemberModal()
+    {
+        if (employees == null || !employees.Any())
+        {
+            try { employees = await HrService.GetEmployeesAsync(); } catch {}
+        }
+        newMemberEmployeeId = 0;
+        newMemberRole = "member";
+        showAddMemberModal = true;
+        StateHasChanged();
+    }
+
+    private void CloseAddMemberModal()
+    {
+        showAddMemberModal = false;
+    }
+
+    private async Task AddMember()
+    {
+        if (selectedProjectId.HasValue && newMemberEmployeeId > 0)
+        {
+            try 
+            {
+                await ProjectService.AssignProjectEmployeeAsync(selectedProjectId.Value, newMemberEmployeeId, newMemberRole);
+                showAddMemberModal = false;
+                await LoadAssignments();
+                NotificationService.ShowSuccess("Team member added successfully");
+            }
+            catch (Exception ex)
+            {
+                NotificationService.ShowError($"Failed to add member: {ex.Message}");
+            }
+        }
+    }
+
+    private async Task RemoveMember(ProjectAssignment assignment)
+    {
+        if (currentUser == null || (currentUser.Role != "manager" && currentUser.Role != "lead" && currentUser.Role != "CEO"))
+        {
+            NotificationService.ShowError("Unauthorized: Only project leaders or managers can remove members.");
+            return;
+        }
+
+        if (assignment.ProjectId > 0 && assignment.EmployeeId > 0)
+        {
+            try
+            {
+                await ProjectService.RemoveProjectAssignmentAsync(assignment.ProjectId, assignment.EmployeeId);
+                await LoadAssignments();
+                NotificationService.ShowSuccess("Team member removed");
+            }
+            catch (Exception ex)
+            {
+                NotificationService.ShowError($"Failed to remove member: {ex.Message}");
+            }
+        }
+    }
+
     private void ComputeDependencies()
     {
         dependencyLines.Clear();
@@ -380,26 +986,29 @@
                         var pPos = GetBarPosition(pred.Task);
                         var tPos = GetBarPosition(t);
 
-                        if (double.TryParse(pPos.left.TrimEnd('%'), out double pLeft) &&
-                            double.TryParse(pPos.width.TrimEnd('%'), out double pWidth) &&
-                            double.TryParse(tPos.left.TrimEnd('%'), out double tLeft))
+                        if (double.TryParse(pPos.left.TrimEnd('%'), out double pLeftPct) &&
+                            double.TryParse(pPos.width.TrimEnd('%'), out double pWidthPct) &&
+                            double.TryParse(tPos.left.TrimEnd('%'), out double tLeftPct))
                         {
-                            var pRight = pLeft + pWidth;
+                            var pRight = pLeftPct + pWidthPct;
+                            var tLeft = tLeftPct;
+                            
                             var pY = pred.Index * rowHeight + 20 + ((rowHeight - 8) / 2); // Center of bar
                             var tY = taskMap[t.Id ?? 0].Index * rowHeight + 20 + ((rowHeight - 8) / 2);
 
                             string path;
+                            // Bezier Curve Logic
                             if (tLeft > pRight + 2)
                             {
-                                var midX = pRight + (tLeft - pRight) / 2;
-                                path = $"M {pRight} {pY} L {midX} {pY} L {midX} {tY} L {tLeft} {tY}";
+                                var midX = (pRight + tLeft) / 2;
+                                path = $"M {pRight} {pY} C {midX} {pY}, {midX} {tY}, {tLeft} {tY}";
                             }
                             else
                             {
                                 var outX = pRight + 2;
                                 var inX = tLeft - 2;
-                                if (inX < 0) inX = 0;
-                                path = $"M {pRight} {pY} L {outX} {pY} L {outX} {tY} L {tLeft} {tY}";
+                                var midY = (pY + tY) / 2;
+                                path = $"M {pRight} {pY} C {outX} {pY}, {outX} {midY}, {outX} {midY} L {inX} {midY} C {inX} {midY}, {inX} {tY}, {tLeft} {tY}";
                             }
                             
                             dependencyLines.Add(new DependencyLine { Path = path });
@@ -654,11 +1263,14 @@
         return criticalTaskIds.Contains(id);
     }
     
-    private void StartDrag(ProjectTask t, bool left)
+    private void StartDrag(ProjectTask t, DragMode mode)
     {
         isDragging = true;
-        dragLeft = left;
+        currentDragMode = mode;
         dragTaskId = t.Id ?? 0;
+        dragStartMouseDate = null;
+        dragOriginalStart = Parse(t.StartDate);
+        dragOriginalEnd = Parse(string.IsNullOrWhiteSpace(t.DueDate) ? t.StartDate : t.DueDate);
     }
     
     private void OnTimelineMouseMove(MouseEventArgs e)
@@ -666,20 +1278,39 @@
         if (!isDragging || projectTasks == null || dragTaskId == 0) return;
         var task = projectTasks.FirstOrDefault(x => (x.Id ?? 0) == dragTaskId);
         if (task == null) return;
+        
         var x = e.OffsetX;
         var pxPerDay = timelineWidthPx / totalDays;
         var dayOffset = Math.Round(x / pxPerDay);
-        var newDate = minDate.AddDays(dayOffset).ToString("yyyy-MM-dd");
-        if (dragLeft)
+        var mouseDate = minDate.AddDays(dayOffset);
+        
+        if (dragStartMouseDate == null)
         {
-            task.StartDate = newDate;
+            dragStartMouseDate = mouseDate;
+            return;
+        }
+
+        if (currentDragMode == DragMode.Move)
+        {
+             var delta = mouseDate - dragStartMouseDate.Value;
+             var newStart = dragOriginalStart.Add(delta);
+             var newEnd = dragOriginalEnd.Add(delta);
+             task.StartDate = newStart.ToString("yyyy-MM-dd");
+             task.DueDate = newEnd.ToString("yyyy-MM-dd");
+        }
+        else if (currentDragMode == DragMode.ResizeLeft)
+        {
+            var newDateStr = mouseDate.ToString("yyyy-MM-dd");
+            task.StartDate = newDateStr;
             if (Parse(task.DueDate) < Parse(task.StartDate)) task.DueDate = task.StartDate;
         }
-        else
+        else if (currentDragMode == DragMode.ResizeRight)
         {
-            task.DueDate = newDate;
+            var newDateStr = mouseDate.ToString("yyyy-MM-dd");
+            task.DueDate = newDateStr;
             if (Parse(task.DueDate) < Parse(task.StartDate)) task.StartDate = task.DueDate;
         }
+        
         ComputeRange();
         ComputeDependencies();
         ComputeCriticalPath();
@@ -689,6 +1320,7 @@
     {
         if (!isDragging) return;
         isDragging = false;
+        currentDragMode = DragMode.None;
         if (projectTasks == null) return;
         var task = projectTasks.FirstOrDefault(x => (x.Id ?? 0) == dragTaskId);
         if (task != null)
@@ -698,5 +1330,27 @@
             await ReloadTasks();
         }
         dragTaskId = 0;
+    }
+
+    private async Task LoadAllAssignments()
+    {
+        try
+        {
+            var allAssignments = await ProjectService.GetAllProjectAssignmentsAsync();
+            projectAssignmentsMap = allAssignments
+                .Where(a => a.ProjectId > 0)
+                .GroupBy(a => a.ProjectId)
+                .ToDictionary(g => g.Key, g => g.ToList());
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading all assignments: {ex.Message}");
+        }
+    }
+
+    private string GetInitials(string? first, string? last)
+    {
+        if (string.IsNullOrEmpty(first) && string.IsNullOrEmpty(last)) return "?";
+        return $"{(string.IsNullOrEmpty(first) ? "" : first[0].ToString())}{(string.IsNullOrEmpty(last) ? "" : last[0].ToString())}";
     }
 }

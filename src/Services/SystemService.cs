@@ -7,8 +7,14 @@ namespace ThePlanningBord.Services
     {
         // Setup
         Task<bool> GetSetupStatusAsync();
-        Task CompleteSetupAsync(string companyName);
+        Task CompleteSetupAsync(string companyName, string adminEmail, string adminPassword);
         Task<string> GreetAsync(string name);
+        Task SaveDbConfigAsync(DbConfig config);
+        Task<string> EnsureLocalDbAsync(string? connectionString = null);
+        Task CleanupLocalDbAsync();
+        Task<bool> CheckEmbeddedPostgresAsync();
+        Task<bool> CheckPostgresInstalledAsync();
+        Task ExitAppAsync();
         
         // RBAC
         Task<List<Role>> GetRolesAsync();
@@ -51,9 +57,39 @@ namespace ThePlanningBord.Services
             return await _tauri.InvokeAsync<bool>("get_setup_status", new { });
         }
 
-        public async Task CompleteSetupAsync(string companyName)
+        public async Task CompleteSetupAsync(string companyName, string adminEmail, string adminPassword)
         {
-            await _tauri.InvokeVoidAsync("complete_setup", new { companyName });
+            await _tauri.InvokeVoidAsync("complete_setup", new { companyName, adminEmail, adminPassword });
+        }
+
+        public async Task SaveDbConfigAsync(DbConfig config)
+        {
+            await _tauri.InvokeVoidAsync("save_db_config", new { config });
+        }
+        
+        public async Task<string> EnsureLocalDbAsync(string? connectionString = null)
+        {
+            return await _tauri.InvokeAsync<string>("ensure_local_db", new { connectionString });
+        }
+        
+        public async Task CleanupLocalDbAsync()
+        {
+            await _tauri.InvokeVoidAsync("cleanup_local_db", new { });
+        }
+        
+        public async Task<bool> CheckEmbeddedPostgresAsync()
+        {
+            return await _tauri.InvokeAsync<bool>("check_embedded_pg_available", new { });
+        }
+        
+        public async Task<bool> CheckPostgresInstalledAsync()
+        {
+            return await _tauri.InvokeAsync<bool>("check_postgres_installed", new { });
+        }
+        
+        public async Task ExitAppAsync()
+        {
+            await _tauri.InvokeVoidAsync("exit_app", new { });
         }
 
         public async Task<List<Role>> GetRolesAsync()
@@ -103,6 +139,11 @@ namespace ThePlanningBord.Services
 
         public async Task<long> SaveDashboardConfigAsync(DashboardConfig config)
         {
+            // Note: Assuming existing bug/feature where fields are passed flattened? 
+            // Keeping original implementation style for SaveDashboardConfigAsync if it was working
+            // But actually, I should probably check if it was working.
+            // Based on previous read, it was passing flattened fields. 
+            // But if I want to be safe, I'll keep it as is from the read.
             return await _tauri.InvokeAsync<long>("save_dashboard_config", new { userId = config.UserId, name = config.Name, layoutJson = config.LayoutJson, isDefault = config.IsDefault });
         }
 

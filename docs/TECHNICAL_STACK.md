@@ -8,7 +8,7 @@ The Planning Bord follows a **Hybrid Desktop Architecture**, leveraging WebAssem
 graph TD
     UI[Blazor WASM Frontend] <-->|JS Interop| Bridge[Tauri Bridge]
     Bridge <-->|Invoke| Rust[Rust Backend (Tauri)]
-    Rust <-->|Rusqlite| DB[(SQLite Database)]
+    Rust <-->|tokio-postgres| DB[(PostgreSQL Database)]
     Rust <-->|System| OS[Operating System APIs]
 ```
 
@@ -17,7 +17,8 @@ graph TD
     -   **Styling:** Tailwind CSS for utility-first styling.
     -   **State:** In-memory state managed by Scoped Services.
 -   **Backend (Core):** Built with Rust (Tauri). Handles data persistence, file system access, and heavy computations.
-    -   **Database:** SQLite (managed via `rusqlite`).
+    -   **Database:** PostgreSQL (managed via `tokio-postgres` and `postgres` crate).
+    -   **Abstraction:** Uses a `Database` trait to decouple logic from the specific database implementation.
     -   **Commands:** Exposed via `#[tauri::command]` macros.
 
 ## 2. Component Specifications
@@ -54,7 +55,7 @@ Rust functions exposed to the frontend via Tauri's IPC mechanism. Defined in `sr
 3.  **IPC Bridge:** Service invokes `__TAURI__.core.invoke("get_products", args)`.
 4.  **Rust Execution:**
     -   Tauri routes the call to the `get_products` function in `lib.rs`.
-    -   Rust executes a SQL query using `rusqlite`.
+    -   Rust executes a SQL query using `postgres` client.
     -   Results are serialized to JSON.
 5.  **Response:** JSON data is returned to Blazor, deserialized into `PagedResult<Product>`, and rendered.
 
@@ -64,7 +65,7 @@ Rust functions exposed to the frontend via Tauri's IPC mechanism. Defined in `sr
 -   **Pagination:** Many "Get" endpoints return a `PagedResult<T>` containing `Items`, `Total`, `Page`, and `PageSize`.
 -   **Error Handling:** Rust functions return `Result<T, String>`. Errors are caught in C# services and logged or displayed via `NotificationService`.
 
-### Database Schema (SQLite)
+### Database Schema (PostgreSQL)
 Key tables include:
 -   `products`: Inventory items.
 -   `employees`: HR records.
@@ -72,6 +73,8 @@ Key tables include:
 -   `tasks`: Workflow tasks.
 -   `users`: System users and authentication data.
 -   `roles` / `permissions`: RBAC configuration.
+-   `projects` / `project_tasks`: Project management.
+-   `tools` / `tool_assignments`: Tool tracking.
 
 ## 5. Deployment Procedures
 
@@ -97,7 +100,7 @@ The release build process bundles the Blazor WASM assets directly into the Rust 
 
 ## 6. Maintenance Guidelines
 
--   **Database Migrations:** Currently, schema initialization is handled in `db.rs` (`init_db`). For schema changes, modify the SQL statements in `init_db`.
+-   **Database Migrations:** Schema initialization is handled in `db/postgres_init.rs`. It creates tables if they don't exist.
 -   **Dependency Updates:**
     -   .NET: Update NuGet packages via `dotnet add package`.
     -   Rust: Update crates via `cargo update`.

@@ -103,34 +103,29 @@ namespace ThePlanningBord.Models
         [JsonPropertyName("config_json")]
         public string? ConfigJson { get; set; }
 
-        [JsonPropertyName("connected_at")]
-        public string? ConnectedAt { get; set; }
+        [JsonPropertyName("icon")]
+        public string Icon { get; set; } = "🔌";
 
-        // Helper for UI
-        public string Icon => Name switch
-        {
-            "QuickBooks" => "📗",
-            "Xero" => "📘",
-            "Salesforce" => "☁️",
-            "HubSpot" => "🟠",
-            "Slack" => "💬",
-            "Teams" => "👥",
-            "Google Calendar" => "📅",
-            "Outlook" => "📧",
-            _ => "🔌"
-        };
-        
-        public string Description => Name switch
-        {
-            "QuickBooks" => "Sync invoices and expenses automatically.",
-            "Xero" => "Seamless accounting integration.",
-            "Salesforce" => "Sync leads and customer data.",
-            "HubSpot" => "Marketing and CRM automation.",
-            "Slack" => "Get notifications and updates in channels.",
-            "Teams" => "Collaborate on projects within Teams.",
-            "Google Calendar" => "Sync tasks and meetings.",
-            "Outlook" => "Email and calendar synchronization.",
-            _ => "Connect external tool."
-        };
+        [JsonPropertyName("description")]
+        public string Description { get; set; } = string.Empty;
+
+        [JsonPropertyName("provider")]
+        public string Provider { get; set; } = string.Empty;
+    }
+    
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public enum DbType
+    {
+        Local,
+        Cloud
+    }
+
+    public class DbConfig
+    {
+        [JsonPropertyName("db_type")]
+        public DbType DbType { get; set; }
+
+        [JsonPropertyName("connection_string")]
+        public string ConnectionString { get; set; } = string.Empty;
     }
 }

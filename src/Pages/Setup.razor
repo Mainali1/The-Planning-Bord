@@ -22,12 +22,103 @@
             @if (step == 1)
             {
                 <div>
-                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Step 1: Company Details</h3>
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Step 1: Database Configuration</h3>
+                    
+                    @if (showPgMissingModal)
+                    {
+                        <div class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+                            <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+                                <h4 class="text-lg font-semibold text-gray-900 mb-2">PostgreSQL Not Installed</h4>
+                                <p class="text-sm text-gray-700">
+                                    PostgreSQL is not installed. Please install PostgreSQL first, then click OK to close the application.
+                                </p>
+                                <div class="mt-6 flex justify-end space-x-2">
+                                    <button @onclick="CloseApp" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">OK</button>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                    
+                    @if (showConfirm)
+                    {
+                        <div class="mb-4 p-4 border border-yellow-300 bg-yellow-50 rounded">
+                            <p class="text-sm text-gray-800">Are you sure you want to set up a local server?</p>
+                            <div class="mt-3 flex space-x-2">
+                                <button @onclick="ConfirmLocalSetup" class="px-3 py-1 bg-blue-600 text-white rounded">Yes</button>
+                                <button @onclick="CancelLocalSetup" class="px-3 py-1 bg-gray-200 text-gray-800 rounded">Cancel</button>
+                            </div>
+                        </div>
+                    }
+                    
+                    <div class="space-y-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Database Type</label>
+                            <div class="mt-2 space-y-4 sm:flex sm:items-center sm:space-y-0 sm:space-x-10">
+                                <div class="flex items-center">
+                                    <input id="local" name="dbType" type="radio" checked="@(dbConfig.DbType == DbType.Local)" @onchange="@(() => SetDbType(DbType.Local))" class="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300">
+                                    <label for="local" class="ml-3 block text-sm font-medium text-gray-700"> Local Server </label>
+                                </div>
+                                <div class="flex items-center">
+                                    <input id="cloud" name="dbType" type="radio" checked="@(dbConfig.DbType == DbType.Cloud)" @onchange="@(() => SetDbType(DbType.Cloud))" class="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300">
+                                    <label for="cloud" class="ml-3 block text-sm font-medium text-gray-700"> Cloud Database </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label for="connectionString" class="block text-sm font-medium text-gray-700">Connection String</label>
+                            <div class="mt-1">
+                                <input id="connectionString" type="text" @bind="dbConfig.ConnectionString" class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" />
+                            </div>
+                            @if (dbConfig.DbType == DbType.Local)
+                            {
+                                <p class="mt-2 text-sm text-gray-500">Local database will be automatically configured using default settings.</p>
+                                @if (!embeddedAvailable)
+                                {
+                                    <p class="mt-2 text-xs text-yellow-700">Embedded database is not bundled in this build. The setup will use a system PostgreSQL if available.</p>
+                                }
+                            }
+                        </div>
+                        
+                        <div>
+                            <button @onclick="SaveDbAndNext" disabled="@isDbSaving" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50">
+                                @if (isDbSaving) { <span>Connecting...</span> } else { <span>Save & Continue</span> }
+                            </button>
+                        </div>
+                        
+                        @if (!string.IsNullOrEmpty(progressMessage))
+                        {
+                            <div class="mt-4">
+                                <div class="w-full bg-gray-100 rounded h-2">
+                                    <div class="bg-blue-600 h-2 rounded" style="width:@progressPercent%"></div>
+                                </div>
+                                <p class="text-xs text-gray-500 mt-2">@progressMessage</p>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+            else if (step == 2)
+            {
+                <div>
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Step 2: Company & Admin</h3>
                     <div class="space-y-6">
                         <div>
                             <label for="companyName" class="block text-sm font-medium text-gray-700">Company Name</label>
                             <div class="mt-1">
                                 <input id="companyName" type="text" @bind="companyName" required class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" />
+                            </div>
+                        </div>
+                        <div>
+                            <label for="adminEmail" class="block text-sm font-medium text-gray-700">Admin Email</label>
+                            <div class="mt-1">
+                                <input id="adminEmail" type="email" @bind="adminEmail" required class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" />
+                            </div>
+                        </div>
+                        <div>
+                            <label for="adminPassword" class="block text-sm font-medium text-gray-700">Admin Password</label>
+                            <div class="mt-1">
+                                <input id="adminPassword" type="password" @bind="adminPassword" required class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" />
                             </div>
                         </div>
                         
@@ -39,10 +130,10 @@
                     </div>
                 </div>
             }
-            else if (step == 2)
+            else if (step == 3)
             {
                 <div>
-                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Step 2: Feature Selection</h3>
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Step 3: Feature Selection</h3>
                     <p class="text-sm text-gray-500 mb-4">Choose the modules you want to enable initially.</p>
                     <div class="space-y-4">
                         @if (featureToggles != null)
@@ -64,8 +155,8 @@
                             <button @onclick="PrevStep" class="w-1/2 flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none">
                                 Back
                             </button>
-                            <button @onclick="FinishSetup" class="w-1/2 flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
-                                Finish
+                            <button @onclick="FinishSetup" disabled="@isFinishing" class="w-1/2 flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50">
+                                @if (isFinishing) { <span>Finishing...</span> } else { <span>Finish</span> }
                             </button>
                         </div>
                     </div>
@@ -78,7 +169,18 @@
 @code {
     private int step = 1;
     private string companyName = "";
+    private string adminEmail = "";
+    private string adminPassword = "";
     private List<FeatureToggle>? featureToggles;
+    
+    // DB Config
+    private DbConfig dbConfig = new DbConfig { DbType = DbType.Local, ConnectionString = "postgres://postgres:password@localhost:5432/planning_bord" };
+    private bool isDbSaving = false;
+    private bool showConfirm = false;
+    private string progressMessage = "";
+    private int progressPercent = 0;
+    private bool embeddedAvailable = false;
+    private bool showPgMissingModal = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -92,22 +194,153 @@
         }
 
         try { featureToggles = await SystemService.GetFeatureTogglesAsync(); }
-        catch (Exception ex) { NotificationService.ShowError(ex.Message); featureToggles = new List<FeatureToggle>(); }
+        catch (Exception) { 
+             // If DB is not configured, this might fail or return empty.
+             // We ignore the error here to avoid confusing the user during setup.
+             featureToggles = new List<FeatureToggle>(); 
+        }
+        
+        try { embeddedAvailable = await SystemService.CheckEmbeddedPostgresAsync(); } catch { embeddedAvailable = false; }
+        try
+        {
+            var pgInstalled = await SystemService.CheckPostgresInstalledAsync();
+            if (dbConfig.DbType == DbType.Local && !embeddedAvailable && !pgInstalled)
+            {
+                showPgMissingModal = true;
+            }
+        }
+        catch { /* ignore */ }
+    }
+    
+    private void SetDbType(DbType type)
+    {
+        dbConfig.DbType = type;
+        if (type == DbType.Local)
+        {
+            dbConfig.ConnectionString = "postgres://postgres:password@localhost:5432/planning_bord";
+            _ = PreflightEmbedded();
+        }
+        else
+        {
+            dbConfig.ConnectionString = "";
+        }
+    }
+
+    private async Task PreflightEmbedded()
+    {
+        try { embeddedAvailable = await SystemService.CheckEmbeddedPostgresAsync(); }
+        catch { embeddedAvailable = false; }
+        StateHasChanged();
+    }
+
+    private async Task SaveDbAndNext()
+    {
+        if (string.IsNullOrWhiteSpace(dbConfig.ConnectionString))
+        {
+            NotificationService.ShowError("Connection string is required.");
+            return;
+        }
+
+        if (dbConfig.DbType == DbType.Local && !showConfirm)
+        {
+            showConfirm = true;
+            return;
+        }
+        
+        isDbSaving = true;
+        try
+        {
+            if (dbConfig.DbType == DbType.Local)
+            {
+                progressMessage = "Checking local database...";
+                progressPercent = 10;
+                StateHasChanged();
+                
+                try
+                {
+                    var conn = await SystemService.EnsureLocalDbAsync(dbConfig.ConnectionString);
+                    dbConfig.ConnectionString = conn;
+                    progressMessage = "Local database ready.";
+                    progressPercent = 60;
+                    StateHasChanged();
+                }
+                catch (Exception ex)
+                {
+                    NotificationService.ShowError($"Local server setup failed: {ex.Message}");
+                    isDbSaving = false;
+                    showConfirm = false;
+                    progressMessage = "";
+                    progressPercent = 0;
+                    return;
+                }
+            }
+            
+            await SystemService.SaveDbConfigAsync(dbConfig);
+            NotificationService.ShowSuccess("Database connected successfully!");
+            
+            // Refresh toggles in case they come from DB
+            try { featureToggles = await SystemService.GetFeatureTogglesAsync(); }
+            catch { featureToggles = new List<FeatureToggle>(); }
+            
+            step++;
+        }
+        catch (Exception ex)
+        {
+            NotificationService.ShowError($"Failed to connect: {ex.Message}");
+        }
+        finally
+        {
+            isDbSaving = false;
+            showConfirm = false;
+            progressMessage = "";
+            progressPercent = 0;
+        }
+    }
+    
+    private async Task CloseApp()
+    {
+        try { await SystemService.ExitAppAsync(); }
+        catch { }
+    }
+    
+    private async Task ConfirmLocalSetup()
+    {
+        showConfirm = false;
+        await SaveDbAndNext();
+    }
+    
+    private void CancelLocalSetup()
+    {
+        showConfirm = false;
+        _ = SystemService.CleanupLocalDbAsync();
     }
 
     private void NextStep()
     {
-        if (string.IsNullOrWhiteSpace(companyName))
+        if (step == 2) // Company Name
         {
-            NotificationService.ShowWarning("Company Name is required");
-            return;
+             if (string.IsNullOrWhiteSpace(companyName))
+             {
+                 NotificationService.ShowError("Company name is required.");
+                 return;
+             }
+             if (string.IsNullOrWhiteSpace(adminEmail))
+             {
+                 NotificationService.ShowError("Admin email is required.");
+                 return;
+             }
+             if (string.IsNullOrWhiteSpace(adminPassword) || adminPassword.Length < 8)
+             {
+                 NotificationService.ShowError("Admin password must be at least 8 characters.");
+                 return;
+             }
+             step++;
         }
-        step++;
     }
 
     private void PrevStep()
     {
-        step--;
+        if (step > 1) step--;
     }
 
     private void ToggleFeature(FeatureToggle toggle, object? value)
@@ -118,29 +351,42 @@
         }
     }
 
+    private bool isFinishing = false;
+
     private async Task FinishSetup()
     {
+        if (isFinishing) return;
+        isFinishing = true;
+        StateHasChanged();
+
         try
         {
-            // Save company details (mocked for now, needs backend support or just local storage via JS)
-            // await SystemService.SaveCompanyDetails(companyName); 
-            
-            // Save toggles
+            Console.WriteLine("Starting FinishSetup...");
+            // Save feature toggles
             if (featureToggles != null)
             {
                 foreach (var toggle in featureToggles)
                 {
+                    Console.WriteLine($"Saving toggle: {toggle.Key} = {toggle.IsEnabled}");
                     await SystemService.SetFeatureToggleAsync(toggle.Key, toggle.IsEnabled);
                 }
             }
-            
-            await SystemService.CompleteSetupAsync(companyName);
+
+            Console.WriteLine("Calling CompleteSetupAsync...");
+            await SystemService.CompleteSetupAsync(companyName, adminEmail, adminPassword);
+            Console.WriteLine("Setup completed. Navigating...");
             NotificationService.ShowSuccess("Setup completed successfully!");
-            Navigation.NavigateTo("/");
+            Navigation.NavigateTo("/", true);
         }
         catch (Exception ex)
         {
-            NotificationService.ShowError("Setup failed: " + ex.Message);
+            Console.WriteLine($"Setup failed: {ex}");
+            NotificationService.ShowError($"Setup failed: {ex.Message}");
+        }
+        finally
+        {
+            isFinishing = false;
+            StateHasChanged();
         }
     }
 }

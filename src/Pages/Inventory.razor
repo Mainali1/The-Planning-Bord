@@ -1,5 +1,6 @@
 @page "/inventory"
 @inject IInventoryService InventoryService
+@inject IHrService HrService
 @inject IJSRuntime JSRuntime
 @inject NotificationService NotificationService
 @using Microsoft.JSInterop
@@ -11,109 +12,174 @@
     <div class="flex justify-between items-center mb-6">
         <h3 class="text-lg font-medium leading-6 text-gray-900">Inventory Management</h3>
         <div class="flex space-x-4">
+            <!-- Search & Export (Common) -->
             <div class="relative rounded-md shadow-sm">
                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <span class="text-gray-500 sm:text-sm">🔍</span>
                 </div>
-                <input type="text" @bind="searchTerm" @bind:event="oninput" @bind:after="OnSearchChanged" placeholder="Search products..." class="focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md" />
+                <input type="text" @bind="searchTerm" @bind:event="oninput" @bind:after="OnSearchChanged" placeholder="Search..." class="focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md" />
             </div>
             <button @onclick="ExportToExcel" class="flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
                 📥 Export to Excel
             </button>
             <button @onclick="OpenAddModal" class="flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
-                ➕ Add Product
+                ➕ Add @(activeTab == "products" ? "Product" : "Tool")
             </button>
         </div>
     </div>
 
-    <div class="flex-1 overflow-auto bg-white shadow rounded-lg flex flex-col">
-        <div class="flex-1 overflow-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50 sticky top-0">
-                    <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                        <th class="relative px-6 py-3"><span class="sr-only">Actions</span></th>
-                    </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
-                    @if (isLoading) { <tr><td colspan="6" class="px-6 py-4 text-center">Loading...</td></tr> }
-                    else if (products == null || !products.Any()) { <tr><td colspan="6" class="px-6 py-4 text-center">No products found.</td></tr> }
-                    else
-                    {
-                        @foreach (var p in products)
-                        {
-                            <tr>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="text-sm font-medium text-gray-900">@p.Name</div>
-                                    <div class="text-sm text-gray-500">@p.Sku</div>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">@p.Category</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">@p.CurrentQuantity / @p.MinimumQuantity</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">@p.UnitPrice.ToString("C")</td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    @if (p.CurrentQuantity <= 0) { <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Out of Stock</span> }
-                                    else if (p.CurrentQuantity <= p.MinimumQuantity) { <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Low Stock</span> }
-                                    else { <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">In Stock</span> }
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <button @onclick="() => EditProduct(p)" class="text-blue-600 hover:text-blue-900 mr-3">Edit</button>
-                                    <button @onclick="() => DeleteProduct(p.Id ?? 0)" class="text-red-600 hover:text-red-900">Delete</button>
-                                </td>
-                            </tr>
-                        }
-                    }
-                </tbody>
-            </table>
-        </div>
-        
-        <!-- Pagination -->
-        <div class="bg-white px-4 py-3 border-t border-gray-200 sm:px-6">
-            <div class="flex items-center justify-between">
-                <div class="flex-1 flex justify-between sm:hidden">
-                    <button @onclick="PreviousPage" disabled="@(!CanPreviousPage)" class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"> Previous </button>
-                    <button @onclick="NextPage" disabled="@(!CanNextPage)" class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"> Next </button>
-                </div>
-                <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                    <div>
-                        <p class="text-sm text-gray-700">
-                            Showing <span class="font-medium">@((currentPage - 1) * pageSize + 1)</span> to <span class="font-medium">@(Math.Min(currentPage * pageSize, totalItems))</span> of <span class="font-medium">@totalItems</span> results
-                        </p>
-                    </div>
-                    <div>
-                        <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                            <button @onclick="PreviousPage" disabled="@(!CanPreviousPage)" class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50">
-                                <span class="sr-only">Previous</span>
-                                <span>&larr;</span>
-                            </button>
-                            
-                            @for (int i = 1; i <= TotalPages; i++)
-                            {
-                                var pageNumber = i;
-                                if (i == 1 || i == TotalPages || (i >= currentPage - 2 && i <= currentPage + 2))
-                                {
-                                    <button @onclick="() => GoToPage(pageNumber)" class="@(currentPage == pageNumber ? "bg-blue-50 border-blue-500 text-blue-600" : "bg-white border-gray-300 text-gray-500 hover:bg-gray-50") relative inline-flex items-center px-4 py-2 border text-sm font-medium">
-                                        @i
-                                    </button>
-                                }
-                                else if (i == currentPage - 3 || i == currentPage + 3)
-                                {
-                                    <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">...</span>
-                                }
-                            }
+    <!-- Tabs -->
+    <div class="mb-4 border-b border-gray-200">
+        <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+            <button @onclick='() => SwitchTab("products")' class="@(activeTab == "products" ? "border-blue-500 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300") whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                Products
+            </button>
+            <button @onclick='() => SwitchTab("tools")' class="@(activeTab == "tools" ? "border-blue-500 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300") whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                Tools
+            </button>
+        </nav>
+    </div>
 
-                            <button @onclick="NextPage" disabled="@(!CanNextPage)" class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50">
-                                <span class="sr-only">Next</span>
-                                <span>&rarr;</span>
-                            </button>
-                        </nav>
+    <div class="flex-1 overflow-auto bg-white shadow rounded-lg flex flex-col">
+        @if (activeTab == "products")
+        {
+            <div class="flex-1 overflow-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50 sticky top-0">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            <th class="relative px-6 py-3"><span class="sr-only">Actions</span></th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        @if (isLoading) { <tr><td colspan="6" class="px-6 py-4 text-center">Loading...</td></tr> }
+                        else if (products == null || !products.Any()) { <tr><td colspan="6" class="px-6 py-4 text-center">No products found.</td></tr> }
+                        else
+                        {
+                            @foreach (var p in products)
+                            {
+                                <tr>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm font-medium text-gray-900">@p.Name</div>
+                                        <div class="text-sm text-gray-500">@p.Sku</div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">@p.Category</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">@p.CurrentQuantity / @p.MinimumQuantity</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">@p.UnitPrice.ToString("C")</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        @if (p.CurrentQuantity <= 0) { <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Out of Stock</span> }
+                                        else if (p.CurrentQuantity <= p.MinimumQuantity) { <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Low Stock</span> }
+                                        else { <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">In Stock</span> }
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                        <button @onclick="() => EditProduct(p)" class="text-blue-600 hover:text-blue-900 mr-3">Edit</button>
+                                        <button @onclick="() => DeleteProduct(p.Id ?? 0)" class="text-red-600 hover:text-red-900">Delete</button>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pagination for Products -->
+            <div class="bg-white px-4 py-3 border-t border-gray-200 sm:px-6">
+                <div class="flex items-center justify-between">
+                    <div class="flex-1 flex justify-between sm:hidden">
+                        <button @onclick="PreviousPage" disabled="@(!CanPreviousPage)" class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"> Previous </button>
+                        <button @onclick="NextPage" disabled="@(!CanNextPage)" class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"> Next </button>
+                    </div>
+                    <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                        <div>
+                            <p class="text-sm text-gray-700">
+                                Showing <span class="font-medium">@((currentPage - 1) * pageSize + 1)</span> to <span class="font-medium">@(Math.Min(currentPage * pageSize, totalItems))</span> of <span class="font-medium">@totalItems</span> results
+                            </p>
+                        </div>
+                        <div>
+                            <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                                <button @onclick="PreviousPage" disabled="@(!CanPreviousPage)" class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50">
+                                    <span class="sr-only">Previous</span>
+                                    <span>&larr;</span>
+                                </button>
+                                
+                                @for (int i = 1; i <= TotalPages; i++)
+                                {
+                                    var pageNumber = i;
+                                    if (i == 1 || i == TotalPages || (i >= currentPage - 2 && i <= currentPage + 2))
+                                    {
+                                        <button @onclick="() => GoToPage(pageNumber)" class="@(currentPage == pageNumber ? "bg-blue-50 border-blue-500 text-blue-600" : "bg-white border-gray-300 text-gray-500 hover:bg-gray-50") relative inline-flex items-center px-4 py-2 border text-sm font-medium">
+                                            @i
+                                        </button>
+                                    }
+                                    else if (i == currentPage - 3 || i == currentPage + 3)
+                                    {
+                                        <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">...</span>
+                                    }
+                                }
+
+                                <button @onclick="NextPage" disabled="@(!CanNextPage)" class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50">
+                                    <span class="sr-only">Next</span>
+                                    <span>&rarr;</span>
+                                </button>
+                            </nav>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
+        }
+        else
+        {
+            <!-- Tools Tab Content -->
+            <div class="flex-1 overflow-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50 sticky top-0">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Condition</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assigned To</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            <th class="relative px-6 py-3"><span class="sr-only">Actions</span></th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        @if (isLoading) { <tr><td colspan="6" class="px-6 py-4 text-center">Loading...</td></tr> }
+                        else if (tools == null || !tools.Any()) { <tr><td colspan="6" class="px-6 py-4 text-center">No tools found.</td></tr> }
+                        else
+                        {
+                            @foreach (var t in FilteredTools)
+                            {
+                                <tr>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">@t.Name</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">@t.TypeName</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">@t.Condition</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        @(t.AssignedToEmployeeId.HasValue ? GetEmployeeName(t.AssignedToEmployeeId.Value) : "-")
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full @(t.Status == "available" ? "bg-green-100 text-green-800" : "bg-blue-100 text-blue-800")">
+                                            @t.Status
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                        <button @onclick="() => EditTool(t)" class="text-blue-600 hover:text-blue-900 mr-3">Edit</button>
+                                        <button type="button" @onclick:preventDefault @onclick:stopPropagation @onclick="() => QuickDeleteTool(t)" class="text-red-600 hover:text-red-900" title="Delete Tool">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3m-7 4h16" />
+                                            </svg>
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
     </div>
 </div>
 
@@ -124,20 +190,52 @@
             <div class="fixed inset-0 transition-opacity" aria-hidden="true"><div class="absolute inset-0 bg-gray-500 opacity-75"></div></div>
             <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
                 <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                    <h3 class="text-lg leading-6 font-medium text-gray-900">@((newProduct.Id.HasValue ? "Edit" : "Add")) Product</h3>
-                    <div class="mt-4 grid grid-cols-1 gap-y-4">
-                        <input type="text" @bind="newProduct.Name" placeholder="Name" class="block w-full border-gray-300 rounded-md shadow-sm" />
-                        <input type="text" @bind="newProduct.Sku" placeholder="SKU" class="block w-full border-gray-300 rounded-md shadow-sm" />
-                        <input type="text" @bind="newProduct.Category" placeholder="Category" class="block w-full border-gray-300 rounded-md shadow-sm" />
-                        <div class="grid grid-cols-2 gap-4">
-                            <input type="number" @bind="newProduct.CurrentQuantity" placeholder="Qty" class="block w-full border-gray-300 rounded-md shadow-sm" />
-                            <input type="number" @bind="newProduct.MinimumQuantity" placeholder="Min Qty" class="block w-full border-gray-300 rounded-md shadow-sm" />
+                    <h3 class="text-lg leading-6 font-medium text-gray-900">@((activeTab == "products" ? (newProduct.Id.HasValue ? "Edit" : "Add") + " Product" : (newTool.Id.HasValue ? "Edit" : "Add") + " Tool"))</h3>
+                    
+                    @if (activeTab == "products")
+                    {
+                        <div class="mt-4 grid grid-cols-1 gap-y-4">
+                            <input type="text" @bind="newProduct.Name" placeholder="Name" class="block w-full border-gray-300 rounded-md shadow-sm" />
+                            <input type="text" @bind="newProduct.Sku" placeholder="SKU" class="block w-full border-gray-300 rounded-md shadow-sm" />
+                            <input type="text" @bind="newProduct.Category" placeholder="Category" class="block w-full border-gray-300 rounded-md shadow-sm" />
+                            <div class="grid grid-cols-2 gap-4">
+                                <input type="number" @bind="newProduct.CurrentQuantity" placeholder="Qty" class="block w-full border-gray-300 rounded-md shadow-sm" />
+                                <input type="number" @bind="newProduct.MinimumQuantity" placeholder="Min Qty" class="block w-full border-gray-300 rounded-md shadow-sm" />
+                            </div>
+                            <input type="number" @bind="newProduct.UnitPrice" step="0.01" placeholder="Price" class="block w-full border-gray-300 rounded-md shadow-sm" />
                         </div>
-                        <input type="number" @bind="newProduct.UnitPrice" step="0.01" placeholder="Price" class="block w-full border-gray-300 rounded-md shadow-sm" />
-                    </div>
+                    }
+                    else
+                    {
+                        <div class="mt-4 grid grid-cols-1 gap-y-4">
+                            <input type="text" @bind="newTool.Name" placeholder="Tool Name" class="block w-full border-gray-300 rounded-md shadow-sm" />
+                            <input type="text" @bind="newTool.TypeName" placeholder="Type" class="block w-full border-gray-300 rounded-md shadow-sm" />
+                            <input type="text" @bind="newTool.Condition" placeholder="Condition (e.g. New, Good, Fair)" class="block w-full border-gray-300 rounded-md shadow-sm" />
+                            <select @bind="newTool.Status" class="block w-full border-gray-300 rounded-md shadow-sm">
+                                <option value="available">Available</option>
+                                <option value="assigned">Assigned</option>
+                                <option value="maintenance">Maintenance</option>
+                            </select>
+                            
+                            @if (newTool.Status == "assigned")
+                            {
+                                <label class="block text-sm font-medium text-gray-700">Assign To:</label>
+                                <select @bind="newTool.AssignedToEmployeeId" class="block w-full border-gray-300 rounded-md shadow-sm">
+                                    <option value="">-- Select Employee --</option>
+                                    @if (employees != null)
+                                    {
+                                        @foreach (var emp in employees)
+                                        {
+                                            <option value="@emp.Id">@emp.FirstName @emp.LastName</option>
+                                        }
+                                    }
+                                </select>
+                            }
+                        </div>
+                    }
                 </div>
                 <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                    <button type="button" @onclick="SaveProduct" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 sm:ml-3 sm:w-auto sm:text-sm">Save</button>
+                    <button type="button" @onclick="SaveItem" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 sm:ml-3 sm:w-auto sm:text-sm">Save</button>
                     <button type="button" @onclick="() => showAddModal = false" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">Cancel</button>
                 </div>
             </div>
@@ -146,9 +244,13 @@
 }
 
 @code {
+    private string activeTab = "products";
     private List<Product>? products;
+    private List<Tool>? tools;
+    private List<Employee>? employees;
     private bool showAddModal = false;
     private Product newProduct = new Product();
+    private Tool newTool = new Tool();
     private string searchTerm = "";
     private int currentPage = 1;
     private int pageSize = 10;
@@ -160,6 +262,13 @@
     private bool CanPreviousPage => currentPage > 1;
     private bool CanNextPage => currentPage < TotalPages;
 
+    private IEnumerable<Tool> FilteredTools => 
+        string.IsNullOrWhiteSpace(searchTerm) 
+            ? (tools ?? Enumerable.Empty<Tool>()) 
+            : (tools ?? Enumerable.Empty<Tool>())
+                .Where(t => (t.Name?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) || 
+                            (t.TypeName?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false));
+
     protected override async Task OnInitializedAsync()
     {
         debounceTimer = new System.Timers.Timer(300);
@@ -167,11 +276,20 @@
         {
             debounceTimer.Stop();
             currentPage = 1;
-            await InvokeAsync(LoadProducts);
+            await InvokeAsync(LoadData);
         };
         debounceTimer.AutoReset = false;
         
-        await LoadProducts();
+        await LoadEmployees();
+        await LoadData();
+    }
+
+    private async Task SwitchTab(string tab)
+    {
+        activeTab = tab;
+        searchTerm = "";
+        currentPage = 1;
+        await LoadData();
     }
 
     private void OnSearchChanged()
@@ -180,22 +298,50 @@
         debounceTimer?.Start();
     }
 
-    private async Task LoadProducts()
+    private async Task LoadEmployees()
+    {
+        try
+        {
+            employees = await HrService.GetEmployeesAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Error loading employees: " + ex.Message);
+            employees = new List<Employee>();
+        }
+    }
+
+    private string GetEmployeeName(int employeeId)
+    {
+        var emp = employees?.FirstOrDefault(e => e.Id == employeeId);
+        return emp != null ? $"{emp.FirstName} {emp.LastName}" : "Unknown";
+    }
+
+    private async Task LoadData()
     {
         isLoading = true;
         StateHasChanged();
         try
         {
-            var result = await InventoryService.GetProductsAsync(searchTerm, currentPage, pageSize);
-            products = result.Items;
-            totalItems = result.Total;
-            // Update current page from result in case it was adjusted
-            currentPage = result.Page; 
+            if (activeTab == "products")
+            {
+                var result = await InventoryService.GetProductsAsync(searchTerm, currentPage, pageSize);
+                products = result.Items;
+                totalItems = result.Total;
+                currentPage = result.Page;
+            }
+            else
+            {
+                // Tools don't have pagination on backend yet, so we load all
+                tools = await InventoryService.GetToolsAsync();
+                // Client-side filtering is done in FilteredTools property
+            }
         }
         catch (Exception ex)
         {
             Console.WriteLine(ex.Message);
-            products = new List<Product>();
+            if (activeTab == "products") products = new List<Product>();
+            else tools = new List<Tool>();
         }
         finally
         {
@@ -208,7 +354,7 @@
     {
         if (page < 1 || page > TotalPages) return;
         currentPage = page;
-        await LoadProducts();
+        await LoadData();
     }
 
     private async Task PreviousPage()
@@ -216,7 +362,7 @@
         if (CanPreviousPage)
         {
             currentPage--;
-            await LoadProducts();
+            await LoadData();
         }
     }
 
@@ -225,33 +371,59 @@
         if (CanNextPage)
         {
             currentPage++;
-            await LoadProducts();
+            await LoadData();
         }
     }
 
     private async Task ExportToExcel()
     {
-        // Export all items (fetch without pagination or large page size)
-        var allProducts = await InventoryService.GetProductsAsync(searchTerm, 1, 100000); 
-        if (allProducts.Items == null || !allProducts.Items.Any()) return;
-        
-        var csvBuilder = new System.Text.StringBuilder();
-        csvBuilder.AppendLine("Name,SKU,Category,Current Quantity,Minimum Quantity,Unit Price,Status");
-
-        foreach (var p in allProducts.Items)
+        if (activeTab == "products")
         {
-            var status = p.CurrentQuantity <= 0 ? "Out of Stock" : (p.CurrentQuantity <= p.MinimumQuantity ? "Low Stock" : "In Stock");
-            csvBuilder.AppendLine($"\"{p.Name}\",\"{p.Sku}\",\"{p.Category}\",{p.CurrentQuantity},{p.MinimumQuantity},{p.UnitPrice},\"{status}\"");
-        }
+            var allProducts = await InventoryService.GetProductsAsync(searchTerm, 1, 100000); 
+            if (allProducts.Items == null || !allProducts.Items.Any()) return;
+            
+            var csvBuilder = new System.Text.StringBuilder();
+            csvBuilder.AppendLine("Name,SKU,Category,Current Quantity,Minimum Quantity,Unit Price,Status");
 
-        var bytes = System.Text.Encoding.UTF8.GetBytes(csvBuilder.ToString());
-        var base64 = Convert.ToBase64String(bytes);
-        await JSRuntime.InvokeVoidAsync("saveAsFile", $"Inventory_{DateTime.Now:yyyyMMdd}.csv", base64);
+            foreach (var p in allProducts.Items)
+            {
+                var status = p.CurrentQuantity <= 0 ? "Out of Stock" : (p.CurrentQuantity <= p.MinimumQuantity ? "Low Stock" : "In Stock");
+                csvBuilder.AppendLine($"\"{p.Name}\",\"{p.Sku}\",\"{p.Category}\",{p.CurrentQuantity},{p.MinimumQuantity},{p.UnitPrice},\"{status}\"");
+            }
+
+            var bytes = System.Text.Encoding.UTF8.GetBytes(csvBuilder.ToString());
+            var base64 = Convert.ToBase64String(bytes);
+            await JSRuntime.InvokeVoidAsync("saveAsFile", $"Inventory_Products_{DateTime.Now:yyyyMMdd}.csv", base64);
+        }
+        else
+        {
+            if (tools == null || !tools.Any()) return;
+            
+            var csvBuilder = new System.Text.StringBuilder();
+            csvBuilder.AppendLine("Name,Type,Condition,Assigned To,Status");
+
+            foreach (var t in tools)
+            {
+                var assignedTo = t.AssignedToEmployeeId.HasValue ? GetEmployeeName(t.AssignedToEmployeeId.Value) : "-";
+                csvBuilder.AppendLine($"\"{t.Name}\",\"{t.TypeName}\",\"{t.Condition}\",\"{assignedTo}\",\"{t.Status}\"");
+            }
+
+            var bytes = System.Text.Encoding.UTF8.GetBytes(csvBuilder.ToString());
+            var base64 = Convert.ToBase64String(bytes);
+            await JSRuntime.InvokeVoidAsync("saveAsFile", $"Inventory_Tools_{DateTime.Now:yyyyMMdd}.csv", base64);
+        }
     }
 
     private void OpenAddModal()
     {
-        newProduct = new Product();
+        if (activeTab == "products")
+        {
+            newProduct = new Product();
+        }
+        else
+        {
+            newTool = new Tool();
+        }
         showAddModal = true;
     }
 
@@ -261,26 +433,48 @@
         showAddModal = true;
     }
 
-    private async Task SaveProduct()
+    private void EditTool(Tool t)
+    {
+        newTool = new Tool { Id = t.Id, Name = t.Name, TypeName = t.TypeName, Condition = t.Condition, Status = t.Status, AssignedToEmployeeId = t.AssignedToEmployeeId, PurchaseDate = t.PurchaseDate };
+        showAddModal = true;
+    }
+
+    private async Task SaveItem()
     {
         try
         {
-            if (newProduct.Id.HasValue) 
-            { 
-                await InventoryService.UpdateProductAsync(newProduct); 
-                NotificationService.ShowSuccess("Product updated."); 
+            if (activeTab == "products")
+            {
+                if (newProduct.Id.HasValue) 
+                { 
+                    await InventoryService.UpdateProductAsync(newProduct); 
+                    NotificationService.ShowSuccess("Product updated."); 
+                }
+                else 
+                { 
+                    await InventoryService.AddProductAsync(newProduct); 
+                    NotificationService.ShowSuccess("Product added."); 
+                }
             }
-            else 
-            { 
-                await InventoryService.AddProductAsync(newProduct); 
-                NotificationService.ShowSuccess("Product added."); 
+            else
+            {
+                if (newTool.Id.HasValue)
+                {
+                    await InventoryService.UpdateToolAsync(newTool);
+                    NotificationService.ShowSuccess("Tool updated.");
+                }
+                else
+                {
+                    await InventoryService.AddToolAsync(newTool);
+                    NotificationService.ShowSuccess("Tool added.");
+                }
             }
             showAddModal = false;
-            await LoadProducts();
+            await LoadData();
         }
         catch (Exception ex) 
         { 
-            NotificationService.ShowError("Failed to save product: " + ex.Message); 
+            NotificationService.ShowError("Failed to save: " + ex.Message); 
         }
     }
 
@@ -290,7 +484,7 @@
         try 
         { 
             await InventoryService.DeleteProductAsync(id); 
-            await LoadProducts(); 
+            await LoadData(); 
             NotificationService.ShowSuccess("Product deleted."); 
         }
         catch (Exception ex) 
@@ -298,4 +492,20 @@
             NotificationService.ShowError("Failed to delete product: " + ex.Message); 
         }
     }
+
+    private async Task QuickDeleteTool(Tool t)
+    {
+        if (t?.Id == null) return;
+        try
+        {
+            await InventoryService.DeleteToolAsync(t.Id.Value);
+            await LoadData();
+            NotificationService.ShowSuccess("Tool deleted.");
+        }
+        catch (Exception ex)
+        {
+            NotificationService.ShowError("Failed to delete tool: " + ex.Message);
+        }
+    }
 }
+

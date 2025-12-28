@@ -104,6 +104,24 @@ namespace ThePlanningBord.Models
         public string? DependenciesJson { get; set; }
     }
 
+    public class ProjectAssignment
+    {
+        [JsonPropertyName("id")]
+        public int? Id { get; set; }
+
+        [JsonPropertyName("project_id")]
+        public int ProjectId { get; set; }
+
+        [JsonPropertyName("employee_id")]
+        public int EmployeeId { get; set; }
+
+        [JsonPropertyName("role")]
+        public string Role { get; set; } = "member";
+
+        [JsonPropertyName("assigned_at")]
+        public string? AssignedAt { get; set; }
+    }
+
     public class Account
     {
         [JsonPropertyName("id")]

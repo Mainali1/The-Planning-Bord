@@ -12,6 +12,7 @@ This application is designed to be a robust, offline-capable desktop application
 - **Rust** (latest stable)
 - **.NET 8.0 SDK** (or later)
 - **Visual Studio Code** or **Visual Studio 2022** (recommended)
+- **PostgreSQL** (Optional - the application can attempt to set up a local instance, but a system installation is recommended for development)
 
 ## Installation and Setup
 
@@ -53,7 +54,9 @@ To run the application in development mode with hot reloading:
 Configuration is managed via:
 - `src-tauri/tauri.conf.json`: Main Tauri configuration (window settings, permissions, bundle settings).
 - `src/wwwroot/appsettings.json` (if applicable): Frontend configuration.
-- Database: The application uses a local SQLite database (`planningbord.db`) located in the user's app data directory.
+- **Database**:
+  - By default, the application attempts to connect to a local PostgreSQL instance (using `trust` auth on `localhost:5432`).
+  - You can override the connection string by setting the `DATABASE_URL` environment variable (e.g., `postgres://user:password@localhost:5432/planning_bord`).
 
 ## Architecture
 
@@ -64,7 +67,7 @@ Configuration is managed via:
 
 - **Backend:** Rust (Tauri)
   - Commands: Rust functions exposed to the frontend (e.g., `get_products`, `clock_in`).
-  - Database: SQLite via `rusqlite` for persistent storage.
+  - Database: PostgreSQL via `rust-postgres` for persistent storage.
   - State Management: `AppState` struct holding the database connection.
 
 ## Troubleshooting
@@ -78,9 +81,12 @@ Configuration is managed via:
         - Check terminal output for build errors.
         - The application includes an exponential backoff reconnection strategy. If the issue persists, check if the Rust backend is crashing (check terminal logs).
 
-2.  **Database Locked:**
-    - **Cause:** Multiple instances of the app or a hung process.
-    - **Solution:** Close all instances of the application. Restart the computer if necessary.
+2.  **Database Connection Failed:**
+    - **Cause:** PostgreSQL service is not running or credentials are incorrect.
+    - **Solution:**
+      - Ensure PostgreSQL is running on port 5432.
+      - Check if `DATABASE_URL` environment variable is set correctly.
+      - If using default setup, ensure the local Postgres instance allows `trust` authentication for the `postgres` user.
 
 3.  **Build Errors (E0063, CS0103):**
     - **Cause:** Mismatched struct fields or missing service registrations.
