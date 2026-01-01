@@ -12,26 +12,31 @@ namespace ThePlanningBord.Services
 
     public class ReportService : IReportService
     {
-        private readonly IJSRuntime _jsRuntime;
+        private readonly ITauriInterop _tauri;
+        private readonly IUserService _userService;
 
-        public ReportService(IJSRuntime jsRuntime)
+        public ReportService(ITauriInterop tauri, IUserService userService)
         {
-            _jsRuntime = jsRuntime;
+            _tauri = tauri;
+            _userService = userService;
         }
 
         public async Task<DashboardStats> GetDashboardStatsAsync()
         {
-            return await _jsRuntime.InvokeAsync<DashboardStats>("__TAURI__.core.invoke", "get_dashboard_stats", new { });
+            var token = await _userService.GetTokenAsync();
+            return await _tauri.InvokeAsync<DashboardStats>("get_dashboard_stats", new { token });
         }
 
         public async Task<ReportSummary> GetReportSummaryAsync()
         {
-            return await _jsRuntime.InvokeAsync<ReportSummary>("__TAURI__.core.invoke", "get_report_summary", new { });
+            var token = await _userService.GetTokenAsync();
+            return await _tauri.InvokeAsync<ReportSummary>("get_report_summary", new { token });
         }
 
         public async Task<List<ChartDataPoint>> GetMonthlyCashflowAsync()
         {
-            return await _jsRuntime.InvokeAsync<List<ChartDataPoint>>("__TAURI__.core.invoke", "get_monthly_cashflow", new { });
+            var token = await _userService.GetTokenAsync();
+            return await _tauri.InvokeAsync<List<ChartDataPoint>>("get_monthly_cashflow", new { token });
         }
     }
 }

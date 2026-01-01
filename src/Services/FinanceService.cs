@@ -19,51 +19,61 @@ namespace ThePlanningBord.Services
 
     public class FinanceService : IFinanceService
     {
-        private readonly TauriInterop _tauri;
+        private readonly ITauriInterop _tauri;
+        private readonly IUserService _userService;
 
-        public FinanceService(TauriInterop tauri)
+        public FinanceService(ITauriInterop tauri, IUserService userService)
         {
             _tauri = tauri;
+            _userService = userService;
         }
 
         public async Task<List<Payment>> GetPaymentsAsync()
         {
-            return await _tauri.InvokeAsync<List<Payment>>("get_payments", new { });
+            var token = await _userService.GetTokenAsync();
+            return await _tauri.InvokeAsync<List<Payment>>("get_payments", new { token });
         }
 
         public async Task<long> AddPaymentAsync(Payment payment)
         {
-            return await _tauri.InvokeAsync<long>("add_payment", new { payment });
+            var token = await _userService.GetTokenAsync();
+            return await _tauri.InvokeAsync<long>("add_payment", new { payment, token });
         }
 
         public async Task UpdatePaymentAsync(Payment payment)
         {
-            await _tauri.InvokeVoidAsync("update_payment", new { payment });
+            var token = await _userService.GetTokenAsync();
+            await _tauri.InvokeVoidAsync("update_payment", new { payment, token });
         }
 
         public async Task DeletePaymentAsync(int id)
         {
-            await _tauri.InvokeVoidAsync("delete_payment", new { id });
+            var token = await _userService.GetTokenAsync();
+            await _tauri.InvokeVoidAsync("delete_payment", new { id, token });
         }
 
         public async Task<List<Account>> GetAccountsAsync()
         {
-            return await _tauri.InvokeAsync<List<Account>>("get_accounts", new { });
+            var token = await _userService.GetTokenAsync();
+            return await _tauri.InvokeAsync<List<Account>>("get_accounts", new { token });
         }
 
         public async Task<long> AddAccountAsync(Account account)
         {
-            return await _tauri.InvokeAsync<long>("add_account", new { account });
+            var token = await _userService.GetTokenAsync();
+            return await _tauri.InvokeAsync<long>("add_account", new { account, token });
         }
 
         public async Task<List<Invoice>> GetInvoicesAsync()
         {
-            return await _tauri.InvokeAsync<List<Invoice>>("get_invoices", new { });
+            var token = await _userService.GetTokenAsync();
+            return await _tauri.InvokeAsync<List<Invoice>>("get_invoices", new { token });
         }
 
         public async Task<long> CreateInvoiceAsync(Invoice invoice)
         {
-            return await _tauri.InvokeAsync<long>("create_invoice", new { invoice });
+            var token = await _userService.GetTokenAsync();
+            return await _tauri.InvokeAsync<long>("create_invoice", new { invoice, token });
         }
     }
 }

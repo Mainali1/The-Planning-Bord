@@ -4,6 +4,57 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
     ensure_database_exists(connection_string)?;
     let mut client = Client::connect(connection_string, NoTls)?;
 
+    // 0. Core RBAC (Roles & Permissions) - Must be first for FKs
+    client.execute(
+        "CREATE TABLE IF NOT EXISTS roles (
+            id SERIAL PRIMARY KEY,
+            name TEXT UNIQUE NOT NULL,
+            description TEXT,
+            is_custom BOOLEAN DEFAULT FALSE
+        )",
+        &[],
+    )?;
+
+    // Insert default roles
+    client.execute("INSERT INTO roles (name, description, is_custom) VALUES ('CEO', 'Chief Executive Officer', FALSE) ON CONFLICT (name) DO NOTHING", &[])?;
+    client.execute("INSERT INTO roles (name, description, is_custom) VALUES ('Manager', 'Managerial Role', FALSE) ON CONFLICT (name) DO NOTHING", &[])?;
+    client.execute("INSERT INTO roles (name, description, is_custom) VALUES ('Employee', 'Standard Employee', FALSE) ON CONFLICT (name) DO NOTHING", &[])?;
+    client.execute("INSERT INTO roles (name, description, is_custom) VALUES ('Technical', 'System Admin / Technical Support', FALSE) ON CONFLICT (name) DO NOTHING", &[])?;
+
+    client.execute(
+        "CREATE TABLE IF NOT EXISTS permissions (
+            id SERIAL PRIMARY KEY,
+            code TEXT UNIQUE NOT NULL,
+            description TEXT
+        )",
+        &[],
+    )?;
+    
+    // Seed basic permissions
+    let permissions = vec![
+        ("MANAGE_INVENTORY", "Can add/edit/delete products"),
+        ("VIEW_INVENTORY", "Can view products"),
+        ("MANAGE_EMPLOYEES", "Can add/edit/delete employees"),
+        ("ASSIGN_TOOLS", "Can assign tools to employees"),
+        ("MANAGE_COMPLAINTS", "Can view and resolve complaints"),
+        ("MANAGE_SETTINGS", "Can change system settings"),
+        ("MANAGE_ROLES", "Can create and modify roles"),
+        ("MANAGE_TOOLS", "Can create, update, and delete tools"),
+        ("MANAGE_PROJECTS", "Can create, update, and delete projects"),
+    ];
+    for (code, desc) in permissions {
+        client.execute("INSERT INTO permissions (code, description) VALUES ($1, $2) ON CONFLICT (code) DO NOTHING", &[&code, &desc])?;
+    }
+
+    client.execute(
+        "CREATE TABLE IF NOT EXISTS role_permissions (
+            role_id INTEGER REFERENCES roles(id),
+            permission_id INTEGER REFERENCES permissions(id),
+            PRIMARY KEY (role_id, permission_id)
+        )",
+        &[],
+    )?;
+
     // 1. User Management
     client.execute(
         "CREATE TABLE IF NOT EXISTS users (
@@ -12,7 +63,7 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             email TEXT UNIQUE NOT NULL,
             full_name TEXT,
             hashed_password TEXT NOT NULL,
-            role TEXT DEFAULT 'user',
+            role TEXT REFERENCES roles(name) DEFAULT 'Employee',
             is_active BOOLEAN DEFAULT TRUE,
             microsoft_id TEXT UNIQUE,
             microsoft_token TEXT,
@@ -72,7 +123,7 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             email TEXT UNIQUE,
             phone TEXT,
             date_of_birth TIMESTAMP,
-            role TEXT DEFAULT 'employee',
+            role TEXT REFERENCES roles(name) DEFAULT 'Employee',
             department TEXT,
             position TEXT,
             hire_date TIMESTAMP,
@@ -221,57 +272,7 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
         &[],
     )?;
 
-    // 6. Enhancements (RBAC, Toggles, Audit)
-    client.execute(
-        "CREATE TABLE IF NOT EXISTS roles (
-            id SERIAL PRIMARY KEY,
-            name TEXT UNIQUE NOT NULL,
-            description TEXT,
-            is_custom BOOLEAN DEFAULT FALSE
-        )",
-        &[],
-    )?;
-
-    // Insert default roles if they don't exist
-    client.execute("INSERT INTO roles (name, description, is_custom) VALUES ('CEO', 'Chief Executive Officer', FALSE) ON CONFLICT (name) DO NOTHING", &[])?;
-    client.execute("INSERT INTO roles (name, description, is_custom) VALUES ('Manager', 'Managerial Role', FALSE) ON CONFLICT (name) DO NOTHING", &[])?;
-    client.execute("INSERT INTO roles (name, description, is_custom) VALUES ('Employee', 'Standard Employee', FALSE) ON CONFLICT (name) DO NOTHING", &[])?;
-    client.execute("INSERT INTO roles (name, description, is_custom) VALUES ('Technical', 'System Admin / Technical Support', FALSE) ON CONFLICT (name) DO NOTHING", &[])?;
-
-    client.execute(
-        "CREATE TABLE IF NOT EXISTS permissions (
-            id SERIAL PRIMARY KEY,
-            code TEXT UNIQUE NOT NULL,
-            description TEXT
-        )",
-        &[],
-    )?;
-    
-    // Seed basic permissions (can be expanded)
-    let permissions = vec![
-        ("MANAGE_INVENTORY", "Can add/edit/delete products"),
-        ("VIEW_INVENTORY", "Can view products"),
-        ("MANAGE_EMPLOYEES", "Can add/edit/delete employees"),
-        ("ASSIGN_TOOLS", "Can assign tools to employees"),
-        ("MANAGE_COMPLAINTS", "Can view and resolve complaints"),
-        ("MANAGE_SETTINGS", "Can change system settings"),
-        ("MANAGE_ROLES", "Can create and modify roles"),
-        ("MANAGE_TOOLS", "Can create, update, and delete tools"),
-        ("MANAGE_PROJECTS", "Can create, update, and delete projects"),
-    ];
-    for (code, desc) in permissions {
-        client.execute("INSERT INTO permissions (code, description) VALUES ($1, $2) ON CONFLICT (code) DO NOTHING", &[&code, &desc])?;
-    }
-
-    client.execute(
-        "CREATE TABLE IF NOT EXISTS role_permissions (
-            role_id INTEGER REFERENCES roles(id),
-            permission_id INTEGER REFERENCES permissions(id),
-            PRIMARY KEY (role_id, permission_id)
-        )",
-        &[],
-    )?;
-
+    // 6. Enhancements (Toggles, Audit)
     client.execute(
         "CREATE TABLE IF NOT EXISTS feature_toggles (
             key TEXT PRIMARY KEY,

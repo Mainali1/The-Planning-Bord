@@ -12,26 +12,31 @@ namespace ThePlanningBord.Services
 
     public class IntegrationService : IIntegrationService
     {
-        private readonly IJSRuntime _jsRuntime;
+        private readonly ITauriInterop _tauri;
+        private readonly IUserService _userService;
 
-        public IntegrationService(IJSRuntime jsRuntime)
+        public IntegrationService(ITauriInterop tauri, IUserService userService)
         {
-            _jsRuntime = jsRuntime;
+            _tauri = tauri;
+            _userService = userService;
         }
 
         public async Task<List<Integration>> GetIntegrationsAsync()
         {
-            return await _jsRuntime.InvokeAsync<List<Integration>>("__TAURI__.core.invoke", "get_integrations", new { });
+            var token = await _userService.GetTokenAsync();
+            return await _tauri.InvokeAsync<List<Integration>>("get_integrations", new { token });
         }
 
         public async Task ToggleIntegrationAsync(int id, bool isConnected)
         {
-            await _jsRuntime.InvokeVoidAsync("__TAURI__.core.invoke", "toggle_integration", new { id, isConnected });
+            var token = await _userService.GetTokenAsync();
+            await _tauri.InvokeVoidAsync("toggle_integration", new { id, isConnected, token });
         }
 
         public async Task ConfigureIntegrationAsync(int id, string? apiKey, string? configJson)
         {
-            await _jsRuntime.InvokeVoidAsync("__TAURI__.core.invoke", "configure_integration", new { id, apiKey, configJson });
+            var token = await _userService.GetTokenAsync();
+            await _tauri.InvokeVoidAsync("configure_integration", new { id, apiKey, configJson, token });
         }
     }
 }

@@ -24,66 +24,79 @@ namespace ThePlanningBord.Services
 
     public class InventoryService : IInventoryService
     {
-        private readonly TauriInterop _tauri;
+        private readonly ITauriInterop _tauri;
+        private readonly IUserService _userService;
 
-        public InventoryService(TauriInterop tauri)
+        public InventoryService(ITauriInterop tauri, IUserService userService)
         {
             _tauri = tauri;
+            _userService = userService;
         }
 
         public async Task<PagedResult<Product>> GetProductsAsync(string? search = null, int page = 1, int pageSize = 50)
         {
-            return await _tauri.InvokeAsync<PagedResult<Product>>("get_products", new { search, page, pageSize });
+            var token = await _userService.GetTokenAsync();
+            return await _tauri.InvokeAsync<PagedResult<Product>>("get_products", new { search, page, pageSize, token });
         }
 
         public async Task<long> AddProductAsync(Product product)
         {
-            return await _tauri.InvokeAsync<long>("add_product", new { product });
+            var token = await _userService.GetTokenAsync();
+            return await _tauri.InvokeAsync<long>("add_product", new { product, token });
         }
 
         public async Task UpdateProductAsync(Product product)
         {
-            await _tauri.InvokeVoidAsync("update_product", new { product });
+            var token = await _userService.GetTokenAsync();
+            await _tauri.InvokeVoidAsync("update_product", new { product, token });
         }
 
         public async Task DeleteProductAsync(int id)
         {
-            await _tauri.InvokeVoidAsync("delete_product", new { id });
+            var token = await _userService.GetTokenAsync();
+            await _tauri.InvokeVoidAsync("delete_product", new { id, token });
         }
 
         public async Task<List<Tool>> GetToolsAsync()
         {
-            return await _tauri.InvokeAsync<List<Tool>>("get_tools", new { });
+            var token = await _userService.GetTokenAsync();
+            return await _tauri.InvokeAsync<List<Tool>>("get_tools", new { token });
         }
 
         public async Task<long> AddToolAsync(Tool tool)
         {
-            return await _tauri.InvokeAsync<long>("add_tool", new { tool });
+            var token = await _userService.GetTokenAsync();
+            return await _tauri.InvokeAsync<long>("add_tool", new { tool, token });
         }
 
         public async Task UpdateToolAsync(Tool tool)
         {
-            await _tauri.InvokeVoidAsync("update_tool", new { tool });
+            var token = await _userService.GetTokenAsync();
+            await _tauri.InvokeVoidAsync("update_tool", new { tool, token });
         }
 
         public async Task DeleteToolAsync(int id)
         {
-            await _tauri.InvokeVoidAsync("delete_tool", new { id });
+            var token = await _userService.GetTokenAsync();
+            await _tauri.InvokeVoidAsync("delete_tool", new { id, token });
         }
 
         public async Task AssignToolAsync(int toolId, int employeeId, string condition, string? notes)
         {
-            await _tauri.InvokeVoidAsync("assign_tool", new { toolId, employeeId, condition, notes });
+            var token = await _userService.GetTokenAsync();
+            await _tauri.InvokeVoidAsync("assign_tool", new { toolId, employeeId, condition, notes, token });
         }
 
         public async Task ReturnToolAsync(int toolId, string condition, string? notes)
         {
-            await _tauri.InvokeVoidAsync("return_tool", new { toolId, condition, notes });
+            var token = await _userService.GetTokenAsync();
+            await _tauri.InvokeVoidAsync("return_tool", new { toolId, condition, notes, token });
         }
 
         public async Task<List<ToolAssignment>> GetToolHistoryAsync(int toolId)
         {
-            return await _tauri.InvokeAsync<List<ToolAssignment>>("get_tool_history", new { toolId });
+            var token = await _userService.GetTokenAsync();
+            return await _tauri.InvokeAsync<List<ToolAssignment>>("get_tool_history", new { toolId, token });
         }
     }
 }

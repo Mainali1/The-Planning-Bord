@@ -3,7 +3,15 @@ using System.Text.Json;
 
 namespace ThePlanningBord.Services
 {
-    public class TauriInterop
+    public interface ITauriInterop
+    {
+        bool IsConnected { get; }
+        Task<bool> CheckHealthAsync();
+        Task<T> InvokeAsync<T>(string command, object? args = null);
+        Task InvokeVoidAsync(string command, object? args = null);
+    }
+
+    public class TauriInterop : ITauriInterop
     {
         private readonly IJSRuntime _jsRuntime;
         private readonly NotificationService _notificationService;

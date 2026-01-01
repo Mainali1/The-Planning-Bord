@@ -4,11 +4,20 @@
 @inject ITaskService TaskService
 @inject IJSRuntime JS
 @using ThePlanningBord.Models
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
 
 <PageTitle>Dashboard - The Planning Bord</PageTitle>
 
 <div class="flex justify-between items-center mb-6">
-    <h1 class="text-2xl font-bold text-gray-900">Dashboard</h1>
+    <div>
+        <h1 class="text-2xl font-bold text-gray-900">Dashboard</h1>
+        <AuthorizeView>
+            <Authorized>
+                <p class="text-gray-600 mt-1">Welcome back, <span class="font-medium text-gray-900">@context.User.Identity?.Name</span> <span class="text-sm bg-blue-100 text-blue-800 py-0.5 px-2 rounded-full ml-2">@context.User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value</span></p>
+            </Authorized>
+        </AuthorizeView>
+    </div>
     <div class="flex space-x-2">
         <button @onclick="ToggleEditMode" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-2 px-4 rounded inline-flex items-center">
             <span>@(editMode ? "Done" : "Customize Layout")</span>
@@ -34,28 +43,30 @@
         @if(editMode) { <button @onclick='() => ToggleWidget("lowstock")' class="absolute top-2 right-2 text-red-500">Hide</button> }
     </div>
     }
-    @if (ShowWidget("employees")) {
-    <div class="w-full px-4 py-5 bg-white rounded-lg shadow relative group">
-        <div class="text-sm font-medium text-gray-500 truncate">Active Employees</div>
-        <div class="mt-1 text-3xl font-semibold text-gray-900">@stats.TotalEmployees</div>
-        @if(editMode) { <button @onclick='() => ToggleWidget("employees")' class="absolute top-2 right-2 text-red-500">Hide</button> }
-    </div>
-    }
-    @if (ShowWidget("revenue")) {
-    <div class="w-full px-4 py-5 bg-white rounded-lg shadow relative group">
-        <div class="text-sm font-medium text-gray-500 truncate">Est. Revenue (Mock)</div>
-        <div class="mt-1 text-3xl font-semibold text-green-600">@stats.TotalRevenue.ToString("C")</div>
-        @if(editMode) { <button @onclick='() => ToggleWidget("revenue")' class="absolute top-2 right-2 text-red-500">Hide</button> }
-    </div>
-    }
-    @if (ShowWidget("turnover")) {
-    <div class="w-full px-4 py-5 bg-white rounded-lg shadow relative group">
-        <div class="text-sm font-medium text-gray-500 truncate">Inventory Turnover</div>
-        <div class="mt-1 text-3xl font-semibold text-blue-600">@inventoryTurnover.ToString("0.0")x</div>
-        <div class="text-xs text-green-500">▲ 12% vs last month</div>
-        @if(editMode) { <button @onclick='() => ToggleWidget("turnover")' class="absolute top-2 right-2 text-red-500">Hide</button> }
-    </div>
-    }
+    <AuthorizeView Roles="CEO,Manager">
+        @if (ShowWidget("employees")) {
+        <div class="w-full px-4 py-5 bg-white rounded-lg shadow relative group">
+            <div class="text-sm font-medium text-gray-500 truncate">Active Employees</div>
+            <div class="mt-1 text-3xl font-semibold text-gray-900">@stats.TotalEmployees</div>
+            @if(editMode) { <button @onclick='() => ToggleWidget("employees")' class="absolute top-2 right-2 text-red-500">Hide</button> }
+        </div>
+        }
+        @if (ShowWidget("revenue")) {
+        <div class="w-full px-4 py-5 bg-white rounded-lg shadow relative group">
+            <div class="text-sm font-medium text-gray-500 truncate">Est. Revenue (Mock)</div>
+            <div class="mt-1 text-3xl font-semibold text-green-600">@stats.TotalRevenue.ToString("C")</div>
+            @if(editMode) { <button @onclick='() => ToggleWidget("revenue")' class="absolute top-2 right-2 text-red-500">Hide</button> }
+        </div>
+        }
+        @if (ShowWidget("turnover")) {
+        <div class="w-full px-4 py-5 bg-white rounded-lg shadow relative group">
+            <div class="text-sm font-medium text-gray-500 truncate">Inventory Turnover</div>
+            <div class="mt-1 text-3xl font-semibold text-blue-600">@inventoryTurnover.ToString("0.0")x</div>
+            <div class="text-xs text-green-500">▲ 12% vs last month</div>
+            @if(editMode) { <button @onclick='() => ToggleWidget("turnover")' class="absolute top-2 right-2 text-red-500">Hide</button> }
+        </div>
+        }
+    </AuthorizeView>
 </div>
 
 @if (editMode)

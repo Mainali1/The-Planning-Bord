@@ -5,8 +5,9 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build:css": "tailwindcss -i ./src/styles.css -o ./src/wwwroot/css/app.css",
-    "watch:css": "tailwindcss -i ./src/styles.css -o ./src/wwwroot/css/app.css --watch"
+    "build:css": "npx tailwindcss -i ./src/styles.css -o ./src/wwwroot/css/app.css",
+    "watch:css": "npx tailwindcss -i ./src/styles.css -o ./src/wwwroot/css/app.css --watch",
+    "dev": "concurrently \"npm run watch:css\" \"dotnet watch run --project src/ThePlanningBord.csproj --urls http://localhost:1420\""
   },
   "repository": {
     "type": "git",
@@ -23,6 +24,7 @@
   "devDependencies": {
     "@tauri-apps/cli": "^2.9.6",
     "autoprefixer": "^10.4.23",
+    "concurrently": "^9.2.1",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.19"
   }

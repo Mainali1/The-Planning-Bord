@@ -11,11 +11,15 @@ pub use memory::InMemoryDatabase;
 use crate::models::*;
 
 pub trait Database: Send + Sync {
-    // Setup
     fn get_setup_status(&self) -> Result<bool, String>;
     fn get_type(&self) -> String;
     fn complete_setup(&self, company_name: String, admin_email: String, admin_password: String) -> Result<(), String>;
     fn set_company_name(&self, company_name: String) -> Result<(), String>;
+
+    // Users & Auth
+    fn get_user_by_username(&self, username: String) -> Result<Option<User>, String>;
+    fn create_user(&self, user: User) -> Result<i64, String>;
+    fn update_user_last_login(&self, user_id: i32) -> Result<(), String>;
 
     // Products
     fn get_products(&self, search: Option<String>, page: Option<i32>, page_size: Option<i32>) -> Result<serde_json::Value, String>;

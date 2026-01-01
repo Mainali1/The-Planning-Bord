@@ -1,6 +1,25 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct User {
+    pub id: Option<i32>,
+    pub username: String,
+    pub email: String,
+    pub full_name: Option<String>,
+    #[serde(skip_serializing)] // Don't send hash to frontend
+    pub hashed_password: String,
+    pub role: String,
+    pub is_active: bool,
+    pub last_login: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct LoginResponse {
+    pub user: User,
+    pub token: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Product {
     pub id: Option<i32>,
     pub name: String,

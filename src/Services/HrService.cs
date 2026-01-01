@@ -18,46 +18,55 @@ namespace ThePlanningBord.Services
 
     public class HrService : IHrService
     {
-        private readonly TauriInterop _tauri;
+        private readonly ITauriInterop _tauri;
+        private readonly IUserService _userService;
 
-        public HrService(TauriInterop tauri)
+        public HrService(ITauriInterop tauri, IUserService userService)
         {
             _tauri = tauri;
+            _userService = userService;
         }
 
         public async Task<List<Employee>> GetEmployeesAsync()
         {
-            return await _tauri.InvokeAsync<List<Employee>>("get_employees", new { });
+            var token = await _userService.GetTokenAsync();
+            return await _tauri.InvokeAsync<List<Employee>>("get_employees", new { token });
         }
 
         public async Task<long> AddEmployeeAsync(Employee employee)
         {
-            return await _tauri.InvokeAsync<long>("add_employee", new { employee });
+            var token = await _userService.GetTokenAsync();
+            return await _tauri.InvokeAsync<long>("add_employee", new { employee, token });
         }
 
         public async Task UpdateEmployeeAsync(Employee employee)
         {
-            await _tauri.InvokeVoidAsync("update_employee", new { employee });
+            var token = await _userService.GetTokenAsync();
+            await _tauri.InvokeVoidAsync("update_employee", new { employee, token });
         }
 
         public async Task DeleteEmployeeAsync(int id)
         {
-            await _tauri.InvokeVoidAsync("delete_employee", new { id });
+            var token = await _userService.GetTokenAsync();
+            await _tauri.InvokeVoidAsync("delete_employee", new { id, token });
         }
 
         public async Task<List<AttendanceModel>> GetAttendancesAsync()
         {
-            return await _tauri.InvokeAsync<List<AttendanceModel>>("get_attendances", new { });
+            var token = await _userService.GetTokenAsync();
+            return await _tauri.InvokeAsync<List<AttendanceModel>>("get_attendances", new { token });
         }
 
         public async Task<long> ClockInAsync(AttendanceModel attendance)
         {
-            return await _tauri.InvokeAsync<long>("clock_in", new { attendance });
+            var token = await _userService.GetTokenAsync();
+            return await _tauri.InvokeAsync<long>("clock_in", new { attendance, token });
         }
 
         public async Task ClockOutAsync(AttendanceModel attendance)
         {
-            await _tauri.InvokeVoidAsync("clock_out", new { attendance });
+            var token = await _userService.GetTokenAsync();
+            await _tauri.InvokeVoidAsync("clock_out", new { attendance, token });
         }
     }
 }

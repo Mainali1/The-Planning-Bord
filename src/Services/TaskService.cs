@@ -13,31 +13,37 @@ namespace ThePlanningBord.Services
 
     public class TaskService : ITaskService
     {
-        private readonly TauriInterop _tauri;
+        private readonly ITauriInterop _tauri;
+        private readonly IUserService _userService;
 
-        public TaskService(TauriInterop tauri)
+        public TaskService(ITauriInterop tauri, IUserService userService)
         {
             _tauri = tauri;
+            _userService = userService;
         }
 
         public async Task<List<TaskModel>> GetTasksAsync()
         {
-            return await _tauri.InvokeAsync<List<TaskModel>>("get_tasks", new { });
+            var token = await _userService.GetTokenAsync();
+            return await _tauri.InvokeAsync<List<TaskModel>>("get_tasks", new { token });
         }
 
         public async Task<long> AddTaskAsync(TaskModel task)
         {
-            return await _tauri.InvokeAsync<long>("add_task", new { task });
+            var token = await _userService.GetTokenAsync();
+            return await _tauri.InvokeAsync<long>("add_task", new { task, token });
         }
 
         public async Task UpdateTaskAsync(TaskModel task)
         {
-            await _tauri.InvokeVoidAsync("update_task", new { task });
+            var token = await _userService.GetTokenAsync();
+            await _tauri.InvokeVoidAsync("update_task", new { task, token });
         }
 
         public async Task DeleteTaskAsync(int id)
         {
-            await _tauri.InvokeVoidAsync("delete_task", new { id });
+            var token = await _userService.GetTokenAsync();
+            await _tauri.InvokeVoidAsync("delete_task", new { id, token });
         }
     }
 }

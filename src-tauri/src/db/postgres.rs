@@ -14,6 +14,13 @@ use postgres::{Client, NoTls};
 use postgres::error::SqlState;
 use std::sync::Mutex;
 use chrono::{NaiveDateTime, NaiveDate};
+use argon2::{
+    password_hash::{
+        rand_core::OsRng,
+        PasswordHash, PasswordHasher, PasswordVerifier, SaltString
+    },
+    Argon2
+};
 
 pub struct PostgresDatabase {
     pub client: Mutex<Client>,
@@ -56,13 +63,53 @@ fn parse_timestamp(ts: Option<String>) -> Option<NaiveDateTime> {
             return Some(dt);
         }
         if let Ok(d) = NaiveDate::parse_from_str(&s, "%Y-%m-%d") {
-            return Some(d.and_hms_opt(0, 0, 0).unwrap());
+            return d.and_hms_opt(0, 0, 0);
         }
     }
     None
 }
 
 impl Database for PostgresDatabase {
+    // --- Users & Auth ---
+    fn get_user_by_username(&self, username: String) -> Result<Option<User>, String> {
+        let mut client = self.client.lock().map_err(|_| "Failed to lock db".to_string())?;
+        let row_opt = client.query_opt(
+            "SELECT id, username, email, full_name, hashed_password, role, is_active, last_login FROM users WHERE username = $1",
+            &[&username]
+        ).map_err(|e| e.to_string())?;
+
+        if let Some(row) = row_opt {
+            Ok(Some(User {
+                id: Some(row.get(0)),
+                username: row.get(1),
+                email: row.get(2),
+                full_name: row.get(3),
+                hashed_password: row.get(4),
+                role: row.get(5),
+                is_active: row.get(6),
+                last_login: format_timestamp(row.get(7)),
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn create_user(&self, user: User) -> Result<i64, String> {
+        let mut client = self.client.lock().map_err(|_| "Failed to lock db".to_string())?;
+        let row = client.query_one(
+            "INSERT INTO users (username, email, full_name, hashed_password, role, is_active) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
+            &[&user.username, &user.email, &user.full_name, &user.hashed_password, &user.role, &user.is_active]
+        ).map_err(|e| e.to_string())?;
+        Ok(row.get::<_, i32>(0) as i64)
+    }
+
+    fn update_user_last_login(&self, user_id: i32) -> Result<(), String> {
+        let mut client = self.client.lock().map_err(|_| "Failed to lock db".to_string())?;
+        let now = chrono::Local::now().naive_local();
+        client.execute("UPDATE users SET last_login = $1 WHERE id = $2", &[&now, &user_id]).map_err(|e| e.to_string())?;
+        Ok(())
+    }
+
     // --- Product Commands ---
     fn get_products(&self, search: Option<String>, page: Option<i32>, page_size: Option<i32>) -> Result<serde_json::Value, String> {
         let mut client = self.client.lock().map_err(|_| "Failed to lock db".to_string())?;
@@ -770,9 +817,23 @@ impl Database for PostgresDatabase {
     fn complete_setup(&self, company_name: String, admin_email: String, admin_password: String) -> Result<(), String> {
         let mut client = self.client.lock().map_err(|_| "Failed to lock db".to_string())?;
         let setup_completed_at = chrono::Local::now().naive_local();
-        // Assuming admin_password corresponds to license_key or similar credential in this schema context, 
-        // or just storing it in license_key column for now as per previous implementation logic.
-        client.execute("INSERT INTO setup_config (company_name, company_email, license_key, setup_completed, setup_completed_at) VALUES ($1, $2, $3, TRUE, $4)", &[&company_name, &admin_email, &admin_password, &setup_completed_at]).map_err(|e| e.to_string())?;
+        
+        // 1. Create Admin User
+        let salt = SaltString::generate(&mut OsRng);
+        let argon2 = Argon2::default();
+        let password_hash = argon2.hash_password(admin_password.as_bytes(), &salt).map_err(|e| e.to_string())?.to_string();
+
+        let username = admin_email.split('@').next().unwrap_or("admin").to_string();
+
+        client.execute(
+            "INSERT INTO users (username, email, full_name, hashed_password, role, is_active) VALUES ($1, $2, $3, $4, 'CEO', TRUE) ON CONFLICT (email) DO NOTHING",
+            &[&username, &admin_email, &"System Administrator", &password_hash]
+        ).map_err(|e| e.to_string())?;
+
+        // 2. Setup config
+        // Use a placeholder or generated license key, don't store password as license key
+        let license_key = "FREE-LICENSE-KEY"; 
+        client.execute("INSERT INTO setup_config (company_name, company_email, license_key, setup_completed, setup_completed_at) VALUES ($1, $2, $3, TRUE, $4)", &[&company_name, &admin_email, &license_key, &setup_completed_at]).map_err(|e| e.to_string())?;
         Ok(())
     }
 

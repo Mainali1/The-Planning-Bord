@@ -21,71 +21,85 @@ namespace ThePlanningBord.Services
 
     public class ProjectService : IProjectService
     {
-        private readonly TauriInterop _tauri;
+        private readonly ITauriInterop _tauri;
+        private readonly IUserService _userService;
 
-        public ProjectService(TauriInterop tauri)
+        public ProjectService(ITauriInterop tauri, IUserService userService)
         {
             _tauri = tauri;
+            _userService = userService;
         }
 
         public async Task<List<Project>> GetProjectsAsync()
         {
-            return await _tauri.InvokeAsync<List<Project>>("get_projects", new { });
+            var token = await _userService.GetTokenAsync();
+            return await _tauri.InvokeAsync<List<Project>>("get_projects", new { token });
         }
 
         public async Task<long> AddProjectAsync(Project project)
         {
-            return await _tauri.InvokeAsync<long>("add_project", new { project });
+            var token = await _userService.GetTokenAsync();
+            return await _tauri.InvokeAsync<long>("add_project", new { project, token });
         }
 
         public async Task<List<ProjectTask>> GetProjectTasksAsync(int projectId)
         {
-            return await _tauri.InvokeAsync<List<ProjectTask>>("get_project_tasks", new { projectId });
+            var token = await _userService.GetTokenAsync();
+            return await _tauri.InvokeAsync<List<ProjectTask>>("get_project_tasks", new { projectId, token });
         }
 
         public async Task<long> AddProjectTaskAsync(ProjectTask task)
         {
-            return await _tauri.InvokeAsync<long>("add_project_task", new { task });
+            var token = await _userService.GetTokenAsync();
+            return await _tauri.InvokeAsync<long>("add_project_task", new { task, token });
         }
         
         public async Task UpdateProjectAsync(Project project)
         {
-            await _tauri.InvokeVoidAsync("update_project", new { project });
+            var token = await _userService.GetTokenAsync();
+            await _tauri.InvokeVoidAsync("update_project", new { project, token });
         }
 
         public async Task UpdateProjectTaskAsync(ProjectTask task)
         {
-            await _tauri.InvokeVoidAsync("update_project_task", new { task });
+            var token = await _userService.GetTokenAsync();
+            await _tauri.InvokeVoidAsync("update_project_task", new { task, token });
         }
 
         public async Task DeleteProjectTaskAsync(int id)
         {
-            await _tauri.InvokeVoidAsync("delete_project_task", new { id });
+            var token = await _userService.GetTokenAsync();
+            await _tauri.InvokeVoidAsync("delete_project_task", new { id, token });
         }
 
         public async Task DeleteProjectAsync(int id)
         {
-            await _tauri.InvokeVoidAsync("delete_project", new { id });
+            var token = await _userService.GetTokenAsync();
+            await _tauri.InvokeVoidAsync("delete_project", new { id, token });
         }
 
         public async Task AssignProjectEmployeeAsync(int projectId, int employeeId, string role)
         {
-            await _tauri.InvokeVoidAsync("assign_project_employee", new { projectId, employeeId, role });
+            var token = await _userService.GetTokenAsync();
+            await _tauri.InvokeVoidAsync("assign_project_employee", new { projectId, employeeId, role, token });
         }
 
         public async Task<List<ProjectAssignment>> GetProjectAssignmentsAsync(int projectId)
         {
-            return await _tauri.InvokeAsync<List<ProjectAssignment>>("get_project_assignments", new { projectId });
+            var token = await _userService.GetTokenAsync();
+            return await _tauri.InvokeAsync<List<ProjectAssignment>>("get_project_assignments", new { projectId, token });
         }
 
         public async Task<List<ProjectAssignment>> GetAllProjectAssignmentsAsync()
         {
-            return await _tauri.InvokeAsync<List<ProjectAssignment>>("get_all_project_assignments", new { });
+            var token = await _userService.GetTokenAsync();
+            return await _tauri.InvokeAsync<List<ProjectAssignment>>("get_all_project_assignments", new { token });
         }
 
         public async Task RemoveProjectAssignmentAsync(int projectId, int employeeId)
         {
-            await _tauri.InvokeVoidAsync("remove_project_assignment", new { projectId, employeeId });
+            var token = await _userService.GetTokenAsync();
+            await _tauri.InvokeVoidAsync("remove_project_assignment", new { projectId, employeeId, token });
         }
     }
 }

@@ -9,15 +9,20 @@ namespace ThePlanningBord.Services
         Task LogoutAsync();
         Task<User?> GetCurrentUserAsync();
         Task<bool> IsAuthenticatedAsync();
+        Task<string?> GetTokenAsync();
     }
 
     public class UserService : IUserService
     {
+        private readonly ITauriInterop _tauriInterop;
         private readonly IJSRuntime _jsRuntime;
         private User? _currentUser;
 
-        public UserService(IJSRuntime jsRuntime)
+        private string? _token;
+
+        public UserService(ITauriInterop tauriInterop, IJSRuntime jsRuntime)
         {
+            _tauriInterop = tauriInterop;
             _jsRuntime = jsRuntime;
         }
 
@@ -25,30 +30,15 @@ namespace ThePlanningBord.Services
         {
             try
             {
-                // In a real app, we would hash password and verify with backend
-                // Here we invoke a Rust command or simulate
-                // For now, let's assume we have a 'login_user' command in Rust or just mock it for this step
-                // Since I haven't implemented 'login_user' in Rust yet, I'll simulate or use a simple check
-                // But wait, the db.rs has a 'users' table with 'hashed_password'.
-                // I should implement 'login_user' in Rust properly.
-                // For this refactoring step, I will use a mock that returns a user if username is 'admin'
+                // Call Rust backend
+                var response = await _tauriInterop.InvokeAsync<LoginResponse>("login", new { username = username, password_plain = password });
                 
-                // TODO: Implement actual backend login command
-                // var user = await _jsRuntime.InvokeAsync<User>("__TAURI__.core.invoke", "login_user", new { username, password });
-                
-                // Mock implementation
-                if (username == "admin" && password == "admin") 
+                if (response != null && response.User != null)
                 {
-                    _currentUser = new User 
-                    { 
-                        Id = 1, 
-                        Username = "admin", 
-                        Email = "admin@example.com", 
-                        FullName = "System Administrator", 
-                        Role = "CEO", 
-                        IsActive = true 
-                    };
+                    _currentUser = response.User;
+                    _token = response.Token;
                     await _jsRuntime.InvokeVoidAsync("sessionStorage.setItem", "currentUser", System.Text.Json.JsonSerializer.Serialize(_currentUser));
+                    await _jsRuntime.InvokeVoidAsync("sessionStorage.setItem", "authToken", _token);
                     return _currentUser;
                 }
                 
@@ -64,7 +54,9 @@ namespace ThePlanningBord.Services
         public async Task LogoutAsync()
         {
             _currentUser = null;
+            _token = null;
             await _jsRuntime.InvokeVoidAsync("sessionStorage.removeItem", "currentUser");
+            await _jsRuntime.InvokeVoidAsync("sessionStorage.removeItem", "authToken");
         }
 
         public async Task<User?> GetCurrentUserAsync()
@@ -77,11 +69,21 @@ namespace ThePlanningBord.Services
                 if (!string.IsNullOrEmpty(userJson))
                 {
                     _currentUser = System.Text.Json.JsonSerializer.Deserialize<User>(userJson);
+                    _token = await _jsRuntime.InvokeAsync<string>("sessionStorage.getItem", "authToken");
                 }
             }
             catch { }
 
             return _currentUser;
+        }
+
+        public async Task<string?> GetTokenAsync()
+        {
+            if (_token == null)
+            {
+                await GetCurrentUserAsync();
+            }
+            return _token;
         }
 
         public async Task<bool> IsAuthenticatedAsync()

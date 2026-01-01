@@ -1,8 +1,11 @@
 @inherits LayoutComponentBase
 @inject BackgroundJobService BackgroundService
 @inject ISystemService SystemService
+@inject IUserService UserService
 @inject NavigationManager Navigation
 @inject NotificationService NotificationService
+@inject AuthenticationStateProvider AuthStateProvider
+@using ThePlanningBord.Auth
 
     <div class="flex h-screen bg-gray-100 font-sans overflow-hidden">
         <!-- Sidebar -->
@@ -30,9 +33,9 @@
                         </svg>
                     </button>
                     <span class="text-sm text-gray-500">License: Active</span>
-                    <div class="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center text-white">
-                        A
-                    </div>
+                    <button @onclick="Logout" class="text-sm text-red-600 hover:text-red-800 font-medium border border-red-200 rounded px-3 py-1 hover:bg-red-50">
+                        Logout
+                    </button>
                 </div>
             </div>
         </header>
@@ -65,6 +68,8 @@
                 Navigation.NavigateTo("/setup", true);
                 return;
             }
+
+            // Auth check is now handled by App.razor and AuthorizeRouteView
         }
         catch (Exception ex)
         {
@@ -72,6 +77,16 @@
         }
 
         BackgroundService.Start();
+    }
+
+    private async Task Logout()
+    {
+        await UserService.LogoutAsync();
+        if (AuthStateProvider is CustomAuthenticationStateProvider customAuth)
+        {
+            customAuth.NotifyUserLogout();
+        }
+        Navigation.NavigateTo("/login");
     }
 
     private void OpenHelp()

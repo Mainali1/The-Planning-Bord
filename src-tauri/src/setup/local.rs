@@ -169,8 +169,9 @@ fn start_system_postgres(app: &tauri::AppHandle) -> Result<String, String> {
     let data = system_pg_data_dir(app);
     if !data.exists() {
         fs::create_dir_all(&data).map_err(|e| e.to_string())?;
+        let data_str = data.to_str().ok_or("Invalid data path encoding")?;
         let status = Command::new(&initdb)
-            .args(["-D", data.to_str().unwrap(), "-U", "postgres", "-A", "trust"])
+            .args(["-D", data_str, "-U", "postgres", "-A", "trust"])
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .status()
@@ -184,8 +185,10 @@ fn start_system_postgres(app: &tauri::AppHandle) -> Result<String, String> {
     writeln!(log, "starting system postgres").map_err(|e| e.to_string())?;
     
     // Try start
+    let data_str = data.to_str().ok_or("Invalid data path encoding")?;
+    let log_str = log_file.to_str().ok_or("Invalid log path encoding")?;
     let _ = Command::new(&pg_ctl)
-        .args(["-D", data.to_str().unwrap(), "-l", log_file.to_str().unwrap(), "start", "-o", "-p 5432"])
+        .args(["-D", data_str, "-l", log_str, "start", "-o", "-p 5432"])
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .status();

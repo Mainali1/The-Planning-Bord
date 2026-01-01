@@ -23,12 +23,15 @@ namespace ThePlanningBord.Models
         public bool IsActive { get; set; }
 
         [JsonPropertyName("last_login")]
-        public DateTime? LastLogin { get; set; }
+        public string? LastLogin { get; set; }
     }
 
-    public class LoginRequest
+    public class LoginResponse
     {
-        public string Username { get; set; } = string.Empty;
-        public string Password { get; set; } = string.Empty;
+        [JsonPropertyName("user")]
+        public User User { get; set; } = new User();
+
+        [JsonPropertyName("token")]
+        public string Token { get; set; } = string.Empty;
     }
 }

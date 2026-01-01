@@ -21,14 +21,14 @@ fn resource_bin(app: &tauri::AppHandle) -> Option<PathBuf> {
     Some(dir.join("postgres").join(os_dir()).join("bin"))
 }
 
-fn data_dir(app: &tauri::AppHandle) -> PathBuf {
-    let base = app.path().app_local_data_dir().unwrap();
-    base.join("embedded_pg_data")
+fn data_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    let base = app.path().app_local_data_dir().map_err(|_| "Failed to get app data dir".to_string())?;
+    Ok(base.join("embedded_pg_data"))
 }
 
-fn pid_file(app: &tauri::AppHandle) -> PathBuf {
-    let base = app.path().app_local_data_dir().unwrap();
-    base.join("embedded_pg.pid")
+fn pid_file(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    let base = app.path().app_local_data_dir().map_err(|_| "Failed to get app data dir".to_string())?;
+    Ok(base.join("embedded_pg.pid"))
 }
 
 fn pick_port() -> i32 {
@@ -61,17 +61,19 @@ pub fn start_embedded_postgres(app: &tauri::AppHandle) -> Result<String, String>
     if !initdb.exists() || !postgres.exists() {
         return Err("embedded postgres binaries missing".to_string());
     }
-    let data = data_dir(app);
+    let data = data_dir(app)?;
     if !data.exists() {
         fs::create_dir_all(&data).map_err(|e| e.to_string())?;
-        let status = Command::new(&initdb).args(["-D", data.to_str().unwrap(), "-U", "postgres", "-A", "trust"]).status().map_err(|e| e.to_string())?;
+        let data_str = data.to_str().ok_or("Invalid data path encoding")?;
+        let status = Command::new(&initdb).args(["-D", data_str, "-U", "postgres", "-A", "trust"]).status().map_err(|e| e.to_string())?;
         if !status.success() {
             return Err("initdb failed".to_string());
         }
     }
     let port = pick_port();
-    let child = Command::new(&postgres).args(["-D", data.to_str().unwrap(), "-p", &port.to_string()]).stdout(Stdio::null()).stderr(Stdio::null()).spawn().map_err(|e| e.to_string())?;
-    let mut f = fs::File::create(pid_file(app)).map_err(|e| e.to_string())?;
+    let data_str = data.to_str().ok_or("Invalid data path encoding")?;
+    let child = Command::new(&postgres).args(["-D", data_str, "-p", &port.to_string()]).stdout(Stdio::null()).stderr(Stdio::null()).spawn().map_err(|e| e.to_string())?;
+    let mut f = fs::File::create(pid_file(app)?).map_err(|e| e.to_string())?;
     write!(f, "{}", child.id()).map_err(|e| e.to_string())?;
     std::thread::sleep(Duration::from_secs(1));
     create_db_if_missing(port)?;
@@ -83,7 +85,7 @@ pub fn start_embedded_postgres(app: &tauri::AppHandle) -> Result<String, String>
 }
 
 pub fn stop_embedded_postgres(app: &tauri::AppHandle) -> Result<(), String> {
-    let pid_path = pid_file(app);
+    let pid_path = pid_file(app)?;
     if let Ok(s) = fs::read_to_string(&pid_path) {
         if let Ok(pid) = s.trim().parse::<u32>() {
             if cfg!(target_os = "windows") {
