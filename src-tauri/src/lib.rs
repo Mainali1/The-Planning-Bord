@@ -5,7 +5,7 @@ pub mod setup;
 use tauri::{State, Manager};
 use std::sync::RwLock;
 use std::collections::HashMap;
-use models::{Product, Employee, Payment, DashboardStats, Task, Attendance, ReportSummary, ChartDataPoint, Complaint, Tool, Role, Permission, FeatureToggle, ToolAssignment, AuditLog, DashboardConfig, Project, ProjectTask, ProjectAssignment, Account, Invoice, Integration, User, LoginResponse};
+use models::{Product, Employee, Payment, DashboardStats, Task, Attendance, ReportSummary, ChartDataPoint, Complaint, Tool, Role, Permission, FeatureToggle, ToolAssignment, AuditLog, DashboardConfig, Project, ProjectTask, ProjectAssignment, Account, Invoice, Integration, User, LoginResponse, Invite};
 use db::{Database, DbConfig, PostgresDatabase};
 use argon2::{
     password_hash::{
@@ -15,10 +15,22 @@ use argon2::{
     Argon2
 };
 use uuid::Uuid;
+use jsonwebtoken::{encode, decode, Header, Validation, EncodingKey, DecodingKey};
+use serde::{Deserialize, Serialize};
+use rand::Rng;
+
+#[derive(Debug, Serialize, Deserialize)]
+struct InviteClaims {
+    sub: String, // email
+    role: String,
+    name: String,
+    exp: usize,
+}
 
 pub struct AppState {
     pub db: RwLock<Box<dyn Database + Send + Sync>>,
     pub sessions: RwLock<HashMap<String, User>>,
+    pub jwt_secret: String,
 }
 
 fn add_connect_timeout(url: &str) -> String {
@@ -71,6 +83,146 @@ fn login(state: State<AppState>, username: String, password_plain: String) -> Re
     } else {
         Err("Invalid credentials".to_string())
     }
+}
+
+#[tauri::command]
+fn verify_connection(connection_string: String) -> Result<bool, String> {
+    let conn = add_connect_timeout(&connection_string);
+    // Attempt to connect/init. init_db handles basic connection check.
+    match db::postgres_init::init_db(&conn) {
+        Ok(_) => Ok(true),
+        Err(e) => Err(format!("Connection failed: {:?}", e)),
+    }
+}
+
+#[tauri::command]
+fn generate_invite_token(state: State<AppState>, role: String, name: String, email: String, expiration_hours: u64, token: String) -> Result<String, String> {
+    let user = check_auth(&state, &token, vec!["CEO", "Manager"])?;
+
+    // 1. Generate JWT as the invite token
+    let expiration_ts = chrono::Utc::now()
+        .checked_add_signed(chrono::Duration::hours(expiration_hours as i64))
+        .expect("valid timestamp")
+        .timestamp() as usize;
+    
+    // We also calculate a formatted string for DB storage
+    let expiration_db = chrono::Local::now()
+        .checked_add_signed(chrono::Duration::hours(expiration_hours as i64))
+        .expect("valid timestamp")
+        .format("%Y-%m-%d %H:%M:%S")
+        .to_string();
+
+    let claims = InviteClaims {
+        sub: email.clone(),
+        role: role.clone(),
+        name: name.clone(),
+        exp: expiration_ts,
+    };
+
+    // Use secret from state (loaded from secrets.json or generated)
+    let secret = &state.jwt_secret; 
+    let invite_token = encode(&Header::default(), &claims, &EncodingKey::from_secret(secret.as_ref()))
+        .map_err(|e| e.to_string())?;
+
+    // 2. Store in Database
+    let invite = Invite {
+        id: None,
+        token: invite_token.clone(),
+        role: role.clone(),
+        name,
+        email: email.clone(),
+        expiration: expiration_db,
+        is_used: false,
+    };
+    
+    {
+        let db = state.db.read().map_err(|e| e.to_string())?;
+        db.create_invite(invite)?;
+        // Log activity
+        let _ = db.log_activity(user.id, "generate_invite".to_string(), Some("Invite".to_string()), None, Some(format!("Role: {}, Email: {}", role, email)));
+    }
+
+    Ok(invite_token)
+}
+
+#[tauri::command]
+fn check_invite_token(state: State<AppState>, invite_token: String) -> Result<InviteClaims, String> {
+    // 1. Validate JWT structure and expiration
+    let secret = &state.jwt_secret;
+    let token_data = decode::<InviteClaims>(&invite_token, &DecodingKey::from_secret(secret.as_ref()), &Validation::default())
+        .map_err(|_| "Invalid or expired token".to_string())?;
+
+    let claims = token_data.claims;
+    let db = state.db.read().map_err(|e| e.to_string())?;
+    
+    // 2. Verify against Database (check if used or revoked)
+    let stored_invite = db.get_invite(invite_token.clone())?
+        .ok_or("Invite not found in database".to_string())?;
+        
+    if stored_invite.is_used {
+        return Err("Invite has already been used".to_string());
+    }
+    
+    Ok(claims)
+}
+
+#[tauri::command]
+fn accept_invite(state: State<AppState>, invite_token: String, password_plain: String, username: String, full_name: String) -> Result<LoginResponse, String> {
+    // 1. Validate JWT structure and expiration
+    let secret = &state.jwt_secret;
+    let token_data = decode::<InviteClaims>(&invite_token, &DecodingKey::from_secret(secret.as_ref()), &Validation::default())
+        .map_err(|_| "Invalid or expired token".to_string())?;
+
+    let claims = token_data.claims;
+    let db = state.db.read().map_err(|e| e.to_string())?;
+    
+    // 2. Verify against Database
+    let stored_invite = db.get_invite(invite_token.clone())?
+        .ok_or("Invite not found in database".to_string())?;
+        
+    if stored_invite.is_used {
+        return Err("Invite has already been used".to_string());
+    }
+
+    // Check if username taken
+    if db.check_username_exists(username.clone())? {
+        return Err("Username already taken".to_string());
+    }
+
+    // 3. Create User
+    // Hash password
+    let salt = SaltString::generate(&mut OsRng);
+    let argon2 = Argon2::default();
+    let password_hash = argon2.hash_password(password_plain.as_bytes(), &salt).map_err(|e| e.to_string())?.to_string();
+
+    let new_user = User {
+        id: None,
+        username: username,
+        email: claims.sub.clone(),
+        full_name: Some(full_name),
+        hashed_password: password_hash,
+        role: claims.role,
+        is_active: true,
+        last_login: Some(chrono::Local::now().to_string()),
+    };
+    let id = db.create_user(new_user.clone())?;
+    let mut user = new_user;
+    user.id = Some(id as i32);
+
+    // 4. Mark invite as used
+    db.mark_invite_used(invite_token)?;
+    
+    // Log activity
+    let _ = db.log_activity(user.id, "accept_invite".to_string(), Some("User".to_string()), user.id, Some("User joined via invite".to_string()));
+
+    // 5. Create session
+    let session_token = Uuid::new_v4().to_string();
+    state.sessions.write().map_err(|e| e.to_string())?.insert(session_token.clone(), user.clone());
+
+    Ok(LoginResponse {
+        user,
+        token: session_token
+    })
 }
 
 // Helper for verifying auth
@@ -407,9 +559,14 @@ fn get_setup_status(state: State<AppState>) -> Result<bool, String> {
 }
 
 #[tauri::command]
-fn complete_setup(state: State<AppState>, company_name: String, admin_email: String, admin_password: String) -> Result<(), String> {
+fn check_username(state: State<AppState>, username: String) -> Result<bool, String> {
+    state.db.read().map_err(|e| e.to_string())?.check_username_exists(username)
+}
+
+#[tauri::command]
+fn complete_setup(state: State<AppState>, company_name: String, admin_name: String, admin_email: String, admin_password: String, admin_username: String) -> Result<(), String> {
     let db = state.db.read().map_err(|e| e.to_string())?;
-    db.complete_setup(company_name, admin_email, admin_password)
+    db.complete_setup(company_name, admin_name, admin_email, admin_password, admin_username)
 }
 
 #[tauri::command]
@@ -691,14 +848,42 @@ pub fn run() {
                  }
             }
 
+            // Load or Generate JWT Secret
+            let secret_path = app_data_dir.join("secrets.json");
+            let jwt_secret = if secret_path.exists() {
+                if let Ok(content) = std::fs::read_to_string(&secret_path) {
+                    // Simple JSON: {"jwt_secret": "..."}
+                    if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+                        json["jwt_secret"].as_str().unwrap_or("default_fallback_secret").to_string()
+                    } else {
+                        "default_fallback_secret".to_string()
+                    }
+                } else {
+                    "default_fallback_secret".to_string()
+                }
+            } else {
+                // Generate a secure 32-byte hex secret (256 bits of entropy) using CSPRNG
+                let secret: String = (0..32)
+                    .map(|_| rand::thread_rng().gen::<u8>())
+                    .map(|b| format!("{:02x}", b))
+                    .collect();
+                
+                let json = serde_json::json!({ "jwt_secret": secret });
+                if let Ok(content) = serde_json::to_string_pretty(&json) {
+                    let _ = std::fs::write(&secret_path, content);
+                }
+                secret
+            };
+
             app.manage(AppState { 
                 db: RwLock::new(db),
-                sessions: RwLock::new(HashMap::new())
+                sessions: RwLock::new(HashMap::new()),
+                jwt_secret
             });
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            greet, ping, login, register_user,
+            greet, ping, login, register_user, verify_connection, generate_invite_token, check_invite_token, accept_invite,
             get_products, add_product, update_product, delete_product,
             get_employees, add_employee, update_employee, delete_employee,
             get_payments, add_payment, update_payment, delete_payment,
@@ -711,7 +896,7 @@ pub fn run() {
             assign_tool, return_tool, get_tool_history,
             get_roles, add_role, get_permissions, get_role_permissions, update_role_permissions,
             get_feature_toggles, set_feature_toggle,
-            get_setup_status, complete_setup, get_active_db_type,
+            get_setup_status, complete_setup, check_username, get_active_db_type,
             get_audit_logs,
             get_dashboard_configs, save_dashboard_config,
             get_projects, add_project, update_project, get_project_tasks, add_project_task, update_project_task, delete_project, assign_project_employee, get_project_assignments, get_all_project_assignments, remove_project_assignment, delete_project_task,

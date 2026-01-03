@@ -70,12 +70,19 @@ namespace ThePlanningBord.Services
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[TauriInterop] Command '{command}' failed (Attempt {i + 1}/{maxRetries}): {ex.Message}");
+                    string msg = ex.Message;
+                    // Check for non-retryable errors (Validation)
+                    if (msg.Contains("Invalid") || msg.Contains("taken") || msg.Contains("used") || msg.Contains("not found") || msg.Contains("Incorrect"))
+                    {
+                         throw new TauriValidationException(msg, ex);
+                    }
+
+                    Console.WriteLine($"[TauriInterop] Command '{command}' failed (Attempt {i + 1}/{maxRetries}): {msg}");
                     
                     if (i == maxRetries - 1)
                     {
                         IsConnected = false;
-                        _notificationService.ShowError($"System Error: Failed to execute {command}. Please restart the app.");
+                        _notificationService.ShowError($"System Error ({command}): {msg}");
                         throw;
                     }
 
@@ -114,13 +121,24 @@ namespace ThePlanningBord.Services
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[TauriInterop] Command '{command}' failed (Attempt {i + 1}/{maxRetries}): {ex.Message}");
+                    string msg = ex.Message;
+                    // Check for non-retryable errors (Validation)
+                    if (msg.Contains("Invalid") || msg.Contains("taken") || msg.Contains("used") || msg.Contains("not found") || msg.Contains("Incorrect"))
+                    {
+                         throw new TauriValidationException(msg, ex);
+                    }
+
+                    Console.WriteLine($"[TauriInterop] Command '{command}' failed (Attempt {i + 1}/{maxRetries}): {msg}");
 
                     if (i == maxRetries - 1)
                     {
                         IsConnected = false;
-                        _notificationService.ShowError($"System Error: Failed to execute {command}. Please restart the app.");
-                        throw;
+                        _notificationService.ShowError($"System Error ({command}): {msg}");
+                        
+                         if (msg.Contains("Connection") || msg.Contains("timeout") || msg.Contains("Network"))
+                             throw new TauriNetworkException(msg, ex);
+
+                        throw new TauriException($"Command {command} failed: {msg}", ex);
                     }
 
                     await Task.Delay(delay);

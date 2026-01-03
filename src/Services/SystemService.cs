@@ -7,10 +7,12 @@ namespace ThePlanningBord.Services
     {
         // Setup
         Task<bool> GetSetupStatusAsync();
-        Task CompleteSetupAsync(string companyName, string adminEmail, string adminPassword);
+        Task<bool> CheckUsernameExistsAsync(string username);
+        Task CompleteSetupAsync(string companyName, string adminName, string adminEmail, string adminPassword, string adminUsername);
         Task<string> GreetAsync(string name);
         Task SaveDbConfigAsync(DbConfig config);
         Task<string> EnsureLocalDbAsync(string? connectionString = null);
+        Task<bool> VerifyConnectionAsync(string connectionString);
         Task CleanupLocalDbAsync();
         Task<bool> CheckEmbeddedPostgresAsync();
         Task<bool> CheckPostgresInstalledAsync();
@@ -59,9 +61,14 @@ namespace ThePlanningBord.Services
             return await _tauri.InvokeAsync<bool>("get_setup_status", new { });
         }
 
-        public async Task CompleteSetupAsync(string companyName, string adminEmail, string adminPassword)
+        public async Task<bool> CheckUsernameExistsAsync(string username)
         {
-            await _tauri.InvokeVoidAsync("complete_setup", new { companyName, adminEmail, adminPassword });
+            return await _tauri.InvokeAsync<bool>("check_username", new { username });
+        }
+
+        public async Task CompleteSetupAsync(string companyName, string adminName, string adminEmail, string adminPassword, string adminUsername)
+        {
+            await _tauri.InvokeVoidAsync("complete_setup", new { companyName, adminName, adminEmail, adminPassword, adminUsername });
         }
 
         public async Task SaveDbConfigAsync(DbConfig config)
@@ -72,6 +79,18 @@ namespace ThePlanningBord.Services
         public async Task<string> EnsureLocalDbAsync(string? connectionString = null)
         {
             return await _tauri.InvokeAsync<string>("ensure_local_db", new { connectionString });
+        }
+
+        public async Task<bool> VerifyConnectionAsync(string connectionString)
+        {
+            try
+            {
+                return await _tauri.InvokeAsync<bool>("verify_connection", new { connectionString });
+            }
+            catch
+            {
+                return false;
+            }
         }
         
         public async Task CleanupLocalDbAsync()

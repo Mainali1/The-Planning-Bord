@@ -75,6 +75,27 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
         &[],
     )?;
 
+    // Patch users
+    let _ = client.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS username TEXT UNIQUE", &[]);
+    let _ = client.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'Employee'", &[]);
+    let _ = client.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE", &[]);
+
+
+    // Invite Tokens
+    client.execute(
+        "CREATE TABLE IF NOT EXISTS user_invites (
+            id SERIAL PRIMARY KEY,
+            token TEXT UNIQUE NOT NULL,
+            role TEXT NOT NULL,
+            name TEXT NOT NULL,
+            email TEXT NOT NULL,
+            expiration TIMESTAMP NOT NULL,
+            is_used BOOLEAN DEFAULT FALSE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )",
+        &[],
+    )?;
+
     // 2. Inventory Management
     client.execute(
         "CREATE TABLE IF NOT EXISTS products (
@@ -242,6 +263,13 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
         )",
         &[],
     )?;
+
+    // Patch for existing tables (Migration)
+    let _ = client.execute("ALTER TABLE setup_config ADD COLUMN IF NOT EXISTS license_key TEXT", &[]);
+    let _ = client.execute("ALTER TABLE setup_config ADD COLUMN IF NOT EXISTS admin_user_id INTEGER REFERENCES users(id)", &[]);
+    let _ = client.execute("ALTER TABLE setup_config ADD COLUMN IF NOT EXISTS setup_completed BOOLEAN DEFAULT FALSE", &[]);
+    let _ = client.execute("ALTER TABLE setup_config ADD COLUMN IF NOT EXISTS setup_completed_at TIMESTAMP", &[]);
+
 
     client.execute(
         "CREATE TABLE IF NOT EXISTS complaints (

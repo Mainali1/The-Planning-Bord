@@ -23,12 +23,14 @@ pub struct InMemoryDatabase {
     accounts: RwLock<Vec<Account>>,
     invoices: RwLock<Vec<Invoice>>,
     integrations: RwLock<Vec<Integration>>,
+    invites: RwLock<Vec<Invite>>,
 }
 
 impl InMemoryDatabase {
     pub fn new() -> Self {
         Self {
             users: RwLock::new(Vec::new()),
+            invites: RwLock::new(Vec::new()),
             products: RwLock::new(Vec::new()),
             employees: RwLock::new(Vec::new()),
             payments: RwLock::new(Vec::new()),
@@ -53,12 +55,16 @@ impl InMemoryDatabase {
 }
 
 impl Database for InMemoryDatabase {
-    fn get_setup_status(&self) -> Result<bool, String> { Ok(true) }
+    fn get_setup_status(&self) -> Result<bool, String> { Ok(false) }
     fn get_type(&self) -> String { "memory".to_string() }
-    fn complete_setup(&self, _c: String, _e: String, _p: String) -> Result<(), String> { Ok(()) }
+    fn complete_setup(&self, _c: String, _n: String, _e: String, _p: String, _u: String) -> Result<(), String> { Ok(()) }
     fn set_company_name(&self, _n: String) -> Result<(), String> { Ok(()) }
 
     // Users & Auth
+    fn check_username_exists(&self, username: String) -> Result<bool, String> {
+        let users = self.users.read().map_err(|_| "Failed to acquire lock".to_string())?;
+        Ok(users.iter().any(|u| u.username == username))
+    }
     fn get_user_by_username(&self, username: String) -> Result<Option<User>, String> {
         let users = self.users.read().map_err(|_| "Failed to acquire lock".to_string())?;
         Ok(users.iter().find(|u| u.username == username).cloned())
@@ -70,12 +76,46 @@ impl Database for InMemoryDatabase {
         users.push(user);
         Ok(id as i64)
     }
+    fn update_user(&self, user: User) -> Result<(), String> {
+        let mut users = self.users.write().map_err(|_| "Failed to acquire lock".to_string())?;
+        let user_id = user.id.ok_or("User ID is required for update")?;
+        if let Some(existing) = users.iter_mut().find(|u| u.id == Some(user_id)) {
+            *existing = user;
+            Ok(())
+        } else {
+            Err("User not found".to_string())
+        }
+    }
     fn update_user_last_login(&self, user_id: i32) -> Result<(), String> {
         let mut users = self.users.write().map_err(|_| "Failed to acquire lock".to_string())?;
         if let Some(user) = users.iter_mut().find(|u| u.id == Some(user_id)) {
             user.last_login = Some(chrono::Local::now().to_string());
         }
         Ok(())
+    }
+
+    // Invites
+    fn create_invite(&self, mut invite: Invite) -> Result<i64, String> {
+        let mut invites = self.invites.write().map_err(|_| "Failed to acquire lock".to_string())?;
+        let id = (invites.iter().map(|x| x.id.unwrap_or(0)).max().unwrap_or(0) + 1) as i32;
+        invite.id = Some(id);
+        invites.push(invite);
+        Ok(id as i64)
+    }
+
+    fn get_invite(&self, token: String) -> Result<Option<Invite>, String> {
+        let invites = self.invites.read().map_err(|_| "Failed to acquire lock".to_string())?;
+        Ok(invites.iter().find(|i| i.token == token).cloned())
+    }
+
+    fn mark_invite_used(&self, token: String) -> Result<(), String> {
+        let mut invites = self.invites.write().map_err(|_| "Failed to acquire lock".to_string())?;
+        if let Some(invite) = invites.iter_mut().find(|i| i.token == token) {
+            invite.is_used = true;
+            Ok(())
+        } else {
+            Err("Invite not found".into())
+        }
     }
 
     fn get_products(&self, _s: Option<String>, _p: Option<i32>, _ps: Option<i32>) -> Result<serde_json::Value, String> {

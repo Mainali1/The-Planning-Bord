@@ -1,6 +1,8 @@
 @page "/employees"
 @inject IHrService HrService
+@inject IUserService UserService
 @inject NotificationService NotificationService
+@inject IJSRuntime JSRuntime
 @using ThePlanningBord.Models
 
 <PageTitle>Employees - The Planning Bord</PageTitle>
@@ -8,9 +10,14 @@
 <div class="flex flex-col h-full relative">
     <div class="flex justify-between items-center mb-6">
         <h3 class="text-lg font-medium leading-6 text-gray-900">Employee Directory</h3>
-        <button @onclick="OpenAddModal" class="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
-            ➕ New Employee
-        </button>
+        <div class="space-x-2">
+            <button @onclick="OpenInviteModal" class="px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                🎫 Generate Invite
+            </button>
+            <button @onclick="OpenAddModal" class="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                ➕ New Employee
+            </button>
+        </div>
     </div>
 
     <div class="flex-1 overflow-auto bg-white shadow rounded-lg">
@@ -135,15 +142,119 @@
     </div>
 }
 
+@if (showInviteModal)
+{
+    <div class="fixed z-10 inset-0 overflow-y-auto">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 transition-opacity"><div class="absolute inset-0 bg-gray-500 opacity-75"></div></div>
+            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900">Generate Invite Token</h3>
+                    @if (string.IsNullOrEmpty(generatedToken))
+                    {
+                        <div class="mt-4 grid grid-cols-1 gap-y-4">
+                            <input type="text" @bind="inviteName" placeholder="Full Name" class="block w-full border-gray-300 rounded-md shadow-sm" />
+                            <input type="email" @bind="inviteEmail" placeholder="Email" class="block w-full border-gray-300 rounded-md shadow-sm" />
+                            <input type="text" @bind="inviteRole" placeholder="Role (e.g. Employee, Manager)" class="block w-full border-gray-300 rounded-md shadow-sm" />
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700">Expiration (Hours)</label>
+                                <input type="number" @bind="inviteExpiration" class="block w-full border-gray-300 rounded-md shadow-sm" />
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="mt-4">
+                            <p class="text-sm text-gray-500 mb-2">Share this token with the employee:</p>
+                            <textarea readonly class="w-full p-2 border rounded bg-gray-50 text-xs font-mono h-24" @onclick="CopyToken">@generatedToken</textarea>
+                            <p class="text-xs text-green-600 mt-1">@copyMessage</p>
+                        </div>
+                    }
+                </div>
+                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                    @if (string.IsNullOrEmpty(generatedToken))
+                    {
+                        <button type="button" @onclick="GenerateToken" disabled="@isLoading" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50">
+                            @if (isLoading) { <span>Generating...</span> } else { <span>Generate</span> }
+                        </button>
+                    }
+                    <button type="button" @onclick="CloseInviteModal" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     private List<Employee>? employees;
     private bool showAddModal = false;
     private bool showDeleteModal = false;
+    private bool showInviteModal = false;
     private bool isLoading = false;
     private bool isDeleting = false;
     private Employee newEmployee = new Employee();
     private Employee? employeeToDelete;
     private string searchTerm = "";
+
+    // Invite fields
+    private string inviteName = "";
+    private string inviteEmail = "";
+    private string inviteRole = "Employee";
+    private int inviteExpiration = 24;
+    private string generatedToken = "";
+    private string copyMessage = "";
+
+    private void OpenInviteModal()
+    {
+        inviteName = "";
+        inviteEmail = "";
+        inviteRole = "Employee";
+        inviteExpiration = 24;
+        generatedToken = "";
+        copyMessage = "";
+        showInviteModal = true;
+    }
+
+    private void CloseInviteModal()
+    {
+        showInviteModal = false;
+    }
+
+    private async Task GenerateToken()
+    {
+        if (string.IsNullOrWhiteSpace(inviteName) || string.IsNullOrWhiteSpace(inviteEmail) || string.IsNullOrWhiteSpace(inviteRole))
+        {
+            NotificationService.ShowError("All fields are required.", "Validation Error");
+            return;
+        }
+
+        isLoading = true;
+        try
+        {
+            generatedToken = await UserService.GenerateInviteTokenAsync(inviteRole, inviteName, inviteEmail, inviteExpiration);
+        }
+        catch (Exception ex)
+        {
+            NotificationService.ShowError(ex.Message, "Error");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task CopyToken()
+    {
+        if (!string.IsNullOrWhiteSpace(generatedToken))
+        {
+            await JSRuntime.InvokeVoidAsync("copyToClipboard", generatedToken);
+            copyMessage = "Token copied to clipboard!";
+            StateHasChanged();
+            await Task.Delay(3000);
+            copyMessage = "";
+            StateHasChanged();
+        }
+    }
 
     private IEnumerable<Employee> FilteredEmployees => 
         string.IsNullOrWhiteSpace(searchTerm) 

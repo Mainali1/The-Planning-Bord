@@ -2,9 +2,13 @@
 @layout EmptyLayout
 @attribute [Microsoft.AspNetCore.Authorization.AllowAnonymous]
 @inject ISystemService SystemService
+@inject IUserService UserService
 @inject NavigationManager Navigation
 @inject NotificationService NotificationService
+@inject AuthenticationStateProvider AuthStateProvider
 @using ThePlanningBord.Models
+@using ThePlanningBord.Auth
+@using Microsoft.AspNetCore.Components.Authorization
 
 <PageTitle>System Setup - The Planning Bord</PageTitle>
 
@@ -20,7 +24,40 @@
 
     <div class="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div class="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
-            @if (step == 1)
+            
+            @if (step == 0)
+            {
+                <!-- Role Selection -->
+                <div>
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Who are you?</h3>
+                    <div class="space-y-4">
+                        <button @onclick="@(() => SelectRole("Employee"))" class="w-full flex items-center justify-between px-4 py-4 border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <div>
+                                <p class="text-sm font-medium text-gray-900">Employee</p>
+                                <p class="text-xs text-gray-500">I have an invite token from my manager.</p>
+                            </div>
+                            <span class="text-gray-400">&rarr;</span>
+                        </button>
+
+                        <button @onclick="@(() => SelectRole("CEO"))" class="w-full flex items-center justify-between px-4 py-4 border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <div>
+                                <p class="text-sm font-medium text-gray-900">CEO / Business Owner</p>
+                                <p class="text-xs text-gray-500">I want to set up a new system for my company.</p>
+                            </div>
+                            <span class="text-gray-400">&rarr;</span>
+                        </button>
+
+                        <button @onclick="@(() => SelectRole("Single"))" class="w-full flex items-center justify-between px-4 py-4 border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <div>
+                                <p class="text-sm font-medium text-gray-900">Single User</p>
+                                <p class="text-xs text-gray-500">I am a freelancer or solo user.</p>
+                            </div>
+                            <span class="text-gray-400">&rarr;</span>
+                        </button>
+                    </div>
+                </div>
+            }
+            else if (step == 1) // DB Config (CEO/Single)
             {
                 <div>
                     <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Step 1: Database Configuration</h3>
@@ -36,17 +73,6 @@
                                 <div class="mt-6 flex justify-end space-x-2">
                                     <button @onclick="CloseApp" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">OK</button>
                                 </div>
-                            </div>
-                        </div>
-                    }
-                    
-                    @if (showConfirm)
-                    {
-                        <div class="mb-4 p-4 border border-yellow-300 bg-yellow-50 rounded">
-                            <p class="text-sm text-gray-800">Are you sure you want to set up a local server?</p>
-                            <div class="mt-3 flex space-x-2">
-                                <button @onclick="ConfirmLocalSetup" class="px-3 py-1 bg-blue-600 text-white rounded">Yes</button>
-                                <button @onclick="CancelLocalSetup" class="px-3 py-1 bg-gray-200 text-gray-800 rounded">Cancel</button>
                             </div>
                         </div>
                     }
@@ -76,7 +102,7 @@
                                 <p class="mt-2 text-sm text-gray-500">Local database will be automatically configured using default settings.</p>
                                 @if (!embeddedAvailable)
                                 {
-                                    <p class="mt-2 text-xs text-yellow-700">Embedded database is not bundled in this build. The setup will use a system PostgreSQL if available.</p>
+                                    <p class="mt-2 text-xs text-yellow-700">Embedded database is not bundled. Setup will use system PostgreSQL if available.</p>
                                 }
                             }
                         </div>
@@ -99,118 +125,255 @@
                     </div>
                 </div>
             }
-            else if (step == 2)
+            else if (step == 2) // Business Type (CEO only)
             {
                 <div>
-                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Step 2: Company & Admin</h3>
-                    <div class="space-y-6">
-                        <div>
-                            <label for="companyName" class="block text-sm font-medium text-gray-700">Company Name</label>
-                            <div class="mt-1">
-                                <input id="companyName" type="text" @bind="companyName" required class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" />
-                            </div>
-                        </div>
-                        <div>
-                            <label for="adminEmail" class="block text-sm font-medium text-gray-700">Admin Email</label>
-                            <div class="mt-1">
-                                <input id="adminEmail" type="email" @bind="adminEmail" required class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" />
-                            </div>
-                        </div>
-                        <div>
-                            <label for="adminPassword" class="block text-sm font-medium text-gray-700">Admin Password</label>
-                            <div class="mt-1">
-                                <input id="adminPassword" type="password" @bind="adminPassword" required class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" />
-                            </div>
-                        </div>
-                        
-                        <div>
-                            <button @onclick="NextStep" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                                Next
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            }
-            else if (step == 3)
-            {
-                <div>
-                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Step 3: Feature Selection</h3>
-                    <p class="text-sm text-gray-500 mb-4">Choose the modules you want to enable initially.</p>
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Step 2: Business Profile</h3>
                     <div class="space-y-4">
-                        @if (featureToggles != null)
-                        {
-                            @foreach (var toggle in featureToggles)
-                            {
-                                <div class="relative flex items-start">
-                                    <div class="flex items-center h-5">
-                                        <input id="@toggle.Key" type="checkbox" checked="@toggle.IsEnabled" @onchange="@(e => ToggleFeature(toggle, e.Value))" class="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded" />
-                                    </div>
-                                    <div class="ml-3 text-sm">
-                                        <label for="@toggle.Key" class="font-medium text-gray-700">@toggle.Key</label>
-                                    </div>
-                                </div>
-                            }
-                        }
+                        <button @onclick="@(() => SelectBusinessType("Single"))" class="w-full flex items-center justify-between px-4 py-4 border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 @(businessType == "Single" ? "border-blue-500 ring-1 ring-blue-500" : "")">
+                            <div>
+                                <p class="text-sm font-medium text-gray-900">Single User</p>
+                                <p class="text-xs text-gray-500">Just me.</p>
+                            </div>
+                        </button>
+
+                        <button @onclick="@(() => SelectBusinessType("Small"))" class="w-full flex items-center justify-between px-4 py-4 border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 @(businessType == "Small" ? "border-blue-500 ring-1 ring-blue-500" : "")">
+                            <div>
+                                <p class="text-sm font-medium text-gray-900">Small Business (2-50)</p>
+                                <p class="text-xs text-gray-500">Enable employee management and team features.</p>
+                            </div>
+                        </button>
                         
-                        <div class="flex space-x-3 mt-6">
-                            <button @onclick="PrevStep" class="w-1/2 flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none">
-                                Back
-                            </button>
-                            <button @onclick="FinishSetup" disabled="@isFinishing" class="w-1/2 flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50">
-                                @if (isFinishing) { <span>Finishing...</span> } else { <span>Finish</span> }
+                        <div class="pt-4">
+                             <button @onclick="NextStep" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">
+                                Continue
                             </button>
                         </div>
                     </div>
                 </div>
             }
+            else if (step == 20) // Create Account (Final Step for All)
+            {
+                <div>
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Create Your Account</h3>
+                    <p class="text-sm text-gray-500 mb-6">
+                        @if (selectedRole == "Employee")
+                        {
+                            <span>Please set a password for your account.</span>
+                        }
+                        else
+                        {
+                            <span>Create the administrator account for your workspace.</span>
+                        }
+                    </p>
+                    
+                    <div class="space-y-6">
+                        @if (selectedRole != "Employee")
+                        {
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Company / Workspace Name</label>
+                                <input type="text" @bind="companyName" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm" />
+                            </div>
+                        }
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Username</label>
+                            <div class="mt-1 relative rounded-md shadow-sm">
+                                <input type="text" @bind="adminUsername" @onblur="CheckUsername" class="block w-full border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 sm:text-sm" />
+                                @if (isCheckingUsername)
+                                {
+                                     <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                         <svg class="animate-spin h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                         </svg>
+                                     </div>
+                                }
+                            </div>
+                            @if (!string.IsNullOrEmpty(usernameMessage))
+                            {
+                                <p class="mt-2 text-sm @(isUsernameValid ? "text-green-600" : "text-red-600")">
+                                    @usernameMessage
+                                </p>
+                            }
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Full Name</label>
+                            <input type="text" @bind="adminName" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm" />
+                        </div>
+
+                         <div>
+                            <label class="block text-sm font-medium text-gray-700">Email</label>
+                            <input type="email" @bind="adminEmail" disabled="@(selectedRole == "Employee")" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:bg-gray-100 disabled:text-gray-500" />
+                        </div>
+                        
+                         <div>
+                            <label class="block text-sm font-medium text-gray-700">Password</label>
+                            <input type="password" @bind="adminPassword" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm" />
+                            <p class="mt-1 text-xs text-gray-500">Must be at least 8 characters.</p>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Confirm Password</label>
+                            <input type="password" @bind="confirmPassword" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm" />
+                        </div>
+                        
+                        <div>
+                            <button @onclick="CreateAccount" disabled="@isSetupSaving" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50">
+                                @if (isSetupSaving) { <span>Creating Account...</span> } else { <span>Create Account & Launch</span> }
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+            else if (step == 10) // Employee Connection
+            {
+                <div>
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Connect to Company Database</h3>
+                    <div class="space-y-6">
+                         <div>
+                            <label class="block text-sm font-medium text-gray-700">Connection String</label>
+                            <div class="mt-1">
+                                <input type="text" @bind="employeeConnectionString" placeholder="Ask your admin for this URL" class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" />
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <button @onclick="VerifyAndConnectEmployee" disabled="@isDbSaving" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50">
+                                @if (isDbSaving) { <span>Verifying...</span> } else { <span>Connect</span> }
+                            </button>
+                        </div>
+                        <div class="text-center mt-2">
+                             <button @onclick="@(() => step = 0)" class="text-sm text-gray-500 hover:text-gray-900">Back</button>
+                        </div>
+                    </div>
+                </div>
+            }
+            else if (step == 11) // Employee Token
+            {
+                <div>
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Enter Invite Token</h3>
+                    <div class="space-y-6">
+                         <div>
+                            <label class="block text-sm font-medium text-gray-700">Invite Token</label>
+                            <div class="mt-1">
+                                <textarea rows="4" @bind="employeeToken" placeholder="Paste your invite token here" class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"></textarea>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <button @onclick="VerifyToken" disabled="@isSetupSaving" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50">
+                                @if (isSetupSaving) { <span>Verifying...</span> } else { <span>Verify & Continue</span> }
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+
         </div>
     </div>
 </div>
 
 @code {
-    private int step = 1;
-    private string companyName = "";
-    private string adminEmail = "";
-    private string adminPassword = "";
-    private List<FeatureToggle>? featureToggles;
+    private int step = 0;
+    private string selectedRole = "";
+    private string businessType = "Single";
     
-    // DB Config
-    private DbConfig dbConfig = new DbConfig { DbType = DbType.Local, ConnectionString = "postgres://postgres:password@localhost:5432/planning_bord" };
-    private bool isDbSaving = false;
-    private bool showConfirm = false;
-    private string progressMessage = "";
-    private int progressPercent = 0;
+    private DbConfig dbConfig = new DbConfig { DbType = DbType.Local, ConnectionString = "postgres://postgres:password@localhost:5432/planningbord" };
     private bool embeddedAvailable = false;
     private bool showPgMissingModal = false;
+    private bool isDbSaving = false;
+    private bool isSetupSaving = false;
+    private string progressMessage = "";
+    private int progressPercent = 0;
+    
+    // Employee fields
+    private string employeeConnectionString = "";
+    private string employeeToken = "";
+    
+    // Admin fields
+    private string companyName = "";
+    private string adminName = "";
+    private string adminEmail = "";
+    private string adminPassword = "";
+    private string confirmPassword = "";
+    
+    // Username validation
+    private string adminUsername = "";
+    private string usernameMessage = "";
+    private bool isUsernameValid = false;
+    private bool isCheckingUsername = false;
+    private System.Timers.Timer? debounceTimer;
+
+    public void Dispose()
+    {
+        debounceTimer?.Stop();
+        debounceTimer?.Dispose();
+    }
+
+    private void OnUsernameInput(ChangeEventArgs e)
+    {
+        adminUsername = e.Value?.ToString() ?? "";
+        usernameMessage = ""; 
+        isUsernameValid = false;
+
+        debounceTimer?.Stop();
+        debounceTimer?.Dispose();
+
+        debounceTimer = new System.Timers.Timer(500);
+        debounceTimer.AutoReset = false;
+        debounceTimer.Elapsed += async (sender, args) =>
+        {
+            await InvokeAsync(async () =>
+            {
+                await CheckUsername();
+                StateHasChanged();
+            });
+        };
+        debounceTimer.Start();
+    }
 
     protected override async Task OnInitializedAsync()
     {
-        // Check if already set up
-        bool isSetup = await SystemService.GetSetupStatusAsync();
-        if (isSetup)
+        embeddedAvailable = await SystemService.CheckEmbeddedPostgresAsync();
+        if (!embeddedAvailable)
         {
-             // If strictly enforcing setup only once, redirect. 
-             // However, user might be re-running wizard from Settings.
-             // We'll allow it but maybe pre-fill data in a real scenario.
-        }
-
-        try { featureToggles = await SystemService.GetFeatureTogglesAsync(); }
-        catch (Exception) { 
-             // If DB is not configured, this might fail or return empty.
-             // We ignore the error here to avoid confusing the user during setup.
-             featureToggles = new List<FeatureToggle>(); 
-        }
-        
-        try { embeddedAvailable = await SystemService.CheckEmbeddedPostgresAsync(); } catch { embeddedAvailable = false; }
-        try
-        {
-            var pgInstalled = await SystemService.CheckPostgresInstalledAsync();
-            if (dbConfig.DbType == DbType.Local && !embeddedAvailable && !pgInstalled)
+            // Check if system postgres is installed
+            bool pgInstalled = await SystemService.CheckPostgresInstalledAsync();
+            if (!pgInstalled)
             {
                 showPgMissingModal = true;
             }
         }
-        catch { /* ignore */ }
+    }
+    
+    private void SelectRole(string role)
+    {
+        selectedRole = role;
+        if (role == "Employee")
+        {
+            step = 10;
+        }
+        else if (role == "Single")
+        {
+            businessType = "Single";
+            step = 1;
+        }
+        else // CEO
+        {
+            step = 1;
+        }
+    }
+    
+    private void SelectBusinessType(string type)
+    {
+        businessType = type;
+    }
+    
+    private void NextStep()
+    {
+        if (step == 2) step = 20;
     }
     
     private void SetDbType(DbType type)
@@ -218,176 +381,305 @@
         dbConfig.DbType = type;
         if (type == DbType.Local)
         {
-            dbConfig.ConnectionString = "postgres://postgres:password@localhost:5432/planning_bord";
-            _ = PreflightEmbedded();
+             dbConfig.ConnectionString = "postgres://postgres:password@localhost:5432/planningbord";
         }
         else
         {
             dbConfig.ConnectionString = "";
         }
     }
-
-    private async Task PreflightEmbedded()
-    {
-        try { embeddedAvailable = await SystemService.CheckEmbeddedPostgresAsync(); }
-        catch { embeddedAvailable = false; }
-        StateHasChanged();
-    }
-
+    
     private async Task SaveDbAndNext()
     {
-        if (string.IsNullOrWhiteSpace(dbConfig.ConnectionString))
+        isDbSaving = true;
+        progressMessage = "Connecting to database...";
+        progressPercent = 20;
+        StateHasChanged();
+        
+        try
         {
-            NotificationService.ShowError("Connection string is required.");
-            return;
+            if (dbConfig.DbType == DbType.Local)
+            {
+                // Ensure local DB
+                progressMessage = "Initializing local database...";
+                progressPercent = 50;
+                StateHasChanged();
+                
+                var conn = await SystemService.EnsureLocalDbAsync(string.IsNullOrEmpty(dbConfig.ConnectionString) ? null : dbConfig.ConnectionString);
+                dbConfig.ConnectionString = conn;
+            }
+            else
+            {
+                // Verify Cloud connection
+                 progressMessage = "Verifying connection...";
+                 bool ok = await SystemService.VerifyConnectionAsync(dbConfig.ConnectionString);
+                 if (!ok)
+                 {
+                     NotificationService.ShowError("Could not connect to the database.", "Connection Failed");
+                     isDbSaving = false;
+                     progressMessage = "";
+                     return;
+                 }
+            }
+            
+            progressMessage = "Saving configuration...";
+            progressPercent = 80;
+            await SystemService.SaveDbConfigAsync(dbConfig);
+            
+            progressPercent = 100;
+            progressMessage = "Connected!";
+            await Task.Delay(500);
+            
+            isDbSaving = false;
+            progressMessage = "";
+            
+            if (selectedRole == "Single")
+            {
+                step = 20; // Skip business type
+            }
+            else
+            {
+                step = 2; // Go to business type
+            }
         }
-
-        if (dbConfig.DbType == DbType.Local && !showConfirm)
+        catch (Exception ex)
         {
-            showConfirm = true;
+            NotificationService.ShowError(ex.Message, "Error");
+            isDbSaving = false;
+            progressMessage = "";
+        }
+    }
+    
+    private async Task VerifyAndConnectEmployee()
+    {
+        if (string.IsNullOrWhiteSpace(employeeConnectionString))
+        {
+            NotificationService.ShowError("Connection string required", "Error");
             return;
         }
         
         isDbSaving = true;
         try
         {
-            if (dbConfig.DbType == DbType.Local)
+            bool ok = await SystemService.VerifyConnectionAsync(employeeConnectionString);
+            if (!ok)
             {
-                progressMessage = "Checking local database...";
-                progressPercent = 10;
-                StateHasChanged();
-                
-                try
-                {
-                    var conn = await SystemService.EnsureLocalDbAsync(dbConfig.ConnectionString);
-                    dbConfig.ConnectionString = conn;
-                    progressMessage = "Local database ready.";
-                    progressPercent = 60;
-                    StateHasChanged();
-                }
-                catch (Exception ex)
-                {
-                    NotificationService.ShowError($"Local server setup failed: {ex.Message}");
-                    isDbSaving = false;
-                    showConfirm = false;
-                    progressMessage = "";
-                    progressPercent = 0;
-                    return;
-                }
+                NotificationService.ShowError("Could not connect to the database.", "Connection Failed");
+                isDbSaving = false;
+                return;
             }
             
-            await SystemService.SaveDbConfigAsync(dbConfig);
-            NotificationService.ShowSuccess("Database connected successfully!");
+            // Save config
+            var config = new DbConfig { DbType = DbType.Cloud, ConnectionString = employeeConnectionString };
+            await SystemService.SaveDbConfigAsync(config);
             
-            // Refresh toggles in case they come from DB
-            try { featureToggles = await SystemService.GetFeatureTogglesAsync(); }
-            catch { featureToggles = new List<FeatureToggle>(); }
-            
-            step++;
+            step = 11;
         }
         catch (Exception ex)
         {
-            NotificationService.ShowError($"Failed to connect: {ex.Message}");
+            NotificationService.ShowError(ex.Message, "Error");
         }
         finally
         {
             isDbSaving = false;
-            showConfirm = false;
-            progressMessage = "";
-            progressPercent = 0;
+        }
+    }
+    
+    private async Task VerifyToken()
+    {
+        if (string.IsNullOrWhiteSpace(employeeToken))
+        {
+            NotificationService.ShowError("Token required", "Error");
+            return;
+        }
+        
+        isSetupSaving = true;
+        try
+        {
+            var claims = await UserService.CheckInviteTokenAsync(employeeToken);
+            if (claims != null)
+            {
+                // Token valid
+                adminEmail = claims.Email;
+                adminName = claims.Name;
+                step = 20;
+            }
+            else
+            {
+                NotificationService.ShowError("Token is invalid or expired.", "Invalid Token");
+            }
+        }
+        catch (Exception ex)
+        {
+             NotificationService.ShowError(ex.Message, "Error");
+        }
+        finally
+        {
+            isSetupSaving = false;
+        }
+    }
+    
+    private async Task CheckUsername()
+    {
+        if (string.IsNullOrWhiteSpace(adminUsername))
+        {
+            usernameMessage = "";
+            isUsernameValid = false;
+            return;
+        }
+
+        isCheckingUsername = true;
+        StateHasChanged();
+        
+        try
+        {
+             bool exists = await SystemService.CheckUsernameExistsAsync(adminUsername);
+             if (exists)
+             {
+                 usernameMessage = "Username already taken - please choose another";
+                 isUsernameValid = false;
+             }
+             else
+             {
+                 usernameMessage = "Username available";
+                 isUsernameValid = true;
+             }
+        }
+        catch (Exception ex)
+        {
+             Console.WriteLine(ex.Message);
+        }
+        finally
+        {
+             isCheckingUsername = false;
+             StateHasChanged();
+        }
+    }
+
+    private async Task CreateAccount()
+    {
+        if (string.IsNullOrWhiteSpace(adminUsername))
+        {
+            NotificationService.ShowError("Username is required", "Error");
+            return;
+        }
+
+        if (!isUsernameValid)
+        {
+             await CheckUsername();
+             if (!isUsernameValid)
+             {
+                 NotificationService.ShowError("Please choose a valid available username", "Error");
+                 return;
+             }
+        }
+
+        if (string.IsNullOrWhiteSpace(adminPassword))
+        {
+            NotificationService.ShowError("Password is required", "Error");
+            return;
+        }
+        
+        if (adminPassword.Length < 8)
+        {
+            NotificationService.ShowError("Password must be at least 8 characters", "Error");
+            return;
+        }
+
+        if (adminPassword != confirmPassword)
+        {
+            NotificationService.ShowError("Passwords do not match", "Error");
+            return;
+        }
+        
+        if (selectedRole != "Employee")
+        {
+            if (string.IsNullOrWhiteSpace(companyName) && selectedRole != "Single")
+            {
+                 NotificationService.ShowError("Company name is required", "Error");
+                 return;
+            }
+            
+            if (string.IsNullOrWhiteSpace(adminEmail))
+            {
+                NotificationService.ShowError("Email is required", "Error");
+                return;
+            }
+            
+            if (string.IsNullOrWhiteSpace(adminName))
+            {
+                NotificationService.ShowError("Full name is required", "Error");
+                return;
+            }
+            
+            if (selectedRole == "Single" && string.IsNullOrWhiteSpace(companyName))
+            {
+                companyName = "My Workspace";
+            }
+        }
+        else 
+        {
+             // For employee, ensure name is provided
+             if (string.IsNullOrWhiteSpace(adminName))
+             {
+                NotificationService.ShowError("Full name is required", "Error");
+                return;
+             }
+        }
+        
+        isSetupSaving = true;
+        try
+        {
+            if (selectedRole == "Employee")
+            {
+                 // Accept Invite
+                 var user = await UserService.AcceptInviteAsync(employeeToken, adminPassword, adminUsername, adminName);
+                 if (user != null)
+                 {
+                     if (AuthStateProvider is CustomAuthenticationStateProvider customAuth)
+                     {
+                         customAuth.NotifyUserLogin(user);
+                     }
+                     Navigation.NavigateTo("/");
+                 }
+                 else
+                 {
+                     NotificationService.ShowError("Failed to create account.", "Error");
+                 }
+            }
+            else
+            {
+                // Complete Setup (CEO/Single)
+                await SystemService.CompleteSetupAsync(companyName, adminName, adminEmail, adminPassword, adminUsername);
+                
+                // Auto-login
+                var user = await UserService.LoginAsync(adminUsername, adminPassword);
+                if (user != null)
+                {
+                    if (AuthStateProvider is CustomAuthenticationStateProvider customAuth)
+                    {
+                        customAuth.NotifyUserLogin(user);
+                    }
+                    Navigation.NavigateTo("/");
+                }
+                else
+                {
+                    Navigation.NavigateTo("/login");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificationService.ShowError(ex.Message, "Error");
+        }
+        finally
+        {
+            isSetupSaving = false;
         }
     }
     
     private async Task CloseApp()
     {
-        try { await SystemService.ExitAppAsync(); }
-        catch { }
-    }
-    
-    private async Task ConfirmLocalSetup()
-    {
-        showConfirm = false;
-        await SaveDbAndNext();
-    }
-    
-    private void CancelLocalSetup()
-    {
-        showConfirm = false;
-        _ = SystemService.CleanupLocalDbAsync();
-    }
-
-    private void NextStep()
-    {
-        if (step == 2) // Company Name
-        {
-             if (string.IsNullOrWhiteSpace(companyName))
-             {
-                 NotificationService.ShowError("Company name is required.");
-                 return;
-             }
-             if (string.IsNullOrWhiteSpace(adminEmail))
-             {
-                 NotificationService.ShowError("Admin email is required.");
-                 return;
-             }
-             if (string.IsNullOrWhiteSpace(adminPassword) || adminPassword.Length < 8)
-             {
-                 NotificationService.ShowError("Admin password must be at least 8 characters.");
-                 return;
-             }
-             step++;
-        }
-    }
-
-    private void PrevStep()
-    {
-        if (step > 1) step--;
-    }
-
-    private void ToggleFeature(FeatureToggle toggle, object? value)
-    {
-        if (value is bool isChecked)
-        {
-            toggle.IsEnabled = isChecked;
-        }
-    }
-
-    private bool isFinishing = false;
-
-    private async Task FinishSetup()
-    {
-        if (isFinishing) return;
-        isFinishing = true;
-        StateHasChanged();
-
-        try
-        {
-            Console.WriteLine("Starting FinishSetup...");
-            // Save feature toggles
-            if (featureToggles != null)
-            {
-                foreach (var toggle in featureToggles)
-                {
-                    Console.WriteLine($"Saving toggle: {toggle.Key} = {toggle.IsEnabled}");
-                    await SystemService.SetFeatureToggleAsync(toggle.Key, toggle.IsEnabled);
-                }
-            }
-
-            Console.WriteLine("Calling CompleteSetupAsync...");
-            await SystemService.CompleteSetupAsync(companyName, adminEmail, adminPassword);
-            Console.WriteLine("Setup completed. Navigating...");
-            NotificationService.ShowSuccess("Setup completed successfully!");
-            Navigation.NavigateTo("/", true);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Setup failed: {ex}");
-            NotificationService.ShowError($"Setup failed: {ex.Message}");
-        }
-        finally
-        {
-            isFinishing = false;
-            StateHasChanged();
-        }
+        await SystemService.ExitAppAsync();
     }
 }

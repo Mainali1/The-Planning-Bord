@@ -60,6 +60,13 @@
                 }
             } catch {}
         }
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(function() {
+                // Success
+            }, function(err) {
+                console.error('Async: Could not copy text: ', err);
+            });
+        }
     </script>
   </body>
 </html>

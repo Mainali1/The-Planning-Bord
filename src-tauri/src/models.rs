@@ -1,6 +1,17 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Invite {
+    pub id: Option<i32>,
+    pub token: String,
+    pub role: String,
+    pub name: String,
+    pub email: String,
+    pub expiration: String,
+    pub is_used: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct User {
     pub id: Option<i32>,
     pub username: String,

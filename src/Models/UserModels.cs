@@ -34,4 +34,19 @@ namespace ThePlanningBord.Models
         [JsonPropertyName("token")]
         public string Token { get; set; } = string.Empty;
     }
+
+    public class InviteClaims
+    {
+        [JsonPropertyName("sub")]
+        public string Email { get; set; } = string.Empty;
+
+        [JsonPropertyName("role")]
+        public string Role { get; set; } = string.Empty;
+
+        [JsonPropertyName("name")]
+        public string Name { get; set; } = string.Empty;
+
+        [JsonPropertyName("exp")]
+        public long Expiration { get; set; }
+    }
 }

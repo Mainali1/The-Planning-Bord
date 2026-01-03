@@ -60,6 +60,13 @@
 
     protected override async Task OnInitializedAsync()
     {
+        // Avoid running setup check if we are already on the setup page
+        var uri = Navigation.Uri;
+        if (uri.Contains("/setup"))
+        {
+            return;
+        }
+
         try
         {
             var isSetup = await SystemService.GetSetupStatusAsync();

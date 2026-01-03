@@ -10,6 +10,9 @@ namespace ThePlanningBord.Services
         Task<User?> GetCurrentUserAsync();
         Task<bool> IsAuthenticatedAsync();
         Task<string?> GetTokenAsync();
+        Task<string> GenerateInviteTokenAsync(string role, string name, string email, int expirationHours);
+        Task<InviteClaims?> CheckInviteTokenAsync(string token);
+        Task<User?> AcceptInviteAsync(string token, string password, string username, string fullName);
     }
 
     public class UserService : IUserService
@@ -31,7 +34,7 @@ namespace ThePlanningBord.Services
             try
             {
                 // Call Rust backend
-                var response = await _tauriInterop.InvokeAsync<LoginResponse>("login", new { username = username, password_plain = password });
+                var response = await _tauriInterop.InvokeAsync<LoginResponse>("login", new { username = username, passwordPlain = password });
                 
                 if (response != null && response.User != null)
                 {
@@ -89,6 +92,48 @@ namespace ThePlanningBord.Services
         public async Task<bool> IsAuthenticatedAsync()
         {
             return (await GetCurrentUserAsync()) != null;
+        }
+
+        public async Task<string> GenerateInviteTokenAsync(string role, string name, string email, int expirationHours)
+        {
+            var token = await GetTokenAsync();
+            return await _tauriInterop.InvokeAsync<string>("generate_invite_token", new { role, name, email, expirationHours, token });
+        }
+
+        public async Task<InviteClaims?> CheckInviteTokenAsync(string inviteToken)
+        {
+            try
+            {
+                return await _tauriInterop.InvokeAsync<InviteClaims>("check_invite_token", new { inviteToken });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Token check error: {ex.Message}");
+                throw;
+            }
+        }
+
+        public async Task<User?> AcceptInviteAsync(string token, string password, string username, string fullName)
+        {
+            try
+            {
+                var response = await _tauriInterop.InvokeAsync<LoginResponse>("accept_invite", new { inviteToken = token, passwordPlain = password, username = username, fullName = fullName });
+                
+                if (response != null && response.User != null)
+                {
+                    _currentUser = response.User;
+                    _token = response.Token;
+                    await _jsRuntime.InvokeVoidAsync("sessionStorage.setItem", "currentUser", System.Text.Json.JsonSerializer.Serialize(_currentUser));
+                    await _jsRuntime.InvokeVoidAsync("sessionStorage.setItem", "authToken", _token);
+                    return _currentUser;
+                }
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Accept invite error: {ex.Message}");
+                throw;
+            }
         }
     }
 }

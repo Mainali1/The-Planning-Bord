@@ -66,15 +66,22 @@ impl Database for NoOpDatabase {
     // Setup
     fn get_setup_status(&self) -> Result<bool, String> { Ok(false) } // Return false so Wizard starts
     fn get_type(&self) -> String { "noop".to_string() }
-    fn complete_setup(&self, _company_name: String, _admin_email: String, _admin_password: String) -> Result<(), String> { Err("DB not configured".into()) }
+    fn complete_setup(&self, _company_name: String, _admin_name: String, _admin_email: String, _admin_password: String, _admin_username: String) -> Result<(), String> { Err("DB not configured".into()) }
     fn set_company_name(&self, _company_name: String) -> Result<(), String> { Err("DB not configured".into()) }
 
     // Users & Auth
+    fn check_username_exists(&self, _username: String) -> Result<bool, String> { Err("DB not configured".into()) }
     fn get_user_by_username(&self, _username: String) -> Result<Option<User>, String> { Err("DB not configured".into()) }
     fn create_user(&self, _user: User) -> Result<i64, String> { Err("DB not configured".into()) }
-    fn update_user_last_login(&self, _user_id: i32) -> Result<(), String> { Err("DB not configured".into()) }
+    fn update_user(&self, _user: User) -> Result<(), String> { Err("DB not configured".into()) }
+    fn update_user_last_login(&self, _id: i32) -> Result<(), String> { Err("DB not configured".into()) }
 
-    // Audit Logs
+    // Invites
+    fn create_invite(&self, _i: Invite) -> Result<i64, String> { Err("DB not configured".into()) }
+    fn get_invite(&self, _t: String) -> Result<Option<Invite>, String> { Err("DB not configured".into()) }
+    fn mark_invite_used(&self, _t: String) -> Result<(), String> { Err("DB not configured".into()) }
+
+    // ProductsAudit Logs
     fn get_audit_logs(&self) -> Result<Vec<AuditLog>, String> { Err("DB not configured".into()) }
     fn log_activity(&self, _user_id: Option<i32>, _action: String, _entity: Option<String>, _entity_id: Option<i32>, _details: Option<String>) -> Result<(), String> { Err("DB not configured".into()) }
 
