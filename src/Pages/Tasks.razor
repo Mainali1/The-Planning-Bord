@@ -1,4 +1,5 @@
 @page "/tasks"
+@attribute [Authorize]
 @inject ITaskService TaskService
 @inject IJSRuntime JSRuntime
 @using ThePlanningBord.Models
@@ -29,23 +30,20 @@
                 else if (!tasks.Any()) { <tr><td colspan="5" class="px-6 py-4 text-center">No tasks found.</td></tr> }
                 else
                 {
-                    @foreach (var t in tasks)
-                    {
+                    <Virtualize Items="@tasks" Context="t" ItemSize="56">
                         <tr>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">@t.Title</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">@t.EmployeeId</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">@t.Priority</td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full @(t.Status == "completed" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800")">
-                                    @t.Status
-                                </span>
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full @(t.Status == "completed" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800")">@t.Status</span>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                 <button @onclick="() => EditTask(t)" class="text-blue-600 hover:text-blue-900 mr-3">Edit</button>
                                 <button @onclick="() => DeleteTask(t.Id ?? 0)" class="text-red-600 hover:text-red-900">Delete</button>
                             </td>
                         </tr>
-                    }
+                    </Virtualize>
                 }
             </tbody>
         </table>

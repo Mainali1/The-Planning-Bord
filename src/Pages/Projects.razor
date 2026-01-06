@@ -1,4 +1,5 @@
 @page "/projects"
+@attribute [Authorize]
 @using ThePlanningBord.Models
 @using ThePlanningBord.Services
 @using System.Linq
@@ -425,7 +426,10 @@
                                 <option value="">Assign to...</option>
                                 @if (employees != null)
                                 {
-                                    @foreach (var emp in employees)
+                                    @foreach (var emp in employees.Where(e => 
+                                        selectedProjectId.HasValue 
+                                        && projectAssignmentsMap.ContainsKey(selectedProjectId.Value) 
+                                        && projectAssignmentsMap[selectedProjectId.Value].Any(pa => pa.EmployeeId == (e.Id ?? 0))))
                                     {
                                         <option value="@emp.Id">@emp.FirstName @emp.LastName</option>
                                     }
@@ -847,7 +851,9 @@
             ComputeRange();
             ComputeDependencies();
             ComputeCriticalPath();
-            if (activeTab == "team")
+            
+            // Ensure assignments are loaded for the dropdowns in Task view
+            if (activeTab == "team" || activeTab == "tasks")
             {
                 await LoadAssignments();
             }
@@ -891,6 +897,19 @@
             try
             {
                 projectAssignments = await ProjectService.GetProjectAssignmentsAsync(selectedProjectId.Value);
+                
+                // Update map so dropdowns are refreshed
+                if (projectAssignments != null)
+                {
+                    if (projectAssignmentsMap.ContainsKey(selectedProjectId.Value))
+                    {
+                        projectAssignmentsMap[selectedProjectId.Value] = projectAssignments;
+                    }
+                    else
+                    {
+                        projectAssignmentsMap.Add(selectedProjectId.Value, projectAssignments);
+                    }
+                }
             }
             catch (Exception ex)
             {
@@ -1046,6 +1065,17 @@
     private async Task SaveTask()
     {
         if (string.IsNullOrWhiteSpace(newTask.Name) || !newTask.ProjectId.HasValue) return;
+
+        if (newTask.AssignedTo.HasValue && selectedProjectId.HasValue)
+        {
+            var pid = selectedProjectId.Value;
+            var allowed = projectAssignmentsMap.ContainsKey(pid) && projectAssignmentsMap[pid].Any(a => a.EmployeeId == newTask.AssignedTo.Value);
+            if (!allowed)
+            {
+                NotificationService.ShowError("Selected assignee is not part of this project.");
+                return;
+            }
+        }
 
         if (isMilestone)
         {

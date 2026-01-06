@@ -13,6 +13,8 @@ namespace ThePlanningBord.Services
         Task<string> GenerateInviteTokenAsync(string role, string name, string email, int expirationHours);
         Task<InviteClaims?> CheckInviteTokenAsync(string token);
         Task<User?> AcceptInviteAsync(string token, string password, string username, string fullName);
+        Task<List<Invite>> GetInvitesAsync();
+        Task ToggleInviteStatusAsync(int inviteId, bool isActive);
     }
 
     public class UserService : IUserService
@@ -134,6 +136,18 @@ namespace ThePlanningBord.Services
                 Console.WriteLine($"Accept invite error: {ex.Message}");
                 throw;
             }
+        }
+
+        public async Task<List<Invite>> GetInvitesAsync()
+        {
+            var token = await GetTokenAsync();
+            return await _tauriInterop.InvokeAsync<List<Invite>>("get_all_invites", new { token });
+        }
+
+        public async Task ToggleInviteStatusAsync(int inviteId, bool isActive)
+        {
+            var token = await GetTokenAsync();
+            await _tauriInterop.InvokeAsync<object>("toggle_invite_status", new { token, inviteId, isActive });
         }
     }
 }

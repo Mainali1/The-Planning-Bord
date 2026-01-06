@@ -118,6 +118,20 @@ impl Database for InMemoryDatabase {
         }
     }
 
+    fn get_invites(&self) -> Result<Vec<Invite>, String> {
+        Ok(self.invites.read().map_err(|_| "Failed to acquire lock".to_string())?.clone())
+    }
+
+    fn toggle_invite_status(&self, id: i32, is_active: bool) -> Result<(), String> {
+        let mut invites = self.invites.write().map_err(|_| "Failed to acquire lock".to_string())?;
+        if let Some(invite) = invites.iter_mut().find(|i| i.id == Some(id)) {
+            invite.is_active = is_active;
+            Ok(())
+        } else {
+            Err("Invite not found".into())
+        }
+    }
+
     fn get_products(&self, _s: Option<String>, _p: Option<i32>, _ps: Option<i32>) -> Result<serde_json::Value, String> {
         let products = self.products.read().map_err(|_| "Failed to acquire lock".to_string())?;
         Ok(serde_json::json!({ "items": *products, "total": products.len() }))
@@ -146,6 +160,10 @@ impl Database for InMemoryDatabase {
 
     fn get_employees(&self) -> Result<Vec<Employee>, String> {
         Ok(self.employees.read().map_err(|_| "Failed to acquire lock".to_string())?.clone())
+    }
+    fn get_employee_by_email(&self, email: String) -> Result<Option<Employee>, String> {
+        let employees = self.employees.read().map_err(|_| "Failed to acquire lock".to_string())?;
+        Ok(employees.iter().find(|e| e.email.as_deref() == Some(&email)).cloned())
     }
     fn add_employee(&self, mut e: Employee) -> Result<i64, String> {
         let mut employees = self.employees.write().map_err(|_| "Failed to acquire lock".to_string())?;
@@ -225,11 +243,11 @@ impl Database for InMemoryDatabase {
     }
     fn clock_out(&self, a: Attendance) -> Result<(), String> {
         let mut attendances = self.attendances.write().map_err(|_| "Failed to acquire lock".to_string())?;
-        if let Some(pos) = attendances.iter().position(|x| x.id == a.id) {
+        if let Some(pos) = attendances.iter().position(|x| x.id == a.id && x.employee_id == a.employee_id) {
             attendances[pos] = a;
             Ok(())
         } else {
-            Err("Attendance not found".into())
+            Err("Attendance not found or permission denied".into())
         }
     }
 

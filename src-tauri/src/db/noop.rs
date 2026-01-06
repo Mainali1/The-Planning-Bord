@@ -12,6 +12,7 @@ impl Database for NoOpDatabase {
 
     // Employees
     fn get_employees(&self) -> Result<Vec<Employee>, String> { Err("DB not configured".into()) }
+    fn get_employee_by_email(&self, _email: String) -> Result<Option<Employee>, String> { Err("DB not configured".into()) }
     fn add_employee(&self, _employee: Employee) -> Result<i64, String> { Err("DB not configured".into()) }
     fn update_employee(&self, _employee: Employee) -> Result<(), String> { Err("DB not configured".into()) }
     fn delete_employee(&self, _id: i32) -> Result<(), String> { Err("DB not configured".into()) }
@@ -80,6 +81,8 @@ impl Database for NoOpDatabase {
     fn create_invite(&self, _i: Invite) -> Result<i64, String> { Err("DB not configured".into()) }
     fn get_invite(&self, _t: String) -> Result<Option<Invite>, String> { Err("DB not configured".into()) }
     fn mark_invite_used(&self, _t: String) -> Result<(), String> { Err("DB not configured".into()) }
+    fn get_invites(&self) -> Result<Vec<Invite>, String> { Err("DB not configured".into()) }
+    fn toggle_invite_status(&self, _id: i32, _is_active: bool) -> Result<(), String> { Err("DB not configured".into()) }
 
     // ProductsAudit Logs
     fn get_audit_logs(&self) -> Result<Vec<AuditLog>, String> { Err("DB not configured".into()) }

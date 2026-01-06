@@ -1,4 +1,5 @@
 @page "/inventory"
+@attribute [Authorize]
 @inject IInventoryService InventoryService
 @inject IHrService HrService
 @inject IJSRuntime JSRuntime
@@ -60,8 +61,7 @@
                         else if (products == null || !products.Any()) { <tr><td colspan="6" class="px-6 py-4 text-center">No products found.</td></tr> }
                         else
                         {
-                            @foreach (var p in products)
-                            {
+                            <Virtualize Items="@products" Context="p" ItemSize="56">
                                 <tr>
                                     <td class="px-6 py-4 whitespace-nowrap">
                                         <div class="text-sm font-medium text-gray-900">@p.Name</div>
@@ -70,7 +70,7 @@
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">@p.Category</td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">@p.CurrentQuantity / @p.MinimumQuantity</td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">@p.UnitPrice.ToString("C")</td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
+                                    <td class="px-6 py-4 whitespace-nowrap">    
                                         @if (p.CurrentQuantity <= 0) { <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Out of Stock</span> }
                                         else if (p.CurrentQuantity <= p.MinimumQuantity) { <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Low Stock</span> }
                                         else { <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">In Stock</span> }
@@ -80,7 +80,7 @@
                                         <button @onclick="() => DeleteProduct(p.Id ?? 0)" class="text-red-600 hover:text-red-900">Delete</button>
                                     </td>
                                 </tr>
-                            }
+                            </Virtualize>
                         }
                     </tbody>
                 </table>
@@ -151,8 +151,7 @@
                         else if (tools == null || !tools.Any()) { <tr><td colspan="6" class="px-6 py-4 text-center">No tools found.</td></tr> }
                         else
                         {
-                            @foreach (var t in FilteredTools)
-                            {
+                            <Virtualize Items="@FilteredTools.ToList()" Context="t" ItemSize="56">
                                 <tr>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">@t.Name</td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">@t.TypeName</td>
@@ -161,9 +160,7 @@
                                         @(t.AssignedToEmployeeId.HasValue ? GetEmployeeName(t.AssignedToEmployeeId.Value) : "-")
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap">
-                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full @(t.Status == "available" ? "bg-green-100 text-green-800" : "bg-blue-100 text-blue-800")">
-                                            @t.Status
-                                        </span>
+                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full @(t.Status == "available" ? "bg-green-100 text-green-800" : "bg-blue-100 text-blue-800")">@t.Status</span>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                         <button @onclick="() => EditTool(t)" class="text-blue-600 hover:text-blue-900 mr-3">Edit</button>
@@ -174,7 +171,7 @@
                                         </button>
                                     </td>
                                 </tr>
-                            }
+                            </Virtualize>
                         }
                     </tbody>
                 </table>
@@ -508,4 +505,3 @@
         }
     }
 }
-

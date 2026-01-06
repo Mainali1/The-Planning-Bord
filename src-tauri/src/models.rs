@@ -7,8 +7,14 @@ pub struct Invite {
     pub role: String,
     pub name: String,
     pub email: String,
-    pub expiration: String,
+    pub expiration: Option<String>,
     pub is_used: bool,
+    #[serde(default = "default_true")]
+    pub is_active: bool,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

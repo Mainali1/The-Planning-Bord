@@ -5,6 +5,7 @@ use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
 use tauri::Manager;
+use rand::Rng;
 
 fn wait_for_postgres(conn: &str) -> bool {
     for _ in 0..30 {
@@ -171,7 +172,7 @@ fn start_system_postgres(app: &tauri::AppHandle) -> Result<String, String> {
         fs::create_dir_all(&data).map_err(|e| e.to_string())?;
         let data_str = data.to_str().ok_or("Invalid data path encoding")?;
         let status = Command::new(&initdb)
-            .args(["-D", data_str, "-U", "postgres", "-A", "trust"])
+            .args(["-D", data_str, "-U", "postgres", "-A", "md5"])
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .status()
@@ -193,14 +194,56 @@ fn start_system_postgres(app: &tauri::AppHandle) -> Result<String, String> {
         .stderr(Stdio::null())
         .status();
 
-    // Check if we can connect (whether start succeeded or it was already running)
-    let conn = "postgres://postgres@localhost:5432/planning_bord?connect_timeout=2";
-    if !wait_for_postgres(conn) {
-        // If we can't connect with trust auth, maybe it's a pre-existing system service with password?
-        // We can't do much here other than fail and let the UI ask for password.
+    let secret_path = app.path().app_local_data_dir().map_err(|e| e.to_string())?.join("secrets.json");
+    let db_password = if secret_path.exists() {
+        if let Ok(content) = fs::read_to_string(&secret_path) {
+            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+                json["db_password"].as_str().unwrap_or("").to_string()
+            } else { "".to_string() }
+        } else { "".to_string() }
+    } else { "".to_string() };
+    let db_password = if db_password.is_empty() {
+        let gen: String = (0..16)
+            .map(|_| rand::thread_rng().gen::<u8>())
+            .map(|b| format!("{:02x}", b))
+            .collect();
+        let merged = if secret_path.exists() {
+            if let Ok(content) = fs::read_to_string(&secret_path) {
+                if let Ok(mut json) = serde_json::from_str::<serde_json::Value>(&content) {
+                    json["db_password"] = serde_json::Value::String(gen.clone());
+                    if let Ok(out) = serde_json::to_string_pretty(&json) {
+                        let _ = fs::write(&secret_path, out);
+                    }
+                }
+            }
+            gen.clone()
+        } else {
+            let json = serde_json::json!({ "db_password": gen });
+            if let Ok(out) = serde_json::to_string_pretty(&json) {
+                let _ = fs::write(&secret_path, out);
+            }
+            gen.clone()
+        };
+        merged
+    } else { db_password };
+    let psql = bin.join(if cfg!(target_os = "windows") { "psql.exe" } else { "psql" });
+    if psql.exists() {
+        let _ = Command::new(&psql)
+            .args(["-U", "postgres", "-h", "localhost", "-p", "5432", "-c", &format!("ALTER USER postgres WITH PASSWORD '{}';", db_password)])
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+        let _ = Command::new(&psql)
+            .args(["-U", "postgres", "-h", "localhost", "-p", "5432", "-c", "CREATE DATABASE planning_bord;"])
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+    }
+    let conn = format!("postgres://postgres:{}@localhost:5432/planning_bord?connect_timeout=2", db_password);
+    if !wait_for_postgres(&conn) {
         return Err("system postgres failed to start or connect".to_string());
     }
-    Ok(conn.to_string())
+    Ok(conn)
 }
 
 pub fn ensure_local_db(app: &tauri::AppHandle, custom_conn: Option<String>) -> Result<String, String> {

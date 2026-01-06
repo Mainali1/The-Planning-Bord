@@ -36,20 +36,22 @@
                 </NavLink>
             </AuthorizeView>
 
-            <NavLink href="tasks" class="group flex items-center px-2 py-2 text-base font-medium rounded-md text-gray-300 hover:bg-gray-700 hover:text-white" ActiveClass="bg-gray-900 text-white">
-                <span class="mr-3">✅</span>
-                Tasks
-            </NavLink>
+            <AuthorizeView>
+                <NavLink href="tasks" class="group flex items-center px-2 py-2 text-base font-medium rounded-md text-gray-300 hover:bg-gray-700 hover:text-white" ActiveClass="bg-gray-900 text-white">
+                    <span class="mr-3">✅</span>
+                    Tasks
+                </NavLink>
 
-            <NavLink href="projects" class="group flex items-center px-2 py-2 text-base font-medium rounded-md text-gray-300 hover:bg-gray-700 hover:text-white" ActiveClass="bg-gray-900 text-white">
-                <span class="mr-3">🚀</span>
-                Projects
-            </NavLink>
+                <NavLink href="projects" class="group flex items-center px-2 py-2 text-base font-medium rounded-md text-gray-300 hover:bg-gray-700 hover:text-white" ActiveClass="bg-gray-900 text-white">
+                    <span class="mr-3">🚀</span>
+                    Projects
+                </NavLink>
 
-            <NavLink href="attendance" class="group flex items-center px-2 py-2 text-base font-medium rounded-md text-gray-300 hover:bg-gray-700 hover:text-white" ActiveClass="bg-gray-900 text-white">
-                <span class="mr-3">🕒</span>
-                Attendance
-            </NavLink>
+                <NavLink href="attendance" class="group flex items-center px-2 py-2 text-base font-medium rounded-md text-gray-300 hover:bg-gray-700 hover:text-white" ActiveClass="bg-gray-900 text-white">
+                    <span class="mr-3">🕒</span>
+                    Attendance
+                </NavLink>
+            </AuthorizeView>
 
             <AuthorizeView Roles="CEO,Manager">
                 <NavLink href="reports" class="group flex items-center px-2 py-2 text-base font-medium rounded-md text-gray-300 hover:bg-gray-700 hover:text-white" ActiveClass="bg-gray-900 text-white">
@@ -65,15 +67,17 @@
                 </NavLink>
             </AuthorizeView>
 
-            <NavLink href="complaints" class="group flex items-center px-2 py-2 text-base font-medium rounded-md text-gray-300 hover:bg-gray-700 hover:text-white" ActiveClass="bg-gray-900 text-white">
-                <span class="mr-3">📢</span>
-                Complaints
-            </NavLink>
+            <AuthorizeView>
+                <NavLink href="complaints" class="group flex items-center px-2 py-2 text-base font-medium rounded-md text-gray-300 hover:bg-gray-700 hover:text-white" ActiveClass="bg-gray-900 text-white">
+                    <span class="mr-3">📢</span>
+                    Complaints
+                </NavLink>
 
-            <NavLink href="help" class="group flex items-center px-2 py-2 text-base font-medium rounded-md text-gray-300 hover:bg-gray-700 hover:text-white" ActiveClass="bg-gray-900 text-white">
-                <span class="mr-3">❓</span>
-                Help
-            </NavLink>
+                <NavLink href="help" class="group flex items-center px-2 py-2 text-base font-medium rounded-md text-gray-300 hover:bg-gray-700 hover:text-white" ActiveClass="bg-gray-900 text-white">
+                    <span class="mr-3">❓</span>
+                    Help
+                </NavLink>
+            </AuthorizeView>
         </div>
     </div>
     

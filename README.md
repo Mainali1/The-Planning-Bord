@@ -12,7 +12,7 @@ This application is designed to be a robust, offline-capable desktop application
 - **Rust** (latest stable)
 - **.NET 8.0 SDK** (or later)
 - **Visual Studio Code** or **Visual Studio 2022** (recommended)
-- **PostgreSQL** (Optional - the application can attempt to set up a local instance, but a system installation is recommended for development)
+- **PostgreSQL** (Optional - the application includes an `InMemoryDatabase` for quick testing, but a local PostgreSQL instance is recommended for production/persistence)
 
 ## Installation and Setup
 
@@ -34,7 +34,7 @@ This application is designed to be a robust, offline-capable desktop application
 
 3.  **Build the application:**
     ```bash
-    dotnet publish -c Release
+    dotnet publish -c Release src/ThePlanningBord.csproj -o dist
     cd src-tauri
     cargo tauri build
     ```
@@ -95,8 +95,10 @@ Configuration is managed via:
 ## Usage Examples
 
 - **Inventory:** Navigate to the "Inventory" tab to add, update, or delete products. Use the search bar to filter items.
-- **HR:** Use the "Employees" tab to manage staff. The "Attendance" tab allows clock-in/out functionality.
-- **Finance:** Track payments and expenses in the "Finance" module.
+- **HR:** Use the "Employees" tab to manage staff. The "Attendance" tab allows clock-in/out functionality with precise timestamps and status indicators.
+- **Projects:** Create projects, assign teams, and manage tasks with Gantt chart visualization.
+- **Finance:** Track payments, invoices, and expenses in the "Finance" module.
+- **Integrations:** Connect to Microsoft 365 for enhanced functionality.
 
 ## Maintenance
 

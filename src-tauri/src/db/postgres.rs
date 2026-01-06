@@ -123,11 +123,11 @@ impl Database for PostgresDatabase {
     // --- Invites ---
     fn create_invite(&self, invite: Invite) -> Result<i64, String> {
         let mut client = self.client.lock().map_err(|_| "Failed to lock db".to_string())?;
-        let expiration = parse_timestamp(Some(invite.expiration)).ok_or("Invalid expiration date")?;
+        let expiration = parse_timestamp(invite.expiration);
         
         let row = client.query_one(
-            "INSERT INTO user_invites (token, role, name, email, expiration, is_used) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
-            &[&invite.token, &invite.role, &invite.name, &invite.email, &expiration, &invite.is_used]
+            "INSERT INTO user_invites (token, role, name, email, expiration, is_used, is_active) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id",
+            &[&invite.token, &invite.role, &invite.name, &invite.email, &expiration, &invite.is_used, &invite.is_active]
         ).map_err(|e| e.to_string())?;
         
         Ok(row.get::<_, i32>(0) as i64)
@@ -136,7 +136,7 @@ impl Database for PostgresDatabase {
     fn get_invite(&self, token: String) -> Result<Option<Invite>, String> {
         let mut client = self.client.lock().map_err(|_| "Failed to lock db".to_string())?;
         let row_opt = client.query_opt(
-            "SELECT id, token, role, name, email, expiration, is_used FROM user_invites WHERE token = $1",
+            "SELECT id, token, role, name, email, expiration, is_used, is_active FROM user_invites WHERE token = $1",
             &[&token]
         ).map_err(|e| e.to_string())?;
 
@@ -147,8 +147,9 @@ impl Database for PostgresDatabase {
                 role: row.get(2),
                 name: row.get(3),
                 email: row.get(4),
-                expiration: format_timestamp(row.get(5)).unwrap_or_default(),
+                expiration: format_timestamp(row.get(5)),
                 is_used: row.get(6),
+                is_active: row.try_get(7).unwrap_or(true),
             }))
         } else {
             Ok(None)
@@ -158,6 +159,32 @@ impl Database for PostgresDatabase {
     fn mark_invite_used(&self, token: String) -> Result<(), String> {
         let mut client = self.client.lock().map_err(|_| "Failed to lock db".to_string())?;
         client.execute("UPDATE user_invites SET is_used = TRUE WHERE token = $1", &[&token]).map_err(|e| e.to_string())?;
+        Ok(())
+    }
+
+    fn get_invites(&self) -> Result<Vec<Invite>, String> {
+        let mut client = self.client.lock().map_err(|_| "Failed to lock db".to_string())?;
+        let rows = client.query("SELECT id, token, role, name, email, expiration, is_used, is_active FROM user_invites ORDER BY created_at DESC", &[]).map_err(|e| e.to_string())?;
+        
+        let mut invites = Vec::new();
+        for row in rows {
+            invites.push(Invite {
+                id: Some(row.get(0)),
+                token: row.get(1),
+                role: row.get(2),
+                name: row.get(3),
+                email: row.get(4),
+                expiration: format_timestamp(row.get(5)),
+                is_used: row.get(6),
+                is_active: row.try_get(7).unwrap_or(true),
+            });
+        }
+        Ok(invites)
+    }
+
+    fn toggle_invite_status(&self, id: i32, is_active: bool) -> Result<(), String> {
+        let mut client = self.client.lock().map_err(|_| "Failed to lock db".to_string())?;
+        client.execute("UPDATE user_invites SET is_active = $1 WHERE id = $2", &[&is_active, &id]).map_err(|e| e.to_string())?;
         Ok(())
     }
 
@@ -285,6 +312,30 @@ impl Database for PostgresDatabase {
             });
         }
         Ok(employees)
+    }
+
+    fn get_employee_by_email(&self, email: String) -> Result<Option<Employee>, String> {
+        let mut client = self.client.lock().map_err(|_| "Failed to lock db".to_string())?;
+        let rows = client.query("SELECT id, employee_id, first_name, last_name, email, phone, role, department, position, salary, status FROM employees WHERE email = $1", &[&email]).map_err(|e| e.to_string())?;
+        
+        if rows.is_empty() {
+            return Ok(None);
+        }
+
+        let row = &rows[0];
+        Ok(Some(Employee {
+            id: Some(row.get(0)),
+            employee_id: row.get(1),
+            first_name: row.get(2),
+            last_name: row.get(3),
+            email: row.get(4),
+            phone: row.get(5),
+            role: row.get(6),
+            department: row.get(7),
+            position: row.get(8),
+            salary: row.get(9),
+            status: row.get(10),
+        }))
     }
 
     fn add_employee(&self, employee: Employee) -> Result<i64, String> {
@@ -543,10 +594,14 @@ impl Database for PostgresDatabase {
         let mut client = self.client.lock().map_err(|_| "Failed to lock db".to_string())?;
         let check_out = parse_timestamp(attendance.check_out).unwrap_or(chrono::Local::now().naive_local());
         if let Some(id) = attendance.id {
-            client.execute(
-                "UPDATE attendance SET check_out = $1, status = $2, notes = $3 WHERE id = $4",
-                &[&check_out, &attendance.status, &attendance.notes, &id],
+            let result = client.execute(
+                "UPDATE attendance SET check_out = $1, status = $2, notes = $3 WHERE id = $4 AND employee_id = $5",
+                &[&check_out, &attendance.status, &attendance.notes, &id, &attendance.employee_id],
             ).map_err(|e| e.to_string())?;
+            
+            if result == 0 {
+                return Err("Attendance record not found or permission denied".to_string());
+            }
             Ok(())
         } else {
             Err("Attendance ID is required for clock out".to_string())

@@ -6,6 +6,8 @@
 @inject NavigationManager Navigation
 @inject NotificationService NotificationService
 @inject AuthenticationStateProvider AuthStateProvider
+@inject IJSRuntime JSRuntime
+@using Microsoft.JSInterop
 @using ThePlanningBord.Models
 @using ThePlanningBord.Auth
 @using Microsoft.AspNetCore.Components.Authorization
@@ -334,6 +336,14 @@
         debounceTimer.Start();
     }
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadState();
+        }
+    }
+
     protected override async Task OnInitializedAsync()
     {
         embeddedAvailable = await SystemService.CheckEmbeddedPostgresAsync();
@@ -348,7 +358,7 @@
         }
     }
     
-    private void SelectRole(string role)
+    private async Task SelectRole(string role)
     {
         selectedRole = role;
         if (role == "Employee")
@@ -364,16 +374,19 @@
         {
             step = 1;
         }
+        await SaveState();
     }
     
-    private void SelectBusinessType(string type)
+    private async Task SelectBusinessType(string type)
     {
         businessType = type;
+        await SaveState();
     }
     
-    private void NextStep()
+    private async Task NextStep()
     {
         if (step == 2) step = 20;
+        await SaveState();
     }
     
     private void SetDbType(DbType type)
@@ -387,6 +400,7 @@
         {
             dbConfig.ConnectionString = "";
         }
+        // No await here as it's void, but we could save state if we change signature or rely on SaveDbAndNext
     }
     
     private async Task SaveDbAndNext()
@@ -441,6 +455,7 @@
             {
                 step = 2; // Go to business type
             }
+            await SaveState();
         }
         catch (Exception ex)
         {
@@ -474,6 +489,7 @@
             await SystemService.SaveDbConfigAsync(config);
             
             step = 11;
+            await SaveState();
         }
         catch (Exception ex)
         {
@@ -503,6 +519,7 @@
                 adminEmail = claims.Email;
                 adminName = claims.Name;
                 step = 20;
+                await SaveState();
             }
             else
             {
@@ -640,6 +657,7 @@
                      {
                          customAuth.NotifyUserLogin(user);
                      }
+                     await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "setup_state");
                      Navigation.NavigateTo("/");
                  }
                  else
@@ -660,6 +678,7 @@
                     {
                         customAuth.NotifyUserLogin(user);
                     }
+                    await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "setup_state");
                     Navigation.NavigateTo("/");
                 }
                 else
@@ -681,5 +700,64 @@
     private async Task CloseApp()
     {
         await SystemService.ExitAppAsync();
+    }
+
+    private class SetupState
+    {
+        public int Step { get; set; }
+        public string SelectedRole { get; set; } = "";
+        public string BusinessType { get; set; } = "";
+        public DbConfig? DbConfig { get; set; }
+        public string EmployeeConnectionString { get; set; } = "";
+        public string EmployeeToken { get; set; } = "";
+        public string CompanyName { get; set; } = "";
+        public string AdminName { get; set; } = "";
+        public string AdminEmail { get; set; } = "";
+        public string AdminUsername { get; set; } = "";
+    }
+
+    private async Task SaveState()
+    {
+        var state = new SetupState
+        {
+            Step = step,
+            SelectedRole = selectedRole,
+            BusinessType = businessType,
+            DbConfig = dbConfig ?? new DbConfig { DbType = DbType.Local, ConnectionString = "postgres://postgres:password@localhost:5432/planningbord" },
+            EmployeeConnectionString = employeeConnectionString,
+            EmployeeToken = employeeToken,
+            CompanyName = companyName,
+            AdminName = adminName,
+            AdminEmail = adminEmail,
+            AdminUsername = adminUsername
+        };
+        await JSRuntime.InvokeVoidAsync("localStorage.setItem", "setup_state", System.Text.Json.JsonSerializer.Serialize(state));
+    }
+
+    private async Task LoadState()
+    {
+        try
+        {
+            var json = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "setup_state");
+            if (!string.IsNullOrEmpty(json))
+            {
+                var state = System.Text.Json.JsonSerializer.Deserialize<SetupState>(json);
+                if (state != null)
+                {
+                    step = state.Step;
+                    selectedRole = state.SelectedRole;
+                    businessType = state.BusinessType;
+                    dbConfig = state.DbConfig ?? new DbConfig { DbType = DbType.Local, ConnectionString = "postgres://postgres:password@localhost:5432/planningbord" };
+                    employeeConnectionString = state.EmployeeConnectionString;
+                    employeeToken = state.EmployeeToken;
+                    companyName = state.CompanyName;
+                    adminName = state.AdminName;
+                    adminEmail = state.AdminEmail;
+                    adminUsername = state.AdminUsername;
+                    StateHasChanged();
+                }
+            }
+        }
+        catch { /* Ignore invalid state */ }
     }
 }

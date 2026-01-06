@@ -26,19 +26,46 @@ Welcome to **The Planning Bord**, a comprehensive management tool for your busin
 
 ### 5. Task & Project Management
 - **Projects:** Create and manage projects with start/end dates.
+- **Project Teams:** Assign employees to projects to build your team.
 - **Gantt Chart:** Visualize project timelines and dependencies.
-- **Task Assignment:** Assign specific tasks to employees.
+- **Task Assignment:** Assign specific tasks to project team members (filtered list).
 - **Permissions:** Only Managers can delete projects.
 
-### 6. Finance / Payments
-- Record payments and financial transactions.
-- Basic expense tracking.
+### 6. Attendance Tracking
+- **Clock In/Out:** Track daily work hours with precise timestamps.
+- **Status Indicators:** 
+  - 🔴 **Late Arrival:** Clock-in after 09:15.
+  - 🟡 **Early Departure:** Clock-out before 17:00.
+  - 🟢 **On Time:** Normal working hours.
+- **Detailed Records:** View full names, duration of work sessions, and sortable history.
 
-### 7. Anonymous Complaints
+### 7. Finance / Payments
+- **Accounts:** Manage chart of accounts (Assets, Liabilities, etc.).
+- **Invoices:** Create and track customer invoices.
+- **Payments:** Record incoming and outgoing payments.
+- **Expense Tracking:** Monitor company expenses.
+
+### 8. Anonymous Complaints
 - A secure channel for employees to submit anonymous feedback or complaints.
-- Only admins can view these.
+- **Resolution:** Admins can review, resolve, and delete complaints.
+- **Privacy:** Submitters' identities are protected (unless voluntarily disclosed).
 
-### 8. Settings
+### 9. Reports & Analytics
+- **Summary Reports:** Generate PDF summaries of inventory and financials.
+- **Cashflow:** View monthly income vs. expense charts.
+- **Export:** Download report data for external analysis.
+
+### 10. Integrations
+- **Microsoft 365:** Connect for email capabilities and Outlook integration.
+- **Future Integrations:** Placeholders for Slack, Quickbooks, etc.
+
+### 11. System Setup & Admin
+- **User Management:** Invite new users via email/token.
+- **Roles & Permissions:** Configure granular access control (RBAC).
+- **Audit Logs:** View a history of critical system actions (login, delete, etc.).
+- **Database:** Configure connection to local or cloud PostgreSQL.
+
+### 12. Settings
 - **Dark Mode:** Toggle between light and dark themes.
 - **Notifications:** Enable/disable system alerts.
 - **Microsoft 365 Integration:** Connect your Outlook account to send auto-restock emails to suppliers.

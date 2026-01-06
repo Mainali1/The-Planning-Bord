@@ -28,24 +28,25 @@ All services are registered in `Program.cs` as `Scoped` services and implement s
 
 | Service | Interface | Responsibility |
 | :--- | :--- | :--- |
-| **InventoryService** | `IInventoryService` | Product CRUD, Tool tracking, Stock management. |
-| **HrService** | `IHrService` | Employee management, Attendance, Payroll. |
-| **FinanceService** | `IFinanceService` | Payment tracking, Financial reporting. |
-| **TaskService** | `ITaskService` | Task creation, assignment, and status updates. |
-| **SystemService** | `ISystemService` | Role-based access control (RBAC), System settings. |
-| **NotificationService** | N/A | Centralized toast notifications (Success, Error, Info). |
+| **ComplaintService** | `IComplaintService` | Anonymous complaint submission and resolution. |
+| **ReportService** | `IReportService` | Generating summaries and chart data. |
+| **ProjectService** | `IProjectService` | Project lifecycle and team management. |
+| **IntegrationService** | `IIntegrationService` | External API integrations (Microsoft 365). |
+| **UserService** | `IUserService` | User accounts, invites, and profile management. |
+| **MicrosoftGraphService** | N/A | Direct communication with Microsoft Graph API. |
 
 ### Backend Commands (Rust)
 Rust functions exposed to the frontend via Tauri's IPC mechanism. Defined in `src-tauri/src/lib.rs`.
 
-| Command | Description |
+| Category | Commands (Examples) |
 | :--- | :--- |
-| `get_products` | Retrieves paginated product list with search support. |
-| `add_product` | Inserts a new product into the database. |
-| `get_employees` | Fetches all employee records. |
-| `clock_in` / `clock_out` | Records attendance timestamps. |
-| `get_dashboard_stats` | Aggregates high-level metrics (Total Products, Revenue, etc.). |
-| `get_complaints` | Retrieves user complaints/issues. |
+| **Auth** | `login`, `generate_invite_token`, `check_invite_token`, `accept_invite` |
+| **Inventory** | `get_products`, `add_product`, `update_product`, `delete_product` |
+| **HR** | `get_employees`, `clock_in`, `clock_out`, `get_attendances` |
+| **Projects** | `get_projects`, `add_project_task`, `assign_project_employee`, `get_project_assignments` |
+| **Finance** | `get_accounts`, `create_invoice`, `get_payments`, `get_monthly_cashflow` |
+| **System** | `get_audit_logs`, `get_setup_status`, `save_db_config`, `get_dashboard_stats` |
+| **Integrations** | `get_integrations`, `configure_integration`, `seed_demo_data` |
 
 ## 3. Data Flow
 
@@ -71,10 +72,13 @@ Key tables include:
 -   `employees`: HR records.
 -   `attendances`: Clock-in/out logs.
 -   `tasks`: Workflow tasks.
--   `users`: System users and authentication data.
--   `roles` / `permissions`: RBAC configuration.
--   `projects` / `project_tasks`: Project management.
+-   `users` / `invites`: Authentication and user management.
+-   `roles` / `permissions` / `role_permissions`: RBAC configuration.
+-   `projects` / `project_tasks` / `project_assignments`: Project management.
 -   `tools` / `tool_assignments`: Tool tracking.
+-   `accounts` / `invoices` / `payments`: Finance module.
+-   `audit_logs`: System activity tracking.
+-   `setup_config` / `dashboard_configs`: System configuration.
 
 ## 5. Deployment Procedures
 

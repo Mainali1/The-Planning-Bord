@@ -19,17 +19,24 @@ use jsonwebtoken::{encode, decode, Header, Validation, EncodingKey, DecodingKey}
 use serde::{Deserialize, Serialize};
 use rand::Rng;
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Session {
+    user: User,
+    exp: i64,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 struct InviteClaims {
     sub: String, // email
     role: String,
     name: String,
-    exp: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    exp: Option<usize>,
 }
 
 pub struct AppState {
     pub db: RwLock<Box<dyn Database + Send + Sync>>,
-    pub sessions: RwLock<HashMap<String, User>>,
+    pub sessions: RwLock<HashMap<String, Session>>,
     pub jwt_secret: String,
 }
 
@@ -71,7 +78,8 @@ fn login(state: State<AppState>, username: String, password_plain: String) -> Re
             let token = Uuid::new_v4().to_string();
             
             // Store Session
-            state.sessions.write().map_err(|e| e.to_string())?.insert(token.clone(), user.clone());
+            let exp = chrono::Utc::now().timestamp() + 86400;
+            state.sessions.write().map_err(|e| e.to_string())?.insert(token.clone(), Session { user: user.clone(), exp });
 
             Ok(LoginResponse {
                 user,
@@ -100,17 +108,19 @@ fn generate_invite_token(state: State<AppState>, role: String, name: String, ema
     let user = check_auth(&state, &token, vec!["CEO", "Manager"])?;
 
     // 1. Generate JWT as the invite token
-    let expiration_ts = chrono::Utc::now()
-        .checked_add_signed(chrono::Duration::hours(expiration_hours as i64))
-        .expect("valid timestamp")
-        .timestamp() as usize;
-    
-    // We also calculate a formatted string for DB storage
-    let expiration_db = chrono::Local::now()
-        .checked_add_signed(chrono::Duration::hours(expiration_hours as i64))
-        .expect("valid timestamp")
-        .format("%Y-%m-%d %H:%M:%S")
-        .to_string();
+    let (expiration_ts, expiration_db) = if expiration_hours == 0 {
+        (None, None)
+    } else {
+        let exp_time = chrono::Utc::now()
+            .checked_add_signed(chrono::Duration::hours(expiration_hours as i64))
+            .ok_or("Invalid expiration time")?;
+        let exp_db = chrono::Local::now()
+            .checked_add_signed(chrono::Duration::hours(expiration_hours as i64))
+            .ok_or("Invalid expiration time")?
+            .format("%Y-%m-%d %H:%M:%S")
+            .to_string();
+        (Some(exp_time.timestamp() as usize), Some(exp_db))
+    };
 
     let claims = InviteClaims {
         sub: email.clone(),
@@ -133,6 +143,7 @@ fn generate_invite_token(state: State<AppState>, role: String, name: String, ema
         email: email.clone(),
         expiration: expiration_db,
         is_used: false,
+        is_active: true,
     };
     
     {
@@ -162,6 +173,9 @@ fn check_invite_token(state: State<AppState>, invite_token: String) -> Result<In
     if stored_invite.is_used {
         return Err("Invite has already been used".to_string());
     }
+    if !stored_invite.is_active {
+        return Err("Invite is disabled".to_string());
+    }
     
     Ok(claims)
 }
@@ -182,6 +196,9 @@ fn accept_invite(state: State<AppState>, invite_token: String, password_plain: S
         
     if stored_invite.is_used {
         return Err("Invite has already been used".to_string());
+    }
+    if !stored_invite.is_active {
+        return Err("Invite is disabled".to_string());
     }
 
     // Check if username taken
@@ -217,7 +234,8 @@ fn accept_invite(state: State<AppState>, invite_token: String, password_plain: S
 
     // 5. Create session
     let session_token = Uuid::new_v4().to_string();
-    state.sessions.write().map_err(|e| e.to_string())?.insert(session_token.clone(), user.clone());
+    let exp = chrono::Utc::now().timestamp() + 86400;
+    state.sessions.write().map_err(|e| e.to_string())?.insert(session_token.clone(), Session { user: user.clone(), exp });
 
     Ok(LoginResponse {
         user,
@@ -228,11 +246,14 @@ fn accept_invite(state: State<AppState>, invite_token: String, password_plain: S
 // Helper for verifying auth
 fn check_auth(state: &State<AppState>, token: &str, allowed_roles: Vec<&str>) -> Result<User, String> {
     let sessions = state.sessions.read().map_err(|e| e.to_string())?;
-    if let Some(user) = sessions.get(token) {
-        if allowed_roles.contains(&user.role.as_str()) || allowed_roles.contains(&"CEO") { // CEO always allowed if in list? Or handle CEO explicitly.
-            Ok(user.clone())
+    if let Some(sess) = sessions.get(token) {
+        if sess.exp < chrono::Utc::now().timestamp() {
+            return Err("Invalid or expired session".to_string());
+        }
+        if allowed_roles.contains(&sess.user.role.as_str()) || allowed_roles.contains(&"CEO") {
+            Ok(sess.user.clone())
         } else if allowed_roles.is_empty() {
-             Ok(user.clone()) // No specific roles required, just auth
+             Ok(sess.user.clone())
         } else {
             Err("Insufficient permissions".to_string())
         }
@@ -366,15 +387,31 @@ fn get_attendances(state: State<AppState>, token: String) -> Result<Vec<Attendan
 }
 
 #[tauri::command]
-fn clock_in(state: State<AppState>, attendance: Attendance, token: String) -> Result<i64, String> {
-    check_auth(&state, &token, vec![])?; // Any authenticated user
-    state.db.read().map_err(|e| e.to_string())?.clock_in(attendance)
+fn clock_in(state: State<AppState>, mut attendance: Attendance, token: String) -> Result<i64, String> {
+    let user = check_auth(&state, &token, vec![])?; // Any authenticated user
+    let db = state.db.read().map_err(|e| e.to_string())?;
+    
+    if let Some(emp) = db.get_employee_by_email(user.email.clone())? {
+        attendance.employee_id = emp.id;
+    } else {
+        return Err("No employee record found for this user.".to_string());
+    }
+    
+    db.clock_in(attendance)
 }
 
 #[tauri::command]
-fn clock_out(state: State<AppState>, attendance: Attendance, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec![])?; // Any authenticated user
-    state.db.read().map_err(|e| e.to_string())?.clock_out(attendance)
+fn clock_out(state: State<AppState>, mut attendance: Attendance, token: String) -> Result<(), String> {
+    let user = check_auth(&state, &token, vec![])?; // Any authenticated user
+    let db = state.db.read().map_err(|e| e.to_string())?;
+    
+    if let Some(emp) = db.get_employee_by_email(user.email.clone())? {
+        attendance.employee_id = emp.id;
+    } else {
+        return Err("No employee record found for this user.".to_string());
+    }
+    
+    db.clock_out(attendance)
 }
 
 // --- Dashboard Commands ---
@@ -629,13 +666,33 @@ fn get_project_tasks(state: State<AppState>, project_id: i32, token: String) -> 
 #[tauri::command]
 fn add_project_task(state: State<AppState>, task: ProjectTask, token: String) -> Result<i64, String> {
     check_auth(&state, &token, vec![])?; // Any authenticated
-    state.db.read().map_err(|e| e.to_string())?.add_project_task(task)
+    if let (Some(pid), Some(emp_id)) = (task.project_id, task.assigned_to) {
+        let db = state.db.read().map_err(|e| e.to_string())?;
+        let assigns = db.get_project_assignments(pid)?;
+        let allowed = assigns.iter().any(|a| a.employee_id == emp_id);
+        if !allowed {
+            return Err("Assigned employee is not part of this project".into());
+        }
+        db.add_project_task(task)
+    } else {
+        state.db.read().map_err(|e| e.to_string())?.add_project_task(task)
+    }
 }
 
 #[tauri::command]
 fn update_project_task(state: State<AppState>, task: ProjectTask, token: String) -> Result<(), String> {
     check_auth(&state, &token, vec![])?; // Any authenticated
-    state.db.read().map_err(|e| e.to_string())?.update_project_task(task)
+    if let (Some(pid), Some(emp_id)) = (task.project_id, task.assigned_to) {
+        let db = state.db.read().map_err(|e| e.to_string())?;
+        let assigns = db.get_project_assignments(pid)?;
+        let allowed = assigns.iter().any(|a| a.employee_id == emp_id);
+        if !allowed {
+            return Err("Assigned employee is not part of this project".into());
+        }
+        db.update_project_task(task)
+    } else {
+        state.db.read().map_err(|e| e.to_string())?.update_project_task(task)
+    }
 }
 
 #[tauri::command]
@@ -785,6 +842,25 @@ fn exit_app(app: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+fn get_all_invites(state: State<AppState>, token: String) -> Result<Vec<Invite>, String> {
+    let _ = check_auth(&state, &token, vec!["CEO", "Manager"])?;
+    let db = state.db.read().map_err(|e| e.to_string())?;
+    db.get_invites()
+}
+
+#[tauri::command]
+fn toggle_invite_status(state: State<AppState>, token: String, invite_id: i32, is_active: bool) -> Result<(), String> {
+    let user = check_auth(&state, &token, vec!["CEO", "Manager"])?;
+    let db = state.db.read().map_err(|e| e.to_string())?;
+    db.toggle_invite_status(invite_id, is_active)?;
+    
+    // Log activity
+    let _ = db.log_activity(user.id, "toggle_invite".to_string(), Some("Invite".to_string()), Some(invite_id), Some(format!("New Status: {}", is_active)));
+    
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     dotenv::dotenv().ok();
@@ -867,8 +943,11 @@ pub fn run() {
                     .map(|_| rand::thread_rng().gen::<u8>())
                     .map(|b| format!("{:02x}", b))
                     .collect();
-                
-                let json = serde_json::json!({ "jwt_secret": secret });
+                let db_pwd: String = (0..16)
+                    .map(|_| rand::thread_rng().gen::<u8>())
+                    .map(|b| format!("{:02x}", b))
+                    .collect();
+                let json = serde_json::json!({ "jwt_secret": secret, "db_password": db_pwd });
                 if let Ok(content) = serde_json::to_string_pretty(&json) {
                     let _ = std::fs::write(&secret_path, content);
                 }
@@ -883,7 +962,7 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            greet, ping, login, register_user, verify_connection, generate_invite_token, check_invite_token, accept_invite,
+            greet, ping, login, register_user, verify_connection, generate_invite_token, check_invite_token, accept_invite, get_all_invites, toggle_invite_status,
             get_products, add_product, update_product, delete_product,
             get_employees, add_employee, update_employee, delete_employee,
             get_payments, add_payment, update_payment, delete_payment,

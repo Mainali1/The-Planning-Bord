@@ -11,11 +11,12 @@ This guide covers the installation, system requirements, and troubleshooting for
 - **Software:** Microsoft Edge WebView2 Runtime (usually pre-installed on modern Windows)
 
 ## Installation Steps
+ 
+ 1. **Download the Installer:**
+    - Locate the installer file: `The Planning Bord_1.0.0_x64-setup.exe` (or `.msi`).
+    - *Note:* If building from source, the installer will be in `src-tauri/target/release/bundle/nsis/`.
 
-1. **Download the Installer:**
-   - Locate the installer file: `The Planning Bord_1.0.0_x64-setup.exe` (or `.msi`).
-
-2. **Run the Installer:**
+ 2. **Run the Installer:**
    - Double-click the installer file.
    - If prompted by User Account Control (UAC), click **Yes** to allow the installation.
 

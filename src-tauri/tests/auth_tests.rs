@@ -58,8 +58,9 @@ mod tests {
             role: "Employee".to_string(),
             name: "New Employee".to_string(),
             email: invite_email.clone(),
-            expiration: "2030-01-01 00:00:00".to_string(),
+            expiration: Some("2030-01-01 00:00:00".to_string()),
             is_used: false,
+            is_active: true,
         };
 
         let invite_id = db.create_invite(invite).expect("Failed to create invite");

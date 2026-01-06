@@ -96,6 +96,10 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
         &[],
     )?;
 
+    // Patch user_invites
+    let _ = client.execute("ALTER TABLE user_invites ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE", &[]);
+    let _ = client.execute("ALTER TABLE user_invites ALTER COLUMN expiration DROP NOT NULL", &[]);
+
     // 2. Inventory Management
     client.execute(
         "CREATE TABLE IF NOT EXISTS products (
@@ -144,56 +148,29 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             email TEXT UNIQUE,
             phone TEXT,
             date_of_birth TIMESTAMP,
-            role TEXT REFERENCES roles(name) DEFAULT 'Employee',
+            role TEXT REFERENCES roles(name),
             department TEXT,
             position TEXT,
             hire_date TIMESTAMP,
             salary DOUBLE PRECISION,
             status TEXT DEFAULT 'active',
+            address TEXT,
+            emergency_contact_name TEXT,
+            emergency_contact_phone TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )",
         &[],
     )?;
 
-    client.execute(
-        "CREATE TABLE IF NOT EXISTS attendances (
-            id SERIAL PRIMARY KEY,
-            employee_id INTEGER REFERENCES employees(id),
-            check_in TIMESTAMP NOT NULL,
-            check_out TIMESTAMP,
-            status TEXT DEFAULT 'present',
-            notes TEXT,
-            location TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )",
-        &[],
-    )?;
-
-    client.execute(
-        "CREATE TABLE IF NOT EXISTS tasks (
-            id SERIAL PRIMARY KEY,
-            employee_id INTEGER REFERENCES employees(id),
-            title TEXT NOT NULL,
-            description TEXT,
-            due_date TIMESTAMP,
-            status TEXT DEFAULT 'pending',
-            priority TEXT DEFAULT 'medium',
-            assigned_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            completed_date TIMESTAMP,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )",
-        &[],
-    )?;
-
-    // 4. Payment & Financial System
+    // 4. Finance & Accounting
     client.execute(
         "CREATE TABLE IF NOT EXISTS payments (
             id SERIAL PRIMARY KEY,
-            payment_type TEXT NOT NULL,
+            date TIMESTAMP NOT NULL,
             amount DOUBLE PRECISION NOT NULL,
-            currency TEXT DEFAULT 'USD',
+            type TEXT NOT NULL,
+            category TEXT,
             description TEXT,
             status TEXT DEFAULT 'pending',
             payment_method TEXT DEFAULT 'bank_transfer',
@@ -246,45 +223,17 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
     client.execute(
         "CREATE TABLE IF NOT EXISTS setup_config (
             id SERIAL PRIMARY KEY,
-            license_key TEXT UNIQUE NOT NULL,
-            company_name TEXT NOT NULL,
-            company_email TEXT NOT NULL,
-            company_phone TEXT,
-            company_address TEXT,
-            admin_user_id INTEGER REFERENCES users(id),
-            microsoft_tenant_id TEXT,
-            microsoft_client_id TEXT,
-            microsoft_client_secret TEXT,
-            features_enabled TEXT,
+            company_name TEXT,
+            company_email TEXT,
+            license_key TEXT UNIQUE,
             setup_completed BOOLEAN DEFAULT FALSE,
             setup_completed_at TIMESTAMP,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            admin_user_id INTEGER REFERENCES users(id)
         )",
         &[],
     )?;
 
-    // Patch for existing tables (Migration)
-    let _ = client.execute("ALTER TABLE setup_config ADD COLUMN IF NOT EXISTS license_key TEXT", &[]);
-    let _ = client.execute("ALTER TABLE setup_config ADD COLUMN IF NOT EXISTS admin_user_id INTEGER REFERENCES users(id)", &[]);
-    let _ = client.execute("ALTER TABLE setup_config ADD COLUMN IF NOT EXISTS setup_completed BOOLEAN DEFAULT FALSE", &[]);
-    let _ = client.execute("ALTER TABLE setup_config ADD COLUMN IF NOT EXISTS setup_completed_at TIMESTAMP", &[]);
-
-
-    client.execute(
-        "CREATE TABLE IF NOT EXISTS complaints (
-            id SERIAL PRIMARY KEY,
-            content TEXT NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            status TEXT DEFAULT 'pending',
-            admin_notes TEXT,
-            resolution TEXT,
-            resolved_at TIMESTAMP,
-            resolved_by TEXT
-        )",
-        &[],
-    )?;
-
+    // 6. Tools Management
     client.execute(
         "CREATE TABLE IF NOT EXISTS tools (
             id SERIAL PRIMARY KEY,
@@ -293,84 +242,54 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             status TEXT DEFAULT 'available',
             assigned_to_employee_id INTEGER REFERENCES employees(id),
             purchase_date TIMESTAMP,
-            condition TEXT,
+            purchase_price DOUBLE PRECISION,
+            condition TEXT DEFAULT 'new',
+            notes TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )",
         &[],
     )?;
 
-    // 6. Enhancements (Toggles, Audit)
-    client.execute(
-        "CREATE TABLE IF NOT EXISTS feature_toggles (
-            key TEXT PRIMARY KEY,
-            is_enabled BOOLEAN DEFAULT TRUE
-        )",
-        &[],
-    )?;
-
-    // Seed default feature toggles
-    let default_toggles = vec![
-        ("Inventory", true),
-        ("HR", true),
-        ("Finance", true),
-        ("Tasks", true),
-        ("Complaints", true),
-        ("Reports", true),
-    ];
-    for (key, enabled) in default_toggles {
-        client.execute("INSERT INTO feature_toggles (key, is_enabled) VALUES ($1, $2) ON CONFLICT (key) DO NOTHING", &[&key, &enabled])?;
-    }
-
     client.execute(
         "CREATE TABLE IF NOT EXISTS tool_assignments (
             id SERIAL PRIMARY KEY,
-            employee_id INTEGER REFERENCES employees(id),
             tool_id INTEGER REFERENCES tools(id),
+            employee_id INTEGER REFERENCES employees(id),
             assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             returned_at TIMESTAMP,
-            condition_on_assignment TEXT,
-            condition_on_return TEXT,
+            return_condition TEXT,
             notes TEXT
         )",
         &[],
     )?;
 
-    // 7. New Enterprise Features (Audit, Dashboard, Projects, Advanced Finance)
-    client.execute(
-        "CREATE TABLE IF NOT EXISTS audit_logs (
-            id SERIAL PRIMARY KEY,
-            user_id INTEGER REFERENCES users(id),
-            action TEXT NOT NULL,
-            entity TEXT NOT NULL,
-            entity_id INTEGER,
-            details TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )",
-        &[],
-    )?;
-
-    client.execute(
-        "CREATE TABLE IF NOT EXISTS dashboard_configs (
-            id SERIAL PRIMARY KEY,
-            user_id INTEGER REFERENCES users(id),
-            name TEXT NOT NULL,
-            layout_json TEXT,
-            is_default BOOLEAN DEFAULT FALSE,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )",
-        &[],
-    )?;
-
+    // 7. Project Management
     client.execute(
         "CREATE TABLE IF NOT EXISTS projects (
             id SERIAL PRIMARY KEY,
             name TEXT NOT NULL,
             description TEXT,
+            status TEXT DEFAULT 'planning',
             start_date TIMESTAMP,
             end_date TIMESTAMP,
-            status TEXT DEFAULT 'planning',
-            manager_id INTEGER REFERENCES employees(id),
+            budget DOUBLE PRECISION,
+            client_name TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )",
+        &[],
+    )?;
+
+    client.execute(
+        "CREATE TABLE IF NOT EXISTS project_tasks (
+            id SERIAL PRIMARY KEY,
+            project_id INTEGER REFERENCES projects(id),
+            name TEXT NOT NULL,
+            description TEXT,
+            status TEXT DEFAULT 'pending',
+            assigned_to_employee_id INTEGER REFERENCES employees(id),
+            due_date TIMESTAMP,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )",
@@ -382,89 +301,91 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             id SERIAL PRIMARY KEY,
             project_id INTEGER REFERENCES projects(id),
             employee_id INTEGER REFERENCES employees(id),
-            role TEXT DEFAULT 'member',
-            assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(project_id, employee_id)
+            role TEXT,
+            assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )",
         &[],
     )?;
 
+    // 8. Complaints & Feedback
     client.execute(
-        "CREATE TABLE IF NOT EXISTS project_tasks (
+        "CREATE TABLE IF NOT EXISTS complaints (
             id SERIAL PRIMARY KEY,
-            project_id INTEGER REFERENCES projects(id),
-            name TEXT NOT NULL,
-            description TEXT,
-            assigned_to INTEGER REFERENCES employees(id),
-            status TEXT DEFAULT 'todo',
-            priority TEXT DEFAULT 'medium',
-            start_date TIMESTAMP,
-            due_date TIMESTAMP,
-            parent_task_id INTEGER REFERENCES project_tasks(id),
-            dependencies_json TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )",
-        &[],
-    )?;
-
-    client.execute(
-        "CREATE TABLE IF NOT EXISTS accounts (
-            id SERIAL PRIMARY KEY,
-            code TEXT UNIQUE NOT NULL,
-            name TEXT NOT NULL,
-            type TEXT NOT NULL,
-            currency TEXT DEFAULT 'USD',
-            is_active BOOLEAN DEFAULT TRUE
-        )",
-        &[],
-    )?;
-
-    client.execute(
-        "CREATE TABLE IF NOT EXISTS transactions (
-            id SERIAL PRIMARY KEY,
-            account_id INTEGER REFERENCES accounts(id),
-            date TIMESTAMP NOT NULL,
-            amount DOUBLE PRECISION NOT NULL,
-            type TEXT NOT NULL,
-            description TEXT,
-            reference TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )",
-        &[],
-    )?;
-
-    client.execute(
-        "CREATE TABLE IF NOT EXISTS invoices (
-            id SERIAL PRIMARY KEY,
-            customer_name TEXT NOT NULL,
-            customer_email TEXT,
-            invoice_date TIMESTAMP NOT NULL,
-            due_date TIMESTAMP,
-            total_amount DOUBLE PRECISION DEFAULT 0,
-            tax_rate DOUBLE PRECISION DEFAULT 0,
-            tax_amount DOUBLE PRECISION DEFAULT 0,
-            status TEXT DEFAULT 'draft',
-            currency TEXT DEFAULT 'USD',
-            notes TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )",
-        &[],
-    )?;
-
-    client.execute(
-        "CREATE TABLE IF NOT EXISTS invoice_items (
-            id SERIAL PRIMARY KEY,
-            invoice_id INTEGER REFERENCES invoices(id),
+            title TEXT NOT NULL,
             description TEXT NOT NULL,
-            quantity DOUBLE PRECISION DEFAULT 1,
-            unit_price DOUBLE PRECISION DEFAULT 0,
-            total DOUBLE PRECISION DEFAULT 0
+            submitted_by_employee_id INTEGER REFERENCES employees(id),
+            status TEXT DEFAULT 'open',
+            submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            resolved_at TIMESTAMP,
+            resolution TEXT,
+            resolved_by_user_id INTEGER REFERENCES users(id),
+            admin_notes TEXT,
+            is_anonymous BOOLEAN DEFAULT FALSE
         )",
         &[],
     )?;
 
-    // 8. Integrations
+    // 9. Attendance
+    client.execute(
+        "CREATE TABLE IF NOT EXISTS attendance (
+            id SERIAL PRIMARY KEY,
+            employee_id INTEGER REFERENCES employees(id),
+            check_in TIMESTAMP NOT NULL,
+            check_out TIMESTAMP,
+            status TEXT,
+            notes TEXT,
+            location TEXT
+        )",
+        &[],
+    )?;
+    // Patch legacy/mismatched columns
+    let _ = client.execute("ALTER TABLE attendance RENAME COLUMN clock_in TO check_in", &[]);
+    let _ = client.execute("ALTER TABLE attendance RENAME COLUMN clock_out TO check_out", &[]);
+    let _ = client.execute("ALTER TABLE attendance DROP COLUMN IF EXISTS date", &[]);
+    let _ = client.execute("ALTER TABLE attendance ADD COLUMN IF NOT EXISTS status TEXT", &[]);
+    let _ = client.execute("ALTER TABLE attendance ADD COLUMN IF NOT EXISTS notes TEXT", &[]);
+    let _ = client.execute("ALTER TABLE attendance ADD COLUMN IF NOT EXISTS location TEXT", &[]);
+
+    // 10. Audit Logs
+    client.execute(
+        "CREATE TABLE IF NOT EXISTS audit_logs (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER REFERENCES users(id),
+            action TEXT NOT NULL,
+            entity TEXT,
+            entity_id INTEGER,
+            details TEXT,
+            ip_address TEXT,
+            user_agent TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )",
+        &[],
+    )?;
+
+    // 11. Feature Toggles
+    client.execute(
+        "CREATE TABLE IF NOT EXISTS feature_toggles (
+            key TEXT PRIMARY KEY,
+            is_enabled BOOLEAN DEFAULT FALSE
+        )",
+        &[],
+    )?;
+    
+    // Seed default feature toggles
+    let toggles = vec![
+        ("inventory_module", true),
+        ("employee_module", true),
+        ("finance_module", true),
+        ("tools_module", true),
+        ("projects_module", true),
+        ("complaints_module", true),
+        ("attendance_module", true),
+    ];
+    for (key, enabled) in toggles {
+        client.execute("INSERT INTO feature_toggles (key, is_enabled) VALUES ($1, $2) ON CONFLICT (key) DO NOTHING", &[&key, &enabled])?;
+    }
+
+    // 12. Integrations
     client.execute(
         "CREATE TABLE IF NOT EXISTS integrations (
             id SERIAL PRIMARY KEY,
@@ -472,46 +393,29 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             is_connected BOOLEAN DEFAULT FALSE,
             api_key TEXT,
             config_json TEXT,
-            connected_at TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            connected_at TIMESTAMP
         )",
         &[],
     )?;
-
-    // Seed Integrations
-    let default_integrations = vec![
-        "QuickBooks", "Xero", "Salesforce", "HubSpot", 
-        "Slack", "Teams", "Google Calendar", "Outlook"
+    
+    // Seed integrations
+    let integrations = vec![
+        ("QuickBooks", false),
+        ("Xero", false),
+        ("Slack", false),
+        ("Microsoft Teams", false),
+        ("Google Calendar", false),
+        ("Outlook Calendar", false),
     ];
-    for name in default_integrations {
-        client.execute("INSERT INTO integrations (name) VALUES ($1) ON CONFLICT (name) DO NOTHING", &[&name])?;
+    for (name, connected) in integrations {
+        client.execute("INSERT INTO integrations (name, is_connected) VALUES ($1, $2) ON CONFLICT (name) DO NOTHING", &[&name, &connected])?;
     }
 
     Ok(())
 }
 
-fn ensure_database_exists(connection_string: &str) -> Result<(), Error> {
-    let idx = connection_string.rfind('/').unwrap_or(connection_string.len());
-    let target_db = if idx + 1 < connection_string.len() {
-        let after = &connection_string[idx + 1..];
-        after.split('?').next().unwrap_or("postgres")
-    } else {
-        "postgres"
-    };
-    let mut base = format!("{}{}", &connection_string[..idx + 1], "postgres");
-    if !base.contains('?') {
-        base.push_str("?connect_timeout=2");
-    } else if !base.contains("connect_timeout=") {
-        base.push_str("&connect_timeout=2");
-    }
-    let mut client = Client::connect(&base, NoTls)?;
-    let rows = client.query("SELECT 1 FROM pg_database WHERE datname = $1", &[&target_db])?;
-    if rows.is_empty() {
-        client.execute(
-            &format!("CREATE DATABASE {}", target_db.replace('"', "")),
-            &[],
-        )?;
-    }
+fn ensure_database_exists(_connection_string: &str) -> Result<(), Error> {
+    // Basic implementation: assumes DB exists or created externally.
+    // In production, might want to connect to 'postgres' db and create target db.
     Ok(())
 }
-

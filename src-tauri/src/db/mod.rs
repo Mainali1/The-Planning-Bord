@@ -27,6 +27,8 @@ pub trait Database: Send + Sync {
     fn create_invite(&self, invite: Invite) -> Result<i64, String>;
     fn get_invite(&self, token: String) -> Result<Option<Invite>, String>;
     fn mark_invite_used(&self, token: String) -> Result<(), String>;
+    fn get_invites(&self) -> Result<Vec<Invite>, String>;
+    fn toggle_invite_status(&self, id: i32, is_active: bool) -> Result<(), String>;
 
     // Products
     fn get_products(&self, search: Option<String>, page: Option<i32>, page_size: Option<i32>) -> Result<serde_json::Value, String>;
@@ -36,6 +38,7 @@ pub trait Database: Send + Sync {
 
     // Employees
     fn get_employees(&self) -> Result<Vec<Employee>, String>;
+    fn get_employee_by_email(&self, email: String) -> Result<Option<Employee>, String>;
     fn add_employee(&self, employee: Employee) -> Result<i64, String>;
     fn update_employee(&self, employee: Employee) -> Result<(), String>;
     fn delete_employee(&self, id: i32) -> Result<(), String>;

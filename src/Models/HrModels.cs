@@ -23,7 +23,7 @@ namespace ThePlanningBord.Models
         public string? Phone { get; set; }
 
         [JsonPropertyName("role")]
-        public string Role { get; set; } = "employee";
+        public string Role { get; set; } = "Employee";
 
         [JsonPropertyName("department")]
         public string? Department { get; set; }
@@ -60,5 +60,32 @@ namespace ThePlanningBord.Models
 
         [JsonPropertyName("location")]
         public string? Location { get; set; }
+    }
+
+    public class Invite
+    {
+        [JsonPropertyName("id")]
+        public int? Id { get; set; }
+
+        [JsonPropertyName("token")]
+        public string Token { get; set; } = string.Empty;
+
+        [JsonPropertyName("role")]
+        public string Role { get; set; } = string.Empty;
+
+        [JsonPropertyName("name")]
+        public string Name { get; set; } = string.Empty;
+
+        [JsonPropertyName("email")]
+        public string Email { get; set; } = string.Empty;
+
+        [JsonPropertyName("expiration")]
+        public string Expiration { get; set; } = string.Empty;
+
+        [JsonPropertyName("is_used")]
+        public bool IsUsed { get; set; }
+
+        [JsonPropertyName("is_active")]
+        public bool IsActive { get; set; }
     }
 }
