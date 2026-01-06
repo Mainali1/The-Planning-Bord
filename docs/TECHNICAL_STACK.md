@@ -6,10 +6,10 @@ The Planning Bord follows a **Hybrid Desktop Architecture**, leveraging WebAssem
 
 ```mermaid
 graph TD
-    UI[Blazor WASM Frontend] <-->|JS Interop| Bridge[Tauri Bridge]
-    Bridge <-->|Invoke| Rust[Rust Backend (Tauri)]
-    Rust <-->|tokio-postgres| DB[(PostgreSQL Database)]
-    Rust <-->|System| OS[Operating System APIs]
+    UI["Blazor WASM Frontend"] <-->|JS Interop| Bridge["Tauri Bridge"]
+    Bridge <-->|Invoke| Rust["Rust Backend (Tauri)"]
+    Rust <-->|tokio-postgres| DB[("PostgreSQL Database")]
+    Rust <-->|System| OS["Operating System APIs"]
 ```
 
 ### Components
