@@ -15,6 +15,15 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
         &[],
     )?;
 
+    client.execute(
+        "CREATE TABLE IF NOT EXISTS sessions (
+            token TEXT PRIMARY KEY,
+            user_id INTEGER REFERENCES users(id),
+            exp BIGINT
+        )",
+        &[],
+    )?;
+
     // Insert default roles
     client.execute("INSERT INTO roles (name, description, is_custom) VALUES ('CEO', 'Chief Executive Officer', FALSE) ON CONFLICT (name) DO NOTHING", &[])?;
     client.execute("INSERT INTO roles (name, description, is_custom) VALUES ('Manager', 'Managerial Role', FALSE) ON CONFLICT (name) DO NOTHING", &[])?;

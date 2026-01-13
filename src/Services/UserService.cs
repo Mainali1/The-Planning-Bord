@@ -58,6 +58,11 @@ namespace ThePlanningBord.Services
 
         public async Task LogoutAsync()
         {
+            var token = await GetTokenAsync();
+            if (!string.IsNullOrEmpty(token))
+            {
+                try { await _tauriInterop.InvokeVoidAsync("logout", new { token }); } catch { }
+            }
             _currentUser = null;
             _token = null;
             await _jsRuntime.InvokeVoidAsync("sessionStorage.removeItem", "currentUser");

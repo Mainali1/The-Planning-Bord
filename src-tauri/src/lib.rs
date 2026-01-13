@@ -3,7 +3,7 @@ pub mod models;
 pub mod setup;
 
 use tauri::{State, Manager};
-use std::sync::RwLock;
+use tokio::sync::RwLock;
 use std::collections::HashMap;
 use models::{Product, Employee, Payment, DashboardStats, Task, Attendance, ReportSummary, ChartDataPoint, Complaint, Tool, Role, Permission, FeatureToggle, ToolAssignment, AuditLog, DashboardConfig, Project, ProjectTask, ProjectAssignment, Account, Invoice, Integration, User, LoginResponse, Invite};
 use db::{Database, DbConfig, PostgresDatabase};
@@ -63,23 +63,24 @@ fn ping() -> String {
 // --- User & Auth Commands ---
 
 #[tauri::command]
-fn login(state: State<AppState>, username: String, password_plain: String) -> Result<LoginResponse, String> {
-    let db = state.db.read().map_err(|e| e.to_string())?;
-    let user_opt = db.get_user_by_username(username.clone())?;
+async fn login(state: State<'_, AppState>, username: String, password_plain: String) -> Result<LoginResponse, String> {
+    let db = state.db.read().await;
+    let user_opt = db.get_user_by_username(username.clone()).await?;
     
     if let Some(user) = user_opt {
         // Verify password
         let parsed_hash = PasswordHash::new(&user.hashed_password).map_err(|e| e.to_string())?;
         if Argon2::default().verify_password(password_plain.as_bytes(), &parsed_hash).is_ok() {
             // Update last login
-            let _ = db.update_user_last_login(user.id.unwrap());
+            let _ = db.update_user_last_login(user.id.unwrap()).await;
 
             // Generate Token
             let token = Uuid::new_v4().to_string();
             
             // Store Session
             let exp = chrono::Utc::now().timestamp() + 86400;
-            state.sessions.write().map_err(|e| e.to_string())?.insert(token.clone(), Session { user: user.clone(), exp });
+            state.sessions.write().await.insert(token.clone(), Session { user: user.clone(), exp });
+            let _ = db.create_session(token.clone(), user.id.unwrap(), exp).await;
 
             Ok(LoginResponse {
                 user,
@@ -94,18 +95,23 @@ fn login(state: State<AppState>, username: String, password_plain: String) -> Re
 }
 
 #[tauri::command]
-fn verify_connection(connection_string: String) -> Result<bool, String> {
+async fn verify_connection(connection_string: String) -> Result<bool, String> {
     let conn = add_connect_timeout(&connection_string);
     // Attempt to connect/init. init_db handles basic connection check.
-    match db::postgres_init::init_db(&conn) {
-        Ok(_) => Ok(true),
-        Err(e) => Err(format!("Connection failed: {:?}", e)),
-    }
+    // Wrap blocking call
+    let conn_clone = conn.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        db::postgres_init::init_db(&conn_clone)
+    }).await
+    .map_err(|e| format!("Task failed: {}", e))?
+    .map_err(|e| format!("Connection failed: {:?}", e))?;
+    
+    Ok(true)
 }
 
 #[tauri::command]
-fn generate_invite_token(state: State<AppState>, role: String, name: String, email: String, expiration_hours: u64, token: String) -> Result<String, String> {
-    let user = check_auth(&state, &token, vec!["CEO", "Manager"])?;
+async fn generate_invite_token(state: State<'_, AppState>, role: String, name: String, email: String, expiration_hours: u64, token: String) -> Result<String, String> {
+    let user = check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
 
     // 1. Generate JWT as the invite token
     let (expiration_ts, expiration_db) = if expiration_hours == 0 {
@@ -147,27 +153,27 @@ fn generate_invite_token(state: State<AppState>, role: String, name: String, ema
     };
     
     {
-        let db = state.db.read().map_err(|e| e.to_string())?;
-        db.create_invite(invite)?;
+        let db = state.db.read().await;
+        db.create_invite(invite).await?;
         // Log activity
-        let _ = db.log_activity(user.id, "generate_invite".to_string(), Some("Invite".to_string()), None, Some(format!("Role: {}, Email: {}", role, email)));
+        let _ = db.log_activity(user.id, "generate_invite".to_string(), Some("Invite".to_string()), None, Some(format!("Role: {}, Email: {}", role, email))).await;
     }
 
     Ok(invite_token)
 }
 
 #[tauri::command]
-fn check_invite_token(state: State<AppState>, invite_token: String) -> Result<InviteClaims, String> {
+async fn check_invite_token(state: State<'_, AppState>, invite_token: String) -> Result<InviteClaims, String> {
     // 1. Validate JWT structure and expiration
     let secret = &state.jwt_secret;
     let token_data = decode::<InviteClaims>(&invite_token, &DecodingKey::from_secret(secret.as_ref()), &Validation::default())
         .map_err(|_| "Invalid or expired token".to_string())?;
 
     let claims = token_data.claims;
-    let db = state.db.read().map_err(|e| e.to_string())?;
+    let db = state.db.read().await;
     
     // 2. Verify against Database (check if used or revoked)
-    let stored_invite = db.get_invite(invite_token.clone())?
+    let stored_invite = db.get_invite(invite_token.clone()).await?
         .ok_or("Invite not found in database".to_string())?;
         
     if stored_invite.is_used {
@@ -181,17 +187,17 @@ fn check_invite_token(state: State<AppState>, invite_token: String) -> Result<In
 }
 
 #[tauri::command]
-fn accept_invite(state: State<AppState>, invite_token: String, password_plain: String, username: String, full_name: String) -> Result<LoginResponse, String> {
+async fn accept_invite(state: State<'_, AppState>, invite_token: String, password_plain: String, username: String, full_name: String) -> Result<LoginResponse, String> {
     // 1. Validate JWT structure and expiration
     let secret = &state.jwt_secret;
     let token_data = decode::<InviteClaims>(&invite_token, &DecodingKey::from_secret(secret.as_ref()), &Validation::default())
         .map_err(|_| "Invalid or expired token".to_string())?;
 
     let claims = token_data.claims;
-    let db = state.db.read().map_err(|e| e.to_string())?;
+    let db = state.db.read().await;
     
     // 2. Verify against Database
-    let stored_invite = db.get_invite(invite_token.clone())?
+    let stored_invite = db.get_invite(invite_token.clone()).await?
         .ok_or("Invite not found in database".to_string())?;
         
     if stored_invite.is_used {
@@ -202,7 +208,7 @@ fn accept_invite(state: State<AppState>, invite_token: String, password_plain: S
     }
 
     // Check if username taken
-    if db.check_username_exists(username.clone())? {
+    if db.check_username_exists(username.clone()).await? {
         return Err("Username already taken".to_string());
     }
 
@@ -222,20 +228,21 @@ fn accept_invite(state: State<AppState>, invite_token: String, password_plain: S
         is_active: true,
         last_login: Some(chrono::Local::now().to_string()),
     };
-    let id = db.create_user(new_user.clone())?;
+    let id = db.create_user(new_user.clone()).await?;
     let mut user = new_user;
     user.id = Some(id as i32);
 
     // 4. Mark invite as used
-    db.mark_invite_used(invite_token)?;
+    db.mark_invite_used(invite_token).await?;
     
     // Log activity
-    let _ = db.log_activity(user.id, "accept_invite".to_string(), Some("User".to_string()), user.id, Some("User joined via invite".to_string()));
+    let _ = db.log_activity(user.id, "accept_invite".to_string(), Some("User".to_string()), user.id, Some("User joined via invite".to_string())).await;
 
     // 5. Create session
     let session_token = Uuid::new_v4().to_string();
     let exp = chrono::Utc::now().timestamp() + 86400;
-    state.sessions.write().map_err(|e| e.to_string())?.insert(session_token.clone(), Session { user: user.clone(), exp });
+    state.sessions.write().await.insert(session_token.clone(), Session { user: user.clone(), exp });
+    let _ = db.create_session(session_token.clone(), user.id.unwrap(), exp).await;
 
     Ok(LoginResponse {
         user,
@@ -244,16 +251,11 @@ fn accept_invite(state: State<AppState>, invite_token: String, password_plain: S
 }
 
 // Helper for verifying auth
-fn check_auth(state: &State<AppState>, token: &str, allowed_roles: Vec<&str>) -> Result<User, String> {
-    let sessions = state.sessions.read().map_err(|e| e.to_string())?;
-    if let Some(sess) = sessions.get(token) {
-        if sess.exp < chrono::Utc::now().timestamp() {
-            return Err("Invalid or expired session".to_string());
-        }
-        if allowed_roles.contains(&sess.user.role.as_str()) || allowed_roles.contains(&"CEO") {
-            Ok(sess.user.clone())
-        } else if allowed_roles.is_empty() {
-             Ok(sess.user.clone())
+async fn check_auth(state: &State<'_, AppState>, token: &str, allowed_roles: Vec<&str>) -> Result<User, String> {
+    let db = state.db.read().await;
+    if let Some(user) = db.get_session_user(token.to_string()).await? {
+        if allowed_roles.contains(&user.role.as_str()) || allowed_roles.contains(&"CEO") || allowed_roles.is_empty() {
+            Ok(user)
         } else {
             Err("Insufficient permissions".to_string())
         }
@@ -263,7 +265,16 @@ fn check_auth(state: &State<AppState>, token: &str, allowed_roles: Vec<&str>) ->
 }
 
 #[tauri::command]
-fn register_user(state: State<AppState>, mut user: User, password_plain: String) -> Result<i64, String> {
+async fn logout(state: State<'_, AppState>, token: String) -> Result<(), String> {
+    let db = state.db.read().await;
+    let _ = db.revoke_session(token.clone()).await;
+    let mut sessions = state.sessions.write().await;
+    sessions.remove(&token);
+    Ok(())
+}
+
+#[tauri::command]
+async fn register_user(state: State<'_, AppState>, mut user: User, password_plain: String) -> Result<i64, String> {
     // Hash password
     let salt = SaltString::generate(&mut OsRng);
     let argon2 = Argon2::default();
@@ -271,155 +282,155 @@ fn register_user(state: State<AppState>, mut user: User, password_plain: String)
     
     user.hashed_password = password_hash;
     
-    state.db.read().map_err(|e| e.to_string())?.create_user(user)
+    state.db.read().await.create_user(user).await
 }
 
 // --- Product Commands ---
 
 #[tauri::command]
-fn get_products(state: State<AppState>, search: Option<String>, page: Option<i32>, page_size: Option<i32>, token: String) -> Result<serde_json::Value, String> {
-    check_auth(&state, &token, vec![])?; // Any authenticated
-    state.db.read().map_err(|e| e.to_string())?.get_products(search, page, page_size)
+async fn get_products(state: State<'_, AppState>, search: Option<String>, page: Option<i32>, page_size: Option<i32>, token: String) -> Result<serde_json::Value, String> {
+    check_auth(&state, &token, vec![]).await?; // Any authenticated
+    state.db.read().await.get_products(search, page, page_size).await
 }
 
 #[tauri::command]
-fn add_product(state: State<AppState>, product: Product, token: String) -> Result<i64, String> {
-    check_auth(&state, &token, vec!["CEO", "Manager"])?;
-    state.db.read().map_err(|e| e.to_string())?.add_product(product)
+async fn add_product(state: State<'_, AppState>, product: Product, token: String) -> Result<i64, String> {
+    check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    state.db.read().await.add_product(product).await
 }
 
 #[tauri::command]
-fn update_product(state: State<AppState>, product: Product, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec!["CEO", "Manager"])?;
-    state.db.read().map_err(|e| e.to_string())?.update_product(product)
+async fn update_product(state: State<'_, AppState>, product: Product, token: String) -> Result<(), String> {
+    check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    state.db.read().await.update_product(product).await
 }
 
 #[tauri::command]
-fn delete_product(state: State<AppState>, id: i32, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec!["CEO", "Manager"])?;
-    state.db.read().map_err(|e| e.to_string())?.delete_product(id)
+async fn delete_product(state: State<'_, AppState>, id: i32, token: String) -> Result<(), String> {
+    check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    state.db.read().await.delete_product(id).await
 }
 
 // --- Employee Commands ---
 
 #[tauri::command]
-fn get_employees(state: State<AppState>, token: String) -> Result<Vec<Employee>, String> {
-    check_auth(&state, &token, vec!["CEO", "Manager", "HR"])?;
-    state.db.read().map_err(|e| e.to_string())?.get_employees()
+async fn get_employees(state: State<'_, AppState>, token: String) -> Result<Vec<Employee>, String> {
+    check_auth(&state, &token, vec!["CEO", "Manager", "HR"]).await?;
+    state.db.read().await.get_employees().await
 }
 
 #[tauri::command]
-fn add_employee(state: State<AppState>, employee: Employee, token: String) -> Result<i64, String> {
-    check_auth(&state, &token, vec!["CEO", "Manager", "HR"])?;
-    state.db.read().map_err(|e| e.to_string())?.add_employee(employee)
+async fn add_employee(state: State<'_, AppState>, employee: Employee, token: String) -> Result<i64, String> {
+    check_auth(&state, &token, vec!["CEO", "Manager", "HR"]).await?;
+    state.db.read().await.add_employee(employee).await
 }
 
 #[tauri::command]
-fn update_employee(state: State<AppState>, employee: Employee, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec!["CEO", "Manager", "HR"])?;
-    state.db.read().map_err(|e| e.to_string())?.update_employee(employee)
+async fn update_employee(state: State<'_, AppState>, employee: Employee, token: String) -> Result<(), String> {
+    check_auth(&state, &token, vec!["CEO", "Manager", "HR"]).await?;
+    state.db.read().await.update_employee(employee).await
 }
 
 #[tauri::command]
-fn delete_employee(state: State<AppState>, id: i32, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec!["CEO", "Manager", "HR"])?;
-    state.db.read().map_err(|e| e.to_string())?.delete_employee(id)
+async fn delete_employee(state: State<'_, AppState>, id: i32, token: String) -> Result<(), String> {
+    check_auth(&state, &token, vec!["CEO", "Manager", "HR"]).await?;
+    state.db.read().await.delete_employee(id).await
 }
 
 // --- Payment Commands ---
 
 #[tauri::command]
-fn get_payments(state: State<AppState>, token: String) -> Result<Vec<Payment>, String> {
-    check_auth(&state, &token, vec!["CEO", "Manager", "Finance"])?;
-    state.db.read().map_err(|e| e.to_string())?.get_payments()
+async fn get_payments(state: State<'_, AppState>, token: String) -> Result<Vec<Payment>, String> {
+    check_auth(&state, &token, vec!["CEO", "Manager", "Finance"]).await?;
+    state.db.read().await.get_payments().await
 }
 
 #[tauri::command]
-fn add_payment(state: State<AppState>, payment: Payment, token: String) -> Result<i64, String> {
-    check_auth(&state, &token, vec!["CEO", "Manager", "Finance"])?;
-    state.db.read().map_err(|e| e.to_string())?.add_payment(payment)
+async fn add_payment(state: State<'_, AppState>, payment: Payment, token: String) -> Result<i64, String> {
+    check_auth(&state, &token, vec!["CEO", "Manager", "Finance"]).await?;
+    state.db.read().await.add_payment(payment).await
 }
 
 #[tauri::command]
-fn update_payment(state: State<AppState>, payment: Payment, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec!["CEO", "Manager", "Finance"])?;
-    state.db.read().map_err(|e| e.to_string())?.update_payment(payment)
+async fn update_payment(state: State<'_, AppState>, payment: Payment, token: String) -> Result<(), String> {
+    check_auth(&state, &token, vec!["CEO", "Manager", "Finance"]).await?;
+    state.db.read().await.update_payment(payment).await
 }
 
 #[tauri::command]
-fn delete_payment(state: State<AppState>, id: i32, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec!["CEO", "Manager", "Finance"])?;
-    state.db.read().map_err(|e| e.to_string())?.delete_payment(id)
+async fn delete_payment(state: State<'_, AppState>, id: i32, token: String) -> Result<(), String> {
+    check_auth(&state, &token, vec!["CEO", "Manager", "Finance"]).await?;
+    state.db.read().await.delete_payment(id).await
 }
 
 // --- Task Commands ---
 
 #[tauri::command]
-fn get_tasks(state: State<AppState>, token: String) -> Result<Vec<Task>, String> {
-    check_auth(&state, &token, vec![])?; // Any authenticated
-    state.db.read().map_err(|e| e.to_string())?.get_tasks()
+async fn get_tasks(state: State<'_, AppState>, token: String) -> Result<Vec<Task>, String> {
+    check_auth(&state, &token, vec![]).await?; // Any authenticated
+    state.db.read().await.get_tasks().await
 }
 
 #[tauri::command]
-fn add_task(state: State<AppState>, task: Task, token: String) -> Result<i64, String> {
-    check_auth(&state, &token, vec![])?; // Any authenticated
-    state.db.read().map_err(|e| e.to_string())?.add_task(task)
+async fn add_task(state: State<'_, AppState>, task: Task, token: String) -> Result<i64, String> {
+    check_auth(&state, &token, vec![]).await?; // Any authenticated
+    state.db.read().await.add_task(task).await
 }
 
 #[tauri::command]
-fn update_task(state: State<AppState>, task: Task, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec![])?; // Any authenticated
-    state.db.read().map_err(|e| e.to_string())?.update_task(task)
+async fn update_task(state: State<'_, AppState>, task: Task, token: String) -> Result<(), String> {
+    check_auth(&state, &token, vec![]).await?; // Any authenticated
+    state.db.read().await.update_task(task).await
 }
 
 #[tauri::command]
-fn delete_task(state: State<AppState>, id: i32, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec![])?; // Any authenticated
-    state.db.read().map_err(|e| e.to_string())?.delete_task(id)
+async fn delete_task(state: State<'_, AppState>, id: i32, token: String) -> Result<(), String> {
+    check_auth(&state, &token, vec![]).await?; // Any authenticated
+    state.db.read().await.delete_task(id).await
 }
 
 // --- Attendance Commands ---
 
 #[tauri::command]
-fn get_attendances(state: State<AppState>, token: String) -> Result<Vec<Attendance>, String> {
-    check_auth(&state, &token, vec!["CEO", "Manager", "HR"])?;
-    state.db.read().map_err(|e| e.to_string())?.get_attendances()
+async fn get_attendances(state: State<'_, AppState>, token: String) -> Result<Vec<Attendance>, String> {
+    check_auth(&state, &token, vec!["CEO", "Manager", "HR"]).await?;
+    state.db.read().await.get_attendances().await
 }
 
 #[tauri::command]
-fn clock_in(state: State<AppState>, mut attendance: Attendance, token: String) -> Result<i64, String> {
-    let user = check_auth(&state, &token, vec![])?; // Any authenticated user
-    let db = state.db.read().map_err(|e| e.to_string())?;
+async fn clock_in(state: State<'_, AppState>, mut attendance: Attendance, token: String) -> Result<i64, String> {
+    let user = check_auth(&state, &token, vec![]).await?; // Any authenticated user
+    let db = state.db.read().await;
     
-    if let Some(emp) = db.get_employee_by_email(user.email.clone())? {
+    if let Some(emp) = db.get_employee_by_email(user.email.clone()).await? {
         attendance.employee_id = emp.id;
     } else {
         return Err("No employee record found for this user.".to_string());
     }
     
-    db.clock_in(attendance)
+    db.clock_in(attendance).await
 }
 
 #[tauri::command]
-fn clock_out(state: State<AppState>, mut attendance: Attendance, token: String) -> Result<(), String> {
-    let user = check_auth(&state, &token, vec![])?; // Any authenticated user
-    let db = state.db.read().map_err(|e| e.to_string())?;
+async fn clock_out(state: State<'_, AppState>, mut attendance: Attendance, token: String) -> Result<(), String> {
+    let user = check_auth(&state, &token, vec![]).await?; // Any authenticated user
+    let db = state.db.read().await;
     
-    if let Some(emp) = db.get_employee_by_email(user.email.clone())? {
+    if let Some(emp) = db.get_employee_by_email(user.email.clone()).await? {
         attendance.employee_id = emp.id;
     } else {
         return Err("No employee record found for this user.".to_string());
     }
     
-    db.clock_out(attendance)
+    db.clock_out(attendance).await
 }
 
 // --- Dashboard Commands ---
 
 #[tauri::command]
-fn get_dashboard_stats(state: State<AppState>, token: String) -> Result<DashboardStats, String> {
-    let user = check_auth(&state, &token, vec![])?; // Check auth, get user
-    let mut stats = state.db.read().map_err(|e| e.to_string())?.get_dashboard_stats()?;
+async fn get_dashboard_stats(state: State<'_, AppState>, token: String) -> Result<DashboardStats, String> {
+    let user = check_auth(&state, &token, vec![]).await?; // Check auth, get user
+    let mut stats = state.db.read().await.get_dashboard_stats().await?;
 
     // Filter sensitive data based on role
     let role = user.role.as_str();
@@ -435,28 +446,28 @@ fn get_dashboard_stats(state: State<AppState>, token: String) -> Result<Dashboar
 // --- Reports Commands ---
 
 #[tauri::command]
-fn get_report_summary(state: State<AppState>, token: String) -> Result<ReportSummary, String> {
-    check_auth(&state, &token, vec!["CEO", "Manager", "Finance"])?;
-    state.db.read().map_err(|e| e.to_string())?.get_report_summary()
+async fn get_report_summary(state: State<'_, AppState>, token: String) -> Result<ReportSummary, String> {
+    check_auth(&state, &token, vec!["CEO", "Manager", "Finance"]).await?;
+    state.db.read().await.get_report_summary().await
 }
 
 #[tauri::command]
-fn get_monthly_cashflow(state: State<AppState>, token: String) -> Result<Vec<ChartDataPoint>, String> {
-    check_auth(&state, &token, vec!["CEO", "Manager", "Finance"])?;
-    state.db.read().map_err(|e| e.to_string())?.get_monthly_cashflow()
+async fn get_monthly_cashflow(state: State<'_, AppState>, token: String) -> Result<Vec<ChartDataPoint>, String> {
+    check_auth(&state, &token, vec!["CEO", "Manager", "Finance"]).await?;
+    state.db.read().await.get_monthly_cashflow().await
 }
 
 // --- Complaint Commands ---
 
 #[tauri::command]
-fn get_complaints(state: State<AppState>, token: String) -> Result<Vec<Complaint>, String> {
-    check_auth(&state, &token, vec!["CEO", "Manager", "HR"])?;
-    state.db.read().map_err(|e| e.to_string())?.get_complaints()
+async fn get_complaints(state: State<'_, AppState>, token: String) -> Result<Vec<Complaint>, String> {
+    check_auth(&state, &token, vec!["CEO", "Manager", "HR"]).await?;
+    state.db.read().await.get_complaints().await
 }
 
 #[tauri::command]
-fn submit_complaint(state: State<AppState>, content: String, token: String) -> Result<i64, String> {
-    check_auth(&state, &token, vec![])?; // Authenticated
+async fn submit_complaint(state: State<'_, AppState>, content: String, token: String) -> Result<i64, String> {
+    check_auth(&state, &token, vec![]).await?; // Authenticated
     let created_at = chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
     let complaint = Complaint {
         id: None,
@@ -468,50 +479,50 @@ fn submit_complaint(state: State<AppState>, content: String, token: String) -> R
         resolved_at: None,
         resolved_by: None,
     };
-    state.db.read().map_err(|e| e.to_string())?.submit_complaint(complaint)
+    state.db.read().await.submit_complaint(complaint).await
 }
 
 #[tauri::command]
-fn resolve_complaint(state: State<AppState>, id: i32, status: String, resolution: String, resolved_by: String, admin_notes: Option<String>, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec!["CEO", "Manager", "HR"])?;
-    state.db.read().map_err(|e| e.to_string())?.resolve_complaint(id, status, resolution, resolved_by, admin_notes)
+async fn resolve_complaint(state: State<'_, AppState>, id: i32, status: String, resolution: String, resolved_by: String, admin_notes: Option<String>, token: String) -> Result<(), String> {
+    check_auth(&state, &token, vec!["CEO", "Manager", "HR"]).await?;
+    state.db.read().await.resolve_complaint(id, status, resolution, resolved_by, admin_notes).await
 }
 
 #[tauri::command]
-fn delete_complaint(state: State<AppState>, id: i32, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec!["CEO", "Manager", "HR"])?;
-    state.db.read().map_err(|e| e.to_string())?.delete_complaint(id)
+async fn delete_complaint(state: State<'_, AppState>, id: i32, token: String) -> Result<(), String> {
+    check_auth(&state, &token, vec!["CEO", "Manager", "HR"]).await?;
+    state.db.read().await.delete_complaint(id).await
 }
 
 // --- Tool Commands ---
 
 #[tauri::command]
-fn get_tools(state: State<AppState>, token: String) -> Result<Vec<Tool>, String> {
-    check_auth(&state, &token, vec![])?; // Any authenticated
-    state.db.read().map_err(|e| e.to_string())?.get_tools()
+async fn get_tools(state: State<'_, AppState>, token: String) -> Result<Vec<Tool>, String> {
+    check_auth(&state, &token, vec![]).await?; // Any authenticated
+    state.db.read().await.get_tools().await
 }
 
 #[tauri::command]
-fn add_tool(state: State<AppState>, tool: Tool, token: String) -> Result<i64, String> {
-    check_auth(&state, &token, vec!["CEO", "Manager"])?;
-    state.db.read().map_err(|e| e.to_string())?.add_tool(tool)
+async fn add_tool(state: State<'_, AppState>, tool: Tool, token: String) -> Result<i64, String> {
+    check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    state.db.read().await.add_tool(tool).await
 }
 
 #[tauri::command]
-fn update_tool(state: State<AppState>, tool: Tool, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec!["CEO", "Manager"])?;
-    state.db.read().map_err(|e| e.to_string())?.update_tool(tool)
+async fn update_tool(state: State<'_, AppState>, tool: Tool, token: String) -> Result<(), String> {
+    check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    state.db.read().await.update_tool(tool).await
 }
 
 #[tauri::command]
-fn delete_tool(state: State<AppState>, id: i32, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec!["CEO", "Manager"])?;
-    state.db.read().map_err(|e| e.to_string())?.delete_tool(id)
+async fn delete_tool(state: State<'_, AppState>, id: i32, token: String) -> Result<(), String> {
+    check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    state.db.read().await.delete_tool(id).await
 }
 
 #[tauri::command]
-fn assign_tool(state: State<AppState>, tool_id: i32, employee_id: i32, condition: String, notes: Option<String>, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec!["CEO", "Manager"])?;
+async fn assign_tool(state: State<'_, AppState>, tool_id: i32, employee_id: i32, condition: String, notes: Option<String>, token: String) -> Result<(), String> {
+    check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
     let assignment = ToolAssignment {
         id: None,
         tool_id: Some(tool_id),
@@ -522,274 +533,276 @@ fn assign_tool(state: State<AppState>, tool_id: i32, employee_id: i32, condition
         condition_on_return: None,
         notes,
     };
-    state.db.read().map_err(|e| e.to_string())?.assign_tool(assignment).map(|_| ())
+    state.db.read().await.assign_tool(assignment).await.map(|_| ())
 }
 
 #[tauri::command]
-fn return_tool(state: State<AppState>, tool_id: i32, condition: String, _notes: Option<String>, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec!["CEO", "Manager"])?;
-    state.db.read().map_err(|e| e.to_string())?.return_tool(tool_id, condition)
+async fn return_tool(state: State<'_, AppState>, tool_id: i32, condition: String, _notes: Option<String>, token: String) -> Result<(), String> {
+    check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    state.db.read().await.return_tool(tool_id, condition).await
 }
 
 #[tauri::command]
-fn get_tool_history(state: State<AppState>, tool_id: i32, token: String) -> Result<Vec<ToolAssignment>, String> {
-    check_auth(&state, &token, vec!["CEO", "Manager"])?;
-    state.db.read().map_err(|e| e.to_string())?.get_tool_history(tool_id)
+async fn get_tool_history(state: State<'_, AppState>, tool_id: i32, token: String) -> Result<Vec<ToolAssignment>, String> {
+    check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    state.db.read().await.get_tool_history(tool_id).await
 }
 
 // --- RBAC & Feature Toggle Commands ---
 
 #[tauri::command]
-fn get_roles(state: State<AppState>, token: String) -> Result<Vec<Role>, String> {
-    check_auth(&state, &token, vec![])?; // Any authenticated
-    state.db.read().map_err(|e| e.to_string())?.get_roles()
+async fn get_roles(state: State<'_, AppState>, token: String) -> Result<Vec<Role>, String> {
+    check_auth(&state, &token, vec![]).await?; // Any authenticated
+    state.db.read().await.get_roles().await
 }
 
 #[tauri::command]
-fn add_role(state: State<AppState>, name: String, description: Option<String>, token: String) -> Result<i64, String> {
-    check_auth(&state, &token, vec!["CEO", "Technical"])?;
+async fn add_role(state: State<'_, AppState>, name: String, description: Option<String>, token: String) -> Result<i64, String> {
+    check_auth(&state, &token, vec!["CEO", "Technical"]).await?;
     let role = Role {
         id: None,
         name,
         description,
         is_custom: true,
     };
-    state.db.read().map_err(|e| e.to_string())?.add_role(role)
+    state.db.read().await.add_role(role).await
 }
 
 #[tauri::command]
-fn get_permissions(state: State<AppState>, token: String) -> Result<Vec<Permission>, String> {
-    check_auth(&state, &token, vec!["CEO", "Technical"])?;
-    state.db.read().map_err(|e| e.to_string())?.get_permissions()
+async fn get_permissions(state: State<'_, AppState>, token: String) -> Result<Vec<Permission>, String> {
+    check_auth(&state, &token, vec!["CEO", "Technical"]).await?;
+    state.db.read().await.get_permissions().await
 }
 
 #[tauri::command]
-fn get_role_permissions(state: State<AppState>, role_id: i32, token: String) -> Result<Vec<i32>, String> {
-    check_auth(&state, &token, vec!["CEO", "Technical"])?;
-    let perms = state.db.read().map_err(|e| e.to_string())?.get_role_permissions(role_id)?;
+async fn get_role_permissions(state: State<'_, AppState>, role_id: i32, token: String) -> Result<Vec<i32>, String> {
+    check_auth(&state, &token, vec!["CEO", "Technical"]).await?;
+    let perms = state.db.read().await.get_role_permissions(role_id).await?;
     Ok(perms.into_iter().map(|p| p.id).collect())
 }
 
 #[tauri::command]
-fn update_role_permissions(state: State<AppState>, role_id: i32, permission_ids: Vec<i32>, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec!["CEO", "Technical"])?;
-    state.db.read().map_err(|e| e.to_string())?.update_role_permissions(role_id, permission_ids)
+async fn update_role_permissions(state: State<'_, AppState>, role_id: i32, permission_ids: Vec<i32>, token: String) -> Result<(), String> {
+    check_auth(&state, &token, vec!["CEO", "Technical"]).await?;
+    state.db.read().await.update_role_permissions(role_id, permission_ids).await
 }
 
 #[tauri::command]
-fn get_feature_toggles(state: State<AppState>, token: String) -> Result<Vec<FeatureToggle>, String> {
-    check_auth(&state, &token, vec![])?; // Any authenticated
-    state.db.read().map_err(|e| e.to_string())?.get_feature_toggles()
+async fn get_feature_toggles(state: State<'_, AppState>, token: String) -> Result<Vec<FeatureToggle>, String> {
+    check_auth(&state, &token, vec![]).await?; // Any authenticated
+    state.db.read().await.get_feature_toggles().await
 }
 
 #[tauri::command]
-fn set_feature_toggle(state: State<AppState>, key: String, is_enabled: bool, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec!["CEO", "Technical"])?;
-    state.db.read().map_err(|e| e.to_string())?.set_feature_toggle(key, is_enabled)
+async fn set_feature_toggle(state: State<'_, AppState>, key: String, is_enabled: bool, token: String) -> Result<(), String> {
+    check_auth(&state, &token, vec!["CEO", "Technical"]).await?;
+    state.db.read().await.set_feature_toggle(key, is_enabled).await
 }
 
 // --- Setup Commands ---
 
 #[tauri::command]
-fn get_setup_status(state: State<AppState>) -> Result<bool, String> {
-    state.db.read().map_err(|e| e.to_string())?.get_setup_status()
+async fn get_setup_status(state: State<'_, AppState>) -> Result<bool, String> {
+    state.db.read().await.get_setup_status().await
 }
 
 #[tauri::command]
-fn check_username(state: State<AppState>, username: String) -> Result<bool, String> {
-    state.db.read().map_err(|e| e.to_string())?.check_username_exists(username)
+async fn check_username(state: State<'_, AppState>, username: String) -> Result<bool, String> {
+    state.db.read().await.check_username_exists(username).await
 }
 
 #[tauri::command]
-fn complete_setup(state: State<AppState>, company_name: String, admin_name: String, admin_email: String, admin_password: String, admin_username: String) -> Result<(), String> {
-    let db = state.db.read().map_err(|e| e.to_string())?;
-    db.complete_setup(company_name, admin_name, admin_email, admin_password, admin_username)
+async fn complete_setup(state: State<'_, AppState>, company_name: String, admin_name: String, admin_email: String, admin_password: String, admin_username: String) -> Result<(), String> {
+    let db = state.db.read().await;
+    db.complete_setup(company_name, admin_name, admin_email, admin_password, admin_username).await
 }
 
 #[tauri::command]
-fn get_active_db_type(state: State<AppState>) -> String {
-    match state.db.read() {
-        Ok(db) => db.get_type(),
-        Err(_) => "error".to_string(),
-    }
+async fn get_active_db_type(state: State<'_, AppState>) -> Result<String, String> {
+    Ok(state.db.read().await.get_type())
 }
 
 // --- Audit Log Commands ---
 
 #[tauri::command]
-fn get_audit_logs(state: State<AppState>, _page: Option<i32>, _page_size: Option<i32>, token: String) -> Result<Vec<AuditLog>, String> {
-    check_auth(&state, &token, vec!["CEO", "Technical"])?;
-    state.db.read().map_err(|e| e.to_string())?.get_audit_logs()
+async fn get_audit_logs(state: State<'_, AppState>, _page: Option<i32>, _page_size: Option<i32>, token: String) -> Result<Vec<AuditLog>, String> {
+    check_auth(&state, &token, vec!["CEO", "Technical"]).await?;
+    state.db.read().await.get_audit_logs().await
 }
 
 // --- Dashboard Config Commands ---
 
 #[tauri::command]
-fn get_dashboard_configs(state: State<AppState>, user_id: i32, token: String) -> Result<Vec<DashboardConfig>, String> {
-    check_auth(&state, &token, vec![])?; // Any authenticated
-    let configs = state.db.read().map_err(|e| e.to_string())?.get_dashboard_configs()?;
+async fn get_dashboard_configs(state: State<'_, AppState>, user_id: i32, token: String) -> Result<Vec<DashboardConfig>, String> {
+    check_auth(&state, &token, vec![]).await?; // Any authenticated
+    let configs = state.db.read().await.get_dashboard_configs().await?;
     Ok(configs.into_iter().filter(|c| c.user_id == Some(user_id)).collect())
 }
 
 #[tauri::command]
-fn save_dashboard_config(state: State<AppState>, config: DashboardConfig, token: String) -> Result<i64, String> {
-    check_auth(&state, &token, vec![])?; // Any authenticated
-    state.db.read().map_err(|e| e.to_string())?.save_dashboard_config(config).map(|_| 1)
+async fn save_dashboard_config(state: State<'_, AppState>, config: DashboardConfig, token: String) -> Result<i64, String> {
+    check_auth(&state, &token, vec![]).await?; // Any authenticated
+    state.db.read().await.save_dashboard_config(config).await.map(|_| 1)
 }
 
 // --- Project Management Commands ---
 
 #[tauri::command]
-fn get_projects(state: State<AppState>, token: String) -> Result<Vec<Project>, String> {
-    check_auth(&state, &token, vec![])?; // Any authenticated
-    state.db.read().map_err(|e| e.to_string())?.get_projects()
+async fn get_projects(state: State<'_, AppState>, token: String) -> Result<Vec<Project>, String> {
+    check_auth(&state, &token, vec![]).await?; // Any authenticated
+    state.db.read().await.get_projects().await
 }
 
 #[tauri::command]
-fn add_project(state: State<AppState>, project: Project, token: String) -> Result<i64, String> {
-    check_auth(&state, &token, vec!["CEO", "Manager"])?;
-    state.db.read().map_err(|e| e.to_string())?.add_project(project)
+async fn add_project(state: State<'_, AppState>, project: Project, token: String) -> Result<i64, String> {
+    check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    state.db.read().await.add_project(project).await
 }
 
 #[tauri::command]
-fn update_project(state: State<AppState>, project: Project, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec!["CEO", "Manager"])?;
-    state.db.read().map_err(|e| e.to_string())?.update_project(project)
+async fn update_project(state: State<'_, AppState>, project: Project, token: String) -> Result<(), String> {
+    check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    state.db.read().await.update_project(project).await
 }
 
 #[tauri::command]
-fn get_project_tasks(state: State<AppState>, project_id: i32, token: String) -> Result<Vec<ProjectTask>, String> {
-    check_auth(&state, &token, vec![])?; // Any authenticated
-    state.db.read().map_err(|e| e.to_string())?.get_project_tasks(project_id)
+async fn get_project_tasks(state: State<'_, AppState>, project_id: i32, token: String) -> Result<Vec<ProjectTask>, String> {
+    check_auth(&state, &token, vec![]).await?; // Any authenticated
+    state.db.read().await.get_project_tasks(project_id).await
 }
 
 #[tauri::command]
-fn add_project_task(state: State<AppState>, task: ProjectTask, token: String) -> Result<i64, String> {
-    check_auth(&state, &token, vec![])?; // Any authenticated
+async fn add_project_task(state: State<'_, AppState>, task: ProjectTask, token: String) -> Result<i64, String> {
+    check_auth(&state, &token, vec![]).await?; // Any authenticated
     if let (Some(pid), Some(emp_id)) = (task.project_id, task.assigned_to) {
-        let db = state.db.read().map_err(|e| e.to_string())?;
-        let assigns = db.get_project_assignments(pid)?;
+        let db = state.db.read().await;
+        let assigns = db.get_project_assignments(pid).await?;
         let allowed = assigns.iter().any(|a| a.employee_id == emp_id);
         if !allowed {
             return Err("Assigned employee is not part of this project".into());
         }
-        db.add_project_task(task)
+        db.add_project_task(task).await
     } else {
-        state.db.read().map_err(|e| e.to_string())?.add_project_task(task)
+        state.db.read().await.add_project_task(task).await
     }
 }
 
 #[tauri::command]
-fn update_project_task(state: State<AppState>, task: ProjectTask, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec![])?; // Any authenticated
+async fn update_project_task(state: State<'_, AppState>, task: ProjectTask, token: String) -> Result<(), String> {
+    check_auth(&state, &token, vec![]).await?; // Any authenticated
     if let (Some(pid), Some(emp_id)) = (task.project_id, task.assigned_to) {
-        let db = state.db.read().map_err(|e| e.to_string())?;
-        let assigns = db.get_project_assignments(pid)?;
+        let db = state.db.read().await;
+        let assigns = db.get_project_assignments(pid).await?;
         let allowed = assigns.iter().any(|a| a.employee_id == emp_id);
         if !allowed {
             return Err("Assigned employee is not part of this project".into());
         }
-        db.update_project_task(task)
+        db.update_project_task(task).await
     } else {
-        state.db.read().map_err(|e| e.to_string())?.update_project_task(task)
+        state.db.read().await.update_project_task(task).await
     }
 }
 
 #[tauri::command]
-fn delete_project_task(state: State<AppState>, id: i32, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec![])?; // Any authenticated
-    state.db.read().map_err(|e| e.to_string())?.delete_project_task(id)
+async fn delete_project_task(state: State<'_, AppState>, id: i32, token: String) -> Result<(), String> {
+    check_auth(&state, &token, vec![]).await?; // Any authenticated
+    state.db.read().await.delete_project_task(id).await
 }
 
 #[tauri::command]
-fn delete_project(state: State<AppState>, id: i32, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec!["CEO", "Manager"])?;
-    state.db.read().map_err(|e| e.to_string())?.delete_project(id)
+async fn delete_project(state: State<'_, AppState>, id: i32, token: String) -> Result<(), String> {
+    check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    state.db.read().await.delete_project(id).await
 }
 
 #[tauri::command]
-fn assign_project_employee(state: State<AppState>, project_id: i32, employee_id: i32, role: String, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec!["CEO", "Manager"])?;
-    state.db.read().map_err(|e| e.to_string())?.assign_project_employee(project_id, employee_id, role)
+async fn assign_project_employee(state: State<'_, AppState>, project_id: i32, employee_id: i32, role: String, token: String) -> Result<(), String> {
+    check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    state.db.read().await.assign_project_employee(project_id, employee_id, role).await
 }
 
 #[tauri::command]
-fn get_project_assignments(state: State<AppState>, project_id: i32, token: String) -> Result<Vec<ProjectAssignment>, String> {
-    check_auth(&state, &token, vec![])?; // Any authenticated
-    state.db.read().map_err(|e| e.to_string())?.get_project_assignments(project_id)
+async fn get_project_assignments(state: State<'_, AppState>, project_id: i32, token: String) -> Result<Vec<ProjectAssignment>, String> {
+    check_auth(&state, &token, vec![]).await?; // Any authenticated
+    state.db.read().await.get_project_assignments(project_id).await
 }
 
 #[tauri::command]
-fn get_all_project_assignments(state: State<AppState>, token: String) -> Result<Vec<ProjectAssignment>, String> {
-    check_auth(&state, &token, vec!["CEO", "Manager"])?;
-    state.db.read().map_err(|e| e.to_string())?.get_all_project_assignments()
+async fn get_all_project_assignments(state: State<'_, AppState>, token: String) -> Result<Vec<ProjectAssignment>, String> {
+    check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    state.db.read().await.get_all_project_assignments().await
 }
 
 #[tauri::command]
-fn remove_project_assignment(state: State<AppState>, project_id: i32, employee_id: i32, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec!["CEO", "Manager"])?;
-    state.db.read().map_err(|e| e.to_string())?.remove_project_assignment(project_id, employee_id)
+async fn remove_project_assignment(state: State<'_, AppState>, project_id: i32, employee_id: i32, token: String) -> Result<(), String> {
+    check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    state.db.read().await.remove_project_assignment(project_id, employee_id).await
 }
 
 // --- Finance Commands ---
 
 #[tauri::command]
-fn get_accounts(state: State<AppState>, token: String) -> Result<Vec<Account>, String> {
-    check_auth(&state, &token, vec!["CEO", "Manager", "Finance"])?;
-    state.db.read().map_err(|e| e.to_string())?.get_accounts()
+async fn get_accounts(state: State<'_, AppState>, token: String) -> Result<Vec<Account>, String> {
+    check_auth(&state, &token, vec!["CEO", "Manager", "Finance"]).await?;
+    state.db.read().await.get_accounts().await
 }
 
 #[tauri::command]
-fn add_account(state: State<AppState>, account: Account, token: String) -> Result<i64, String> {
-    check_auth(&state, &token, vec!["CEO", "Manager", "Finance"])?;
-    state.db.read().map_err(|e| e.to_string())?.add_account(account)
+async fn add_account(state: State<'_, AppState>, account: Account, token: String) -> Result<i64, String> {
+    check_auth(&state, &token, vec!["CEO", "Manager", "Finance"]).await?;
+    state.db.read().await.add_account(account).await
 }
 
 #[tauri::command]
-fn get_invoices(state: State<AppState>, token: String) -> Result<Vec<Invoice>, String> {
-    check_auth(&state, &token, vec!["CEO", "Manager", "Finance"])?;
-    state.db.read().map_err(|e| e.to_string())?.get_invoices()
+async fn get_invoices(state: State<'_, AppState>, token: String) -> Result<Vec<Invoice>, String> {
+    check_auth(&state, &token, vec!["CEO", "Manager", "Finance"]).await?;
+    state.db.read().await.get_invoices().await
 }
 
 #[tauri::command]
-fn create_invoice(state: State<AppState>, invoice: Invoice, token: String) -> Result<i64, String> {
-    check_auth(&state, &token, vec!["CEO", "Manager", "Finance"])?;
-    state.db.read().map_err(|e| e.to_string())?.create_invoice(invoice)
+async fn create_invoice(state: State<'_, AppState>, invoice: Invoice, token: String) -> Result<i64, String> {
+    check_auth(&state, &token, vec!["CEO", "Manager", "Finance"]).await?;
+    state.db.read().await.create_invoice(invoice).await
 }
 
 // --- Integration Commands ---
 
 #[tauri::command]
-fn get_integrations(state: State<AppState>, token: String) -> Result<Vec<Integration>, String> {
-    check_auth(&state, &token, vec!["CEO", "Technical"])?;
-    state.db.read().map_err(|e| e.to_string())?.get_integrations()
+async fn get_integrations(state: State<'_, AppState>, token: String) -> Result<Vec<Integration>, String> {
+    check_auth(&state, &token, vec!["CEO", "Technical"]).await?;
+    state.db.read().await.get_integrations().await
 }
 
 #[tauri::command]
-fn toggle_integration(state: State<AppState>, id: i32, is_connected: bool, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec!["CEO", "Technical"])?;
-    state.db.read().map_err(|e| e.to_string())?.toggle_integration(id, is_connected)
+async fn toggle_integration(state: State<'_, AppState>, id: i32, is_connected: bool, token: String) -> Result<(), String> {
+    check_auth(&state, &token, vec!["CEO", "Technical"]).await?;
+    state.db.read().await.toggle_integration(id, is_connected).await
 }
 
 #[tauri::command]
-fn configure_integration(state: State<AppState>, id: i32, api_key: Option<String>, config_json: Option<String>, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec!["CEO", "Technical"])?;
-    state.db.read().map_err(|e| e.to_string())?.configure_integration(id, api_key, config_json)
+async fn configure_integration(state: State<'_, AppState>, id: i32, api_key: Option<String>, config_json: Option<String>, token: String) -> Result<(), String> {
+    check_auth(&state, &token, vec!["CEO", "Technical"]).await?;
+    state.db.read().await.configure_integration(id, api_key, config_json).await
 }
 
 #[tauri::command]
-fn seed_demo_data(state: State<AppState>, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec!["CEO", "Technical"])?;
-    state.db.read().map_err(|e| e.to_string())?.seed_demo_data()
+async fn seed_demo_data(state: State<'_, AppState>, token: String) -> Result<(), String> {
+    check_auth(&state, &token, vec!["CEO", "Technical"]).await?;
+    state.db.read().await.seed_demo_data().await
 }
 
 #[tauri::command]
-fn save_db_config(app: tauri::AppHandle, state: State<AppState>, config: DbConfig) -> Result<(), String> {
+async fn save_db_config(app: tauri::AppHandle, state: State<'_, AppState>, config: DbConfig) -> Result<(), String> {
     let app_dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
     let mut cfg = config.clone();
     if let db::config::DbType::Local = cfg.db_type {
         let input = if cfg.connection_string.trim().is_empty() { None } else { Some(cfg.connection_string.clone()) };
-        let conn = setup::local::ensure_local_db(&app, input)?;
+        // ensure_local_db is async, wait for it? No, it's in setup::local, which is sync IO.
+        // We should wrap it.
+        let handle = app.clone();
+        let conn = tauri::async_runtime::spawn_blocking(move || setup::local::ensure_local_db(&handle, input))
+            .await
+            .map_err(|e| e.to_string())??;
         cfg.connection_string = conn;
     }
     cfg.connection_string = add_connect_timeout(&cfg.connection_string);
@@ -799,13 +812,20 @@ fn save_db_config(app: tauri::AppHandle, state: State<AppState>, config: DbConfi
         db::config::DbType::Local | db::config::DbType::Cloud => {
              let conn = add_connect_timeout(&cfg.connection_string);
              println!("Initializing DB connection to: {}", conn);
-             db::postgres_init::init_db(&conn).map_err(|e| e.to_string())?;
+             
+             let conn_clone = conn.clone();
+             tauri::async_runtime::spawn_blocking(move || {
+                db::postgres_init::init_db(&conn_clone)
+             }).await
+             .map_err(|e| format!("Task failed: {}", e))?
+             .map_err(|e| format!("Init DB failed: {:?}", e))?;
+
              let pg_db = PostgresDatabase::new(&conn).map_err(|e| e.to_string())?;
              Box::new(pg_db)
         }
     };
     
-    *state.db.write().map_err(|e| e.to_string())? = new_db;
+    *state.db.write().await = new_db;
     
     Ok(())
 }
@@ -843,20 +863,20 @@ fn exit_app(app: tauri::AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn get_all_invites(state: State<AppState>, token: String) -> Result<Vec<Invite>, String> {
-    let _ = check_auth(&state, &token, vec!["CEO", "Manager"])?;
-    let db = state.db.read().map_err(|e| e.to_string())?;
-    db.get_invites()
+async fn get_all_invites(state: State<'_, AppState>, token: String) -> Result<Vec<Invite>, String> {
+    let _ = check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    let db = state.db.read().await;
+    db.get_invites().await
 }
 
 #[tauri::command]
-fn toggle_invite_status(state: State<AppState>, token: String, invite_id: i32, is_active: bool) -> Result<(), String> {
-    let user = check_auth(&state, &token, vec!["CEO", "Manager"])?;
-    let db = state.db.read().map_err(|e| e.to_string())?;
-    db.toggle_invite_status(invite_id, is_active)?;
+async fn toggle_invite_status(state: State<'_, AppState>, token: String, invite_id: i32, is_active: bool) -> Result<(), String> {
+    let user = check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    let db = state.db.read().await;
+    db.toggle_invite_status(invite_id, is_active).await?;
     
     // Log activity
-    let _ = db.log_activity(user.id, "toggle_invite".to_string(), Some("Invite".to_string()), Some(invite_id), Some(format!("New Status: {}", is_active)));
+    let _ = db.log_activity(user.id, "toggle_invite".to_string(), Some("Invite".to_string()), Some(invite_id), Some(format!("New Status: {}", is_active))).await;
     
     Ok(())
 }
@@ -959,10 +979,37 @@ pub fn run() {
                 sessions: RwLock::new(HashMap::new()),
                 jwt_secret
             });
+
+            // Start background session cleanup task
+            let handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                loop {
+                    // Run every hour
+                    tokio::time::sleep(tokio::time::Duration::from_secs(3600)).await;
+                    
+                    let state = handle.state::<AppState>();
+                    
+                    // Cleanup in-memory sessions
+                    {
+                        let mut sessions = state.sessions.write().await;
+                        let now = chrono::Utc::now().timestamp();
+                        sessions.retain(|_, v| v.exp > now);
+                    }
+                    
+                    // Cleanup DB sessions
+                    {
+                        let db = state.db.read().await;
+                        if let Err(e) = db.cleanup_sessions().await {
+                            eprintln!("Failed to cleanup sessions: {}", e);
+                        }
+                    }
+                }
+            });
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            greet, ping, login, register_user, verify_connection, generate_invite_token, check_invite_token, accept_invite, get_all_invites, toggle_invite_status,
+            greet, ping, login, logout, register_user, verify_connection, generate_invite_token, check_invite_token, accept_invite, get_all_invites, toggle_invite_status,
             get_products, add_product, update_product, delete_product,
             get_employees, add_employee, update_employee, delete_employee,
             get_payments, add_payment, update_payment, delete_payment,

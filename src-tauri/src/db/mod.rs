@@ -9,123 +9,129 @@ pub use config::DbConfig;
 pub use noop::NoOpDatabase;
 pub use memory::InMemoryDatabase;
 use crate::models::*;
+use async_trait::async_trait;
 
+#[async_trait]
 pub trait Database: Send + Sync {
-    fn get_setup_status(&self) -> Result<bool, String>;
-    fn get_type(&self) -> String;
-    fn complete_setup(&self, company_name: String, admin_name: String, admin_email: String, admin_password: String, admin_username: String) -> Result<(), String>;
-    fn set_company_name(&self, company_name: String) -> Result<(), String>;
+    async fn get_setup_status(&self) -> Result<bool, String>;
+    fn get_type(&self) -> String; // Usually just returns a string literal, no IO
+    async fn complete_setup(&self, company_name: String, admin_name: String, admin_email: String, admin_password: String, admin_username: String) -> Result<(), String>;
+    async fn set_company_name(&self, company_name: String) -> Result<(), String>;
 
     // Users & Auth
-    fn check_username_exists(&self, username: String) -> Result<bool, String>;
-    fn get_user_by_username(&self, username: String) -> Result<Option<User>, String>;
-    fn create_user(&self, user: User) -> Result<i64, String>;
-    fn update_user(&self, user: User) -> Result<(), String>;
-    fn update_user_last_login(&self, user_id: i32) -> Result<(), String>;
+    async fn check_username_exists(&self, username: String) -> Result<bool, String>;
+    async fn get_user_by_username(&self, username: String) -> Result<Option<User>, String>;
+    async fn create_user(&self, user: User) -> Result<i64, String>;
+    async fn update_user(&self, user: User) -> Result<(), String>;
+    async fn update_user_last_login(&self, user_id: i32) -> Result<(), String>;
+    async fn create_session(&self, token: String, user_id: i32, exp: i64) -> Result<(), String>;
+    async fn get_session_user(&self, token: String) -> Result<Option<User>, String>;
+    async fn revoke_session(&self, token: String) -> Result<(), String>;
+    async fn cleanup_sessions(&self) -> Result<(), String>;
 
     // Invites
-    fn create_invite(&self, invite: Invite) -> Result<i64, String>;
-    fn get_invite(&self, token: String) -> Result<Option<Invite>, String>;
-    fn mark_invite_used(&self, token: String) -> Result<(), String>;
-    fn get_invites(&self) -> Result<Vec<Invite>, String>;
-    fn toggle_invite_status(&self, id: i32, is_active: bool) -> Result<(), String>;
+    async fn create_invite(&self, invite: Invite) -> Result<i64, String>;
+    async fn get_invite(&self, token: String) -> Result<Option<Invite>, String>;
+    async fn mark_invite_used(&self, token: String) -> Result<(), String>;
+    async fn get_invites(&self) -> Result<Vec<Invite>, String>;
+    async fn toggle_invite_status(&self, id: i32, is_active: bool) -> Result<(), String>;
 
     // Products
-    fn get_products(&self, search: Option<String>, page: Option<i32>, page_size: Option<i32>) -> Result<serde_json::Value, String>;
-    fn add_product(&self, product: Product) -> Result<i64, String>;
-    fn update_product(&self, product: Product) -> Result<(), String>;
-    fn delete_product(&self, id: i32) -> Result<(), String>;
+    async fn get_products(&self, search: Option<String>, page: Option<i32>, page_size: Option<i32>) -> Result<serde_json::Value, String>;
+    async fn add_product(&self, product: Product) -> Result<i64, String>;
+    async fn update_product(&self, product: Product) -> Result<(), String>;
+    async fn delete_product(&self, id: i32) -> Result<(), String>;
 
     // Employees
-    fn get_employees(&self) -> Result<Vec<Employee>, String>;
-    fn get_employee_by_email(&self, email: String) -> Result<Option<Employee>, String>;
-    fn add_employee(&self, employee: Employee) -> Result<i64, String>;
-    fn update_employee(&self, employee: Employee) -> Result<(), String>;
-    fn delete_employee(&self, id: i32) -> Result<(), String>;
+    async fn get_employees(&self) -> Result<Vec<Employee>, String>;
+    async fn get_employee_by_email(&self, email: String) -> Result<Option<Employee>, String>;
+    async fn add_employee(&self, employee: Employee) -> Result<i64, String>;
+    async fn update_employee(&self, employee: Employee) -> Result<(), String>;
+    async fn delete_employee(&self, id: i32) -> Result<(), String>;
 
     // Payments
-    fn get_payments(&self) -> Result<Vec<Payment>, String>;
-    fn add_payment(&self, payment: Payment) -> Result<i64, String>;
-    fn update_payment(&self, payment: Payment) -> Result<(), String>;
-    fn delete_payment(&self, id: i32) -> Result<(), String>;
+    async fn get_payments(&self) -> Result<Vec<Payment>, String>;
+    async fn add_payment(&self, payment: Payment) -> Result<i64, String>;
+    async fn update_payment(&self, payment: Payment) -> Result<(), String>;
+    async fn delete_payment(&self, id: i32) -> Result<(), String>;
 
     // Tasks (Generic)
-    fn get_tasks(&self) -> Result<Vec<Task>, String>;
-    fn add_task(&self, task: Task) -> Result<i64, String>;
-    fn update_task(&self, task: Task) -> Result<(), String>;
-    fn delete_task(&self, id: i32) -> Result<(), String>;
+    async fn get_tasks(&self) -> Result<Vec<Task>, String>;
+    async fn add_task(&self, task: Task) -> Result<i64, String>;
+    async fn update_task(&self, task: Task) -> Result<(), String>;
+    async fn delete_task(&self, id: i32) -> Result<(), String>;
 
     // Attendance
-    fn get_attendances(&self) -> Result<Vec<Attendance>, String>;
-    fn clock_in(&self, attendance: Attendance) -> Result<i64, String>;
-    fn clock_out(&self, attendance: Attendance) -> Result<(), String>;
+    async fn get_attendances(&self) -> Result<Vec<Attendance>, String>;
+    async fn clock_in(&self, attendance: Attendance) -> Result<i64, String>;
+    async fn clock_out(&self, attendance: Attendance) -> Result<(), String>;
 
     // Dashboard & Reports
-    fn get_dashboard_stats(&self) -> Result<DashboardStats, String>;
-    fn get_report_summary(&self) -> Result<ReportSummary, String>;
-    fn get_monthly_cashflow(&self) -> Result<Vec<ChartDataPoint>, String>;
+    async fn get_dashboard_stats(&self) -> Result<DashboardStats, String>;
+    async fn get_report_summary(&self) -> Result<ReportSummary, String>;
+    async fn get_monthly_cashflow(&self) -> Result<Vec<ChartDataPoint>, String>;
 
     // Complaints
-    fn get_complaints(&self) -> Result<Vec<Complaint>, String>;
-    fn submit_complaint(&self, complaint: Complaint) -> Result<i64, String>;
-    fn resolve_complaint(&self, id: i32, status: String, resolution: String, resolved_by: String, admin_notes: Option<String>) -> Result<(), String>;
-    fn delete_complaint(&self, id: i32) -> Result<(), String>;
+    async fn get_complaints(&self) -> Result<Vec<Complaint>, String>;
+    async fn submit_complaint(&self, complaint: Complaint) -> Result<i64, String>;
+    async fn resolve_complaint(&self, id: i32, status: String, resolution: String, resolved_by: String, admin_notes: Option<String>) -> Result<(), String>;
+    async fn delete_complaint(&self, id: i32) -> Result<(), String>;
 
     // Tools
-    fn get_tools(&self) -> Result<Vec<Tool>, String>;
-    fn add_tool(&self, tool: Tool) -> Result<i64, String>;
-    fn update_tool(&self, tool: Tool) -> Result<(), String>;
-    fn delete_tool(&self, id: i32) -> Result<(), String>;
-    fn assign_tool(&self, assignment: ToolAssignment) -> Result<i64, String>;
-    fn return_tool(&self, id: i32, return_condition: String) -> Result<(), String>;
+    async fn get_tools(&self) -> Result<Vec<Tool>, String>;
+    async fn add_tool(&self, tool: Tool) -> Result<i64, String>;
+    async fn update_tool(&self, tool: Tool) -> Result<(), String>;
+    async fn delete_tool(&self, id: i32) -> Result<(), String>;
+    async fn assign_tool(&self, assignment: ToolAssignment) -> Result<i64, String>;
+    async fn return_tool(&self, id: i32, return_condition: String) -> Result<(), String>;
 
     // Roles & Permissions
-    fn get_roles(&self) -> Result<Vec<Role>, String>;
-    fn add_role(&self, role: Role) -> Result<i64, String>;
-    fn get_permissions(&self) -> Result<Vec<Permission>, String>;
-    fn get_role_permissions(&self, role_id: i32) -> Result<Vec<Permission>, String>;
-    fn update_role_permissions(&self, role_id: i32, permission_ids: Vec<i32>) -> Result<(), String>;
+    async fn get_roles(&self) -> Result<Vec<Role>, String>;
+    async fn add_role(&self, role: Role) -> Result<i64, String>;
+    async fn get_permissions(&self) -> Result<Vec<Permission>, String>;
+    async fn get_role_permissions(&self, role_id: i32) -> Result<Vec<Permission>, String>;
+    async fn update_role_permissions(&self, role_id: i32, permission_ids: Vec<i32>) -> Result<(), String>;
 
     // Feature Toggles
-    fn get_feature_toggles(&self) -> Result<Vec<FeatureToggle>, String>;
-    fn set_feature_toggle(&self, name: String, is_enabled: bool) -> Result<(), String>;
+    async fn get_feature_toggles(&self) -> Result<Vec<FeatureToggle>, String>;
+    async fn set_feature_toggle(&self, name: String, is_enabled: bool) -> Result<(), String>;
 
     // Audit Logs
-    fn get_audit_logs(&self) -> Result<Vec<AuditLog>, String>;
-    fn log_activity(&self, user_id: Option<i32>, action: String, entity: Option<String>, entity_id: Option<i32>, details: Option<String>) -> Result<(), String>;
+    async fn get_audit_logs(&self) -> Result<Vec<AuditLog>, String>;
+    async fn log_activity(&self, user_id: Option<i32>, action: String, entity: Option<String>, entity_id: Option<i32>, details: Option<String>) -> Result<(), String>;
 
     // Dashboard Config
-    fn get_dashboard_configs(&self) -> Result<Vec<DashboardConfig>, String>;
-    fn save_dashboard_config(&self, config: DashboardConfig) -> Result<(), String>;
+    async fn get_dashboard_configs(&self) -> Result<Vec<DashboardConfig>, String>;
+    async fn save_dashboard_config(&self, config: DashboardConfig) -> Result<(), String>;
 
     // Tool History
-    fn get_tool_history(&self, tool_id: i32) -> Result<Vec<ToolAssignment>, String>;
+    async fn get_tool_history(&self, tool_id: i32) -> Result<Vec<ToolAssignment>, String>;
     
     // Projects
-    fn get_projects(&self) -> Result<Vec<Project>, String>;
-    fn add_project(&self, project: Project) -> Result<i64, String>;
-    fn update_project(&self, project: Project) -> Result<(), String>;
-    fn delete_project(&self, id: i32) -> Result<(), String>;
-    fn get_project_tasks(&self, project_id: i32) -> Result<Vec<ProjectTask>, String>;
-    fn add_project_task(&self, task: ProjectTask) -> Result<i64, String>;
-    fn update_project_task(&self, task: ProjectTask) -> Result<(), String>;
-    fn delete_project_task(&self, id: i32) -> Result<(), String>;
-    fn assign_project_employee(&self, project_id: i32, employee_id: i32, role: String) -> Result<(), String>;
-    fn get_project_assignments(&self, project_id: i32) -> Result<Vec<ProjectAssignment>, String>;
-    fn get_all_project_assignments(&self) -> Result<Vec<ProjectAssignment>, String>;
-    fn remove_project_assignment(&self, project_id: i32, employee_id: i32) -> Result<(), String>;
+    async fn get_projects(&self) -> Result<Vec<Project>, String>;
+    async fn add_project(&self, project: Project) -> Result<i64, String>;
+    async fn update_project(&self, project: Project) -> Result<(), String>;
+    async fn delete_project(&self, id: i32) -> Result<(), String>;
+    async fn get_project_tasks(&self, project_id: i32) -> Result<Vec<ProjectTask>, String>;
+    async fn add_project_task(&self, task: ProjectTask) -> Result<i64, String>;
+    async fn update_project_task(&self, task: ProjectTask) -> Result<(), String>;
+    async fn delete_project_task(&self, id: i32) -> Result<(), String>;
+    async fn assign_project_employee(&self, project_id: i32, employee_id: i32, role: String) -> Result<(), String>;
+    async fn get_project_assignments(&self, project_id: i32) -> Result<Vec<ProjectAssignment>, String>;
+    async fn get_all_project_assignments(&self) -> Result<Vec<ProjectAssignment>, String>;
+    async fn remove_project_assignment(&self, project_id: i32, employee_id: i32) -> Result<(), String>;
     
     // Integrations
-    fn get_integrations(&self) -> Result<Vec<Integration>, String>;
-    fn toggle_integration(&self, id: i32, is_connected: bool) -> Result<(), String>;
-    fn configure_integration(&self, id: i32, api_key: Option<String>, config_json: Option<String>) -> Result<(), String>;
+    async fn get_integrations(&self) -> Result<Vec<Integration>, String>;
+    async fn toggle_integration(&self, id: i32, is_connected: bool) -> Result<(), String>;
+    async fn configure_integration(&self, id: i32, api_key: Option<String>, config_json: Option<String>) -> Result<(), String>;
 
     // Finance (Accounts & Invoices)
-    fn get_accounts(&self) -> Result<Vec<Account>, String>;
-    fn add_account(&self, account: Account) -> Result<i64, String>;
-    fn get_invoices(&self) -> Result<Vec<Invoice>, String>;
-    fn create_invoice(&self, invoice: Invoice) -> Result<i64, String>;
+    async fn get_accounts(&self) -> Result<Vec<Account>, String>;
+    async fn add_account(&self, account: Account) -> Result<i64, String>;
+    async fn get_invoices(&self) -> Result<Vec<Invoice>, String>;
+    async fn create_invoice(&self, invoice: Invoice) -> Result<i64, String>;
     
     // Demo Data
-    fn seed_demo_data(&self) -> Result<(), String>;
+    async fn seed_demo_data(&self) -> Result<(), String>;
 }
