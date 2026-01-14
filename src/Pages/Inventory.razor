@@ -38,11 +38,20 @@
             <button @onclick='() => SwitchTab("tools")' class="@(activeTab == "tools" ? "border-blue-500 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300") whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
                 Tools
             </button>
+            <button @onclick='() => SwitchTab("velocity")' class="@(activeTab == "velocity" ? "border-blue-500 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300") whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                Velocity Report
+            </button>
         </nav>
     </div>
 
     <div class="flex-1 overflow-auto bg-white shadow rounded-lg flex flex-col">
-        @if (activeTab == "products")
+        @if (activeTab == "velocity")
+        {
+            <div class="flex-1 p-4">
+                <ThePlanningBord.Shared.VelocityReportTab />
+            </div>
+        }
+        else if (activeTab == "products")
         {
             <div class="flex-1 overflow-auto">
                 <table class="min-w-full divide-y divide-gray-200">
@@ -76,6 +85,8 @@
                                         else { <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">In Stock</span> }
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                        <button @onclick="() => OpenBomModal(p.Id ?? 0)" class="text-indigo-600 hover:text-indigo-900 mr-3">Recipe</button>
+                                        <button @onclick="() => OpenBatchModal(p.Id ?? 0)" class="text-teal-600 hover:text-teal-900 mr-3">Batches</button>
                                         <button @onclick="() => EditProduct(p)" class="text-blue-600 hover:text-blue-900 mr-3">Edit</button>
                                         <button @onclick="() => DeleteProduct(p.Id ?? 0)" class="text-red-600 hover:text-red-900">Delete</button>
                                     </td>
@@ -240,12 +251,18 @@
     </div>
 }
 
+<ThePlanningBord.Shared.BomModal @bind-Show="showBomModal" ProductId="selectedProductId" />
+<ThePlanningBord.Shared.BatchModal @bind-Show="showBatchModal" ProductId="selectedProductId" />
+
 @code {
     private string activeTab = "products";
     private List<Product>? products;
     private List<Tool>? tools;
     private List<Employee>? employees;
     private bool showAddModal = false;
+    private bool showBomModal = false;
+    private bool showBatchModal = false;
+    private int selectedProductId = 0;
     private Product newProduct = new Product();
     private Tool newTool = new Tool();
     private string searchTerm = "";
@@ -293,6 +310,18 @@
     {
         debounceTimer?.Stop();
         debounceTimer?.Start();
+    }
+
+    private void OpenBomModal(int productId)
+    {
+        selectedProductId = productId;
+        showBomModal = true;
+    }
+
+    private void OpenBatchModal(int productId)
+    {
+        selectedProductId = productId;
+        showBatchModal = true;
     }
 
     private async Task LoadEmployees()

@@ -297,3 +297,100 @@ pub struct Integration {
     pub config_json: Option<String>,
     pub connected_at: Option<String>,
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct BomHeader {
+    pub id: Option<i32>,
+    pub product_id: i32,
+    pub name: String,
+    pub description: Option<String>,
+    pub is_active: bool,
+    pub created_at: Option<String>,
+    pub updated_at: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct SupplierOrder {
+    pub id: Option<i32>,
+    pub supplier_id: i32,
+    pub created_by_user_id: Option<i32>,
+    pub order_date: Option<String>,
+    pub status: String,
+    pub total_amount: f64,
+    pub notes: Option<String>,
+    pub items_json: Option<String>,
+    pub updated_at: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct BomLine {
+    pub id: Option<i32>,
+    pub bom_id: Option<i32>,
+    pub component_product_id: i32,
+    pub quantity: f64,
+    pub unit: Option<String>,
+    pub wastage_percentage: f64,
+    pub notes: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct InventoryBatch {
+    pub id: Option<i32>,
+    pub product_id: i32,
+    pub batch_number: String,
+    pub quantity: i32,
+    pub manufacturing_date: Option<String>,
+    pub expiration_date: Option<String>,
+    pub received_date: Option<String>,
+    pub supplier_info: Option<String>,
+    pub supplier_id: Option<i32>,
+    pub status: String,
+    pub notes: Option<String>,
+    pub created_at: Option<String>,
+    pub updated_at: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct InventoryMovement {
+    pub id: Option<i32>,
+    pub product_id: i32,
+    pub batch_id: Option<i32>,
+    pub movement_type: String,
+    pub quantity: f64,
+    pub reference_type: Option<String>,
+    pub reference_id: Option<String>,
+    pub performed_by_user_id: Option<i32>,
+    pub notes: Option<String>,
+    pub created_at: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct VelocityReport {
+    pub product_id: i32,
+    pub product_name: String,
+    pub sku: Option<String>,
+    pub current_quantity: i32,
+    pub total_sold_last_30_days: f64,
+    pub avg_daily_sales: f64,
+    pub estimated_days_stock: f64,
+    pub recommended_reorder_qty: f64,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct BomData {
+    pub header: Option<BomHeader>,
+    pub lines: Vec<BomLine>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Supplier {
+    pub id: Option<i32>,
+    pub name: String,
+    pub email: Option<String>,
+    pub phone: Option<String>,
+    pub contact_person: Option<String>,
+    pub address: Option<String>,
+    pub is_active: bool,
+    pub created_at: Option<String>,
+    pub updated_at: Option<String>,
+}

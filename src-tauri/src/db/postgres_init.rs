@@ -420,6 +420,102 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
         client.execute("INSERT INTO integrations (name, is_connected) VALUES ($1, $2) ON CONFLICT (name) DO NOTHING", &[&name, &connected])?;
     }
 
+    // 13. Supply Chain (BOM & Batches)
+    client.execute(
+        "CREATE TABLE IF NOT EXISTS bom_headers (
+            id SERIAL PRIMARY KEY,
+            product_id INTEGER REFERENCES products(id),
+            name TEXT NOT NULL,
+            description TEXT,
+            is_active BOOLEAN DEFAULT TRUE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )",
+        &[],
+    )?;
+
+    client.execute(
+        "CREATE TABLE IF NOT EXISTS bom_lines (
+            id SERIAL PRIMARY KEY,
+            bom_id INTEGER REFERENCES bom_headers(id) ON DELETE CASCADE,
+            component_product_id INTEGER REFERENCES products(id),
+            quantity DOUBLE PRECISION NOT NULL,
+            unit TEXT,
+            wastage_percentage DOUBLE PRECISION DEFAULT 0.0,
+            notes TEXT
+        )",
+        &[],
+    )?;
+
+    client.execute(
+        "CREATE TABLE IF NOT EXISTS inventory_batches (
+            id SERIAL PRIMARY KEY,
+            product_id INTEGER REFERENCES products(id),
+            batch_number TEXT NOT NULL,
+            quantity INTEGER DEFAULT 0,
+            manufacturing_date TIMESTAMP,
+            expiration_date TIMESTAMP,
+            received_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            supplier_info TEXT,
+            status TEXT DEFAULT 'active',
+            notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )",
+        &[],
+    )?;
+
+    // Patch inventory_batches
+    let _ = client.execute("ALTER TABLE inventory_batches ADD COLUMN IF NOT EXISTS supplier_id INTEGER REFERENCES suppliers(id)", &[]);
+
+    // 14. Generic Tasks
+    client.execute(
+        "CREATE TABLE IF NOT EXISTS tasks (
+            id SERIAL PRIMARY KEY,
+            employee_id INTEGER REFERENCES employees(id),
+            title TEXT NOT NULL,
+            description TEXT,
+            due_date TIMESTAMP,
+            status TEXT DEFAULT 'pending',
+            priority TEXT DEFAULT 'medium',
+            assigned_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            completed_date TIMESTAMP
+        )",
+        &[],
+    )?;
+
+    // 15. Supplier Management
+    client.execute(
+        "CREATE TABLE IF NOT EXISTS suppliers (
+            id SERIAL PRIMARY KEY,
+            name TEXT UNIQUE NOT NULL,
+            email TEXT,
+            phone TEXT,
+            contact_person TEXT,
+            address TEXT,
+            is_active BOOLEAN DEFAULT TRUE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )",
+        &[],
+    )?;
+
+    // 16. Supplier Orders
+    client.execute(
+        "CREATE TABLE IF NOT EXISTS supplier_orders (
+            id SERIAL PRIMARY KEY,
+            supplier_id INTEGER REFERENCES suppliers(id),
+            created_by_user_id INTEGER REFERENCES users(id),
+            order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            status TEXT DEFAULT 'pending',
+            total_amount DOUBLE PRECISION DEFAULT 0.0,
+            notes TEXT,
+            items_json TEXT, 
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )",
+        &[],
+    )?;
+
     Ok(())
 }
 

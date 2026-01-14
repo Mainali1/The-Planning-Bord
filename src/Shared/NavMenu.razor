@@ -17,6 +17,13 @@
                 Inventory
             </NavLink>
 
+            <AuthorizeView Roles="CEO,Manager">
+                <NavLink href="suppliers" class="group flex items-center px-2 py-2 text-base font-medium rounded-md text-gray-300 hover:bg-gray-700 hover:text-white" ActiveClass="bg-gray-900 text-white">
+                    <span class="mr-3">🏭</span>
+                    Suppliers
+                </NavLink>
+            </AuthorizeView>
+
             <AuthorizeView Roles="CEO,Manager,Technical">
                 <NavLink href="tools" class="group flex items-center px-2 py-2 text-base font-medium rounded-md text-gray-300 hover:bg-gray-700 hover:text-white" ActiveClass="bg-gray-900 text-white">
                     <span class="mr-3">🔧</span>

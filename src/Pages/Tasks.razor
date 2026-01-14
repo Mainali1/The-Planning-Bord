@@ -2,16 +2,22 @@
 @attribute [Authorize]
 @inject ITaskService TaskService
 @inject IJSRuntime JSRuntime
+@inject IUserService UserService
+@inject IHrService HrService
 @using ThePlanningBord.Models
+@using ThePlanningBord.Services
 
 <PageTitle>Tasks - The Planning Bord</PageTitle>
 
 <div class="flex flex-col h-full relative">
     <div class="flex justify-between items-center mb-6">
-        <h3 class="text-lg font-medium leading-6 text-gray-900">Task Management</h3>
-        <button @onclick="OpenAddModal" class="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
-            ➕ New Task
-        </button>
+        <h3 class="text-lg font-medium leading-6 text-gray-900">@(CanManageTasks ? "Task Management" : "My Tasks")</h3>
+        @if (CanManageTasks)
+        {
+            <button @onclick="OpenAddModal" class="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                ➕ New Task
+            </button>
+        }
     </div>
 
     <div class="flex-1 overflow-auto bg-white shadow rounded-lg">
@@ -19,28 +25,41 @@
             <thead class="bg-gray-50">
                 <tr>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assignee</th>
+                    @if (CanManageTasks)
+                    {
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assignee</th>
+                    }
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                     <th class="relative px-6 py-3"><span class="sr-only">Actions</span></th>
                 </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
-                @if (tasks == null) { <tr><td colspan="5" class="px-6 py-4 text-center">Loading...</td></tr> }
-                else if (!tasks.Any()) { <tr><td colspan="5" class="px-6 py-4 text-center">No tasks found.</td></tr> }
+                @if (tasks == null) { <tr><td colspan="6" class="px-6 py-4 text-center">Loading...</td></tr> }
+                else if (!tasks.Any()) { <tr><td colspan="6" class="px-6 py-4 text-center">No tasks found.</td></tr> }
                 else
                 {
                     <Virtualize Items="@tasks" Context="t" ItemSize="56">
                         <tr>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">@t.Title</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">@t.EmployeeId</td>
+                            @if (CanManageTasks)
+                            {
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    @(GetEmployeeName(t.EmployeeId))
+                                </td>
+                            }
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">@(t.DueDate?.ToShortDateString() ?? "-")</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">@t.Priority</td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full @(t.Status == "completed" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800")">@t.Status</span>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                <button @onclick="() => EditTask(t)" class="text-blue-600 hover:text-blue-900 mr-3">Edit</button>
-                                <button @onclick="() => DeleteTask(t.Id ?? 0)" class="text-red-600 hover:text-red-900">Delete</button>
+                                <button @onclick="() => EditTask(t)" class="text-blue-600 hover:text-blue-900 mr-3">@(CanManageTasks ? "Edit" : "Update Status")</button>
+                                @if (CanManageTasks)
+                                {
+                                    <button @onclick="() => DeleteTask(t.Id ?? 0)" class="text-red-600 hover:text-red-900">Delete</button>
+                                }
                             </td>
                         </tr>
                     </Virtualize>
@@ -59,13 +78,38 @@
                 <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                     <h3 class="text-lg leading-6 font-medium text-gray-900">@((newTask.Id.HasValue ? "Edit" : "Add")) Task</h3>
                     <div class="mt-4 grid grid-cols-1 gap-y-4">
-                        <input type="text" @bind="newTask.Title" placeholder="Title" class="block w-full border-gray-300 rounded-md shadow-sm" />
-                        <textarea @bind="newTask.Description" placeholder="Description" class="block w-full border-gray-300 rounded-md shadow-sm"></textarea>
-                        <select @bind="newTask.Priority" class="block w-full border-gray-300 rounded-md shadow-sm">
-                            <option value="low">Low</option>
-                            <option value="medium">Medium</option>
-                            <option value="high">High</option>
-                        </select>
+                        @if (CanManageTasks)
+                        {
+                            <input type="text" @bind="newTask.Title" placeholder="Title" class="block w-full border-gray-300 rounded-md shadow-sm" />
+                            <textarea @bind="newTask.Description" placeholder="Description" class="block w-full border-gray-300 rounded-md shadow-sm"></textarea>
+                            
+                            <!-- Employee/Assignee Dropdown -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Assign To</label>
+                                <select @bind="newTask.EmployeeId" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+                                    <option value="">Unassigned</option>
+                                    @foreach (var emp in employees)
+                                    {
+                                        <option value="@emp.Id">@emp.FirstName @emp.LastName (@emp.Role)</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <select @bind="newTask.Priority" class="block w-full border-gray-300 rounded-md shadow-sm">
+                                <option value="low">Low</option>
+                                <option value="medium">Medium</option>
+                                <option value="high">High</option>
+                            </select>
+                        }
+                        else
+                        {
+                            <div class="block w-full border-gray-300 rounded-md shadow-sm bg-gray-100 p-2">
+                                <p><strong>Title:</strong> @newTask.Title</p>
+                                <p><strong>Description:</strong> @newTask.Description</p>
+                                <p><strong>Priority:</strong> @newTask.Priority</p>
+                            </div>
+                        }
+
                         <select @bind="newTask.Status" class="block w-full border-gray-300 rounded-md shadow-sm">
                             <option value="pending">Pending</option>
                             <option value="in_progress">In Progress</option>
@@ -86,9 +130,22 @@
     private List<TaskModel>? tasks;
     private bool showAddModal = false;
     private TaskModel newTask = new TaskModel();
+    private User? currentUser;
+    private List<Employee> employees = new List<Employee>();
+
+    private bool CanManageTasks => currentUser?.Role == "CEO" || currentUser?.Role == "Manager";
 
     protected override async Task OnInitializedAsync()
     {
+        currentUser = await UserService.GetCurrentUserAsync();
+        if (CanManageTasks)
+        {
+            try {
+                employees = await HrService.GetEmployeesAsync();
+            } catch (Exception ex) {
+                Console.WriteLine($"Error loading employees: {ex.Message}");
+            }
+        }
         await LoadTasks();
     }
 
@@ -105,9 +162,16 @@
         }
     }
 
+    private string GetEmployeeName(int? employeeId)
+    {
+        if (!employeeId.HasValue) return "Unassigned";
+        var emp = employees.FirstOrDefault(e => e.Id == employeeId.Value);
+        return emp != null ? $"{emp.FirstName} {emp.LastName}" : $"ID: {employeeId}";
+    }
+
     private void OpenAddModal()
     {
-        newTask = new TaskModel { DueDate = DateTime.Today, AssignedDate = DateTime.Today };
+        newTask = new TaskModel { DueDate = DateTime.Today, AssignedDate = DateTime.Today, Priority = "medium", Status = "pending" };
         showAddModal = true;
     }
 
@@ -118,7 +182,19 @@
 
     private void EditTask(TaskModel task)
     {
-        newTask = task;
+        newTask = task; // In a real app, clone this object to avoid modifying the list item directly before save
+        // Cloning for safety
+        newTask = new TaskModel {
+            Id = task.Id,
+            EmployeeId = task.EmployeeId,
+            Title = task.Title,
+            Description = task.Description,
+            DueDate = task.DueDate,
+            Status = task.Status,
+            Priority = task.Priority,
+            AssignedDate = task.AssignedDate,
+            CompletedDate = task.CompletedDate
+        };
         showAddModal = true;
     }
 
@@ -140,6 +216,7 @@
         catch (Exception ex)
         {
             Console.WriteLine(ex.Message);
+            // Show error notification?
         }
     }
 

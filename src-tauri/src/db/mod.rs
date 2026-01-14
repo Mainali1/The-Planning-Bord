@@ -57,6 +57,7 @@ pub trait Database: Send + Sync {
 
     // Tasks (Generic)
     async fn get_tasks(&self) -> Result<Vec<Task>, String>;
+    async fn get_tasks_by_employee(&self, employee_id: i32) -> Result<Vec<Task>, String>;
     async fn add_task(&self, task: Task) -> Result<i64, String>;
     async fn update_task(&self, task: Task) -> Result<(), String>;
     async fn delete_task(&self, id: i32) -> Result<(), String>;
@@ -134,4 +135,24 @@ pub trait Database: Send + Sync {
     
     // Demo Data
     async fn seed_demo_data(&self) -> Result<(), String>;
+
+    // Supply Chain (BOM, Batches, Velocity)
+    async fn get_product_bom(&self, product_id: i32) -> Result<(Option<BomHeader>, Vec<BomLine>), String>;
+    async fn save_bom(&self, header: BomHeader, lines: Vec<BomLine>) -> Result<(), String>;
+    async fn get_batches(&self, product_id: i32) -> Result<Vec<InventoryBatch>, String>;
+    async fn add_batch(&self, batch: InventoryBatch) -> Result<i64, String>;
+    async fn update_batch(&self, batch: InventoryBatch) -> Result<(), String>;
+    async fn get_velocity_report(&self) -> Result<Vec<VelocityReport>, String>;
+
+    // Suppliers
+    async fn get_suppliers(&self) -> Result<Vec<Supplier>, String>;
+    async fn add_supplier(&self, supplier: Supplier) -> Result<i64, String>;
+    async fn update_supplier(&self, supplier: Supplier) -> Result<(), String>;
+    async fn delete_supplier(&self, id: i32) -> Result<(), String>;
+    
+    // Supplier Orders
+    async fn get_supplier_orders(&self) -> Result<Vec<SupplierOrder>, String>;
+    async fn add_supplier_order(&self, order: SupplierOrder) -> Result<i64, String>;
+    async fn update_supplier_order(&self, order: SupplierOrder) -> Result<(), String>;
+    async fn delete_supplier_order(&self, id: i32) -> Result<(), String>;
 }

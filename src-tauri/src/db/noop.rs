@@ -27,6 +27,7 @@ impl Database for NoOpDatabase {
 
     // Tasks (Generic)
     async fn get_tasks(&self) -> Result<Vec<Task>, String> { Err("DB not configured".into()) }
+    async fn get_tasks_by_employee(&self, _employee_id: i32) -> Result<Vec<Task>, String> { Err("DB not configured".into()) }
     async fn add_task(&self, _task: Task) -> Result<i64, String> { Err("DB not configured".into()) }
     async fn update_task(&self, _task: Task) -> Result<(), String> { Err("DB not configured".into()) }
     async fn delete_task(&self, _id: i32) -> Result<(), String> { Err("DB not configured".into()) }
@@ -128,4 +129,24 @@ impl Database for NoOpDatabase {
     
     // Demo Data
     async fn seed_demo_data(&self) -> Result<(), String> { Err("DB not configured".into()) }
+
+    // Supply Chain (BOM, Batches, Velocity)
+    async fn get_product_bom(&self, _product_id: i32) -> Result<(Option<BomHeader>, Vec<BomLine>), String> { Err("DB not configured".into()) }
+    async fn save_bom(&self, _header: BomHeader, _lines: Vec<BomLine>) -> Result<(), String> { Err("DB not configured".into()) }
+    async fn get_batches(&self, _product_id: i32) -> Result<Vec<InventoryBatch>, String> { Err("DB not configured".into()) }
+    async fn add_batch(&self, _batch: InventoryBatch) -> Result<i64, String> { Err("DB not configured".into()) }
+    async fn update_batch(&self, _batch: InventoryBatch) -> Result<(), String> { Err("DB not configured".into()) }
+    async fn get_velocity_report(&self) -> Result<Vec<VelocityReport>, String> { Err("DB not configured".into()) }
+
+    // Suppliers
+    async fn get_suppliers(&self) -> Result<Vec<Supplier>, String> { Err("DB not configured".into()) }
+    async fn add_supplier(&self, _supplier: Supplier) -> Result<i64, String> { Err("DB not configured".into()) }
+    async fn update_supplier(&self, _supplier: Supplier) -> Result<(), String> { Err("DB not configured".into()) }
+    async fn delete_supplier(&self, _id: i32) -> Result<(), String> { Err("DB not configured".into()) }
+    
+    // Supplier Orders
+    async fn get_supplier_orders(&self) -> Result<Vec<SupplierOrder>, String> { Err("DB not configured".into()) }
+    async fn add_supplier_order(&self, _order: SupplierOrder) -> Result<i64, String> { Err("DB not configured".into()) }
+    async fn update_supplier_order(&self, _order: SupplierOrder) -> Result<(), String> { Err("DB not configured".into()) }
+    async fn delete_supplier_order(&self, _id: i32) -> Result<(), String> { Err("DB not configured".into()) }
 }

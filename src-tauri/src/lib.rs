@@ -5,7 +5,7 @@ pub mod setup;
 use tauri::{State, Manager};
 use tokio::sync::RwLock;
 use std::collections::HashMap;
-use models::{Product, Employee, Payment, DashboardStats, Task, Attendance, ReportSummary, ChartDataPoint, Complaint, Tool, Role, Permission, FeatureToggle, ToolAssignment, AuditLog, DashboardConfig, Project, ProjectTask, ProjectAssignment, Account, Invoice, Integration, User, LoginResponse, Invite};
+use models::{Product, Employee, Payment, DashboardStats, Task, Attendance, ReportSummary, ChartDataPoint, Complaint, Tool, Role, Permission, FeatureToggle, ToolAssignment, AuditLog, DashboardConfig, Project, ProjectTask, ProjectAssignment, Account, Invoice, Integration, User, LoginResponse, Invite, BomHeader, BomLine, InventoryBatch, VelocityReport, BomData, Supplier, SupplierOrder};
 use db::{Database, DbConfig, PostgresDatabase};
 use argon2::{
     password_hash::{
@@ -311,6 +311,93 @@ async fn delete_product(state: State<'_, AppState>, id: i32, token: String) -> R
     state.db.read().await.delete_product(id).await
 }
 
+// --- Supply Chain Commands ---
+
+#[tauri::command]
+async fn get_suppliers(state: State<'_, AppState>, token: String) -> Result<Vec<Supplier>, String> {
+    check_auth(&state, &token, vec!["CEO", "Manager", "Inventory"]).await?;
+    state.db.read().await.get_suppliers().await
+}
+
+#[tauri::command]
+async fn add_supplier(state: State<'_, AppState>, supplier: Supplier, token: String) -> Result<i64, String> {
+    check_auth(&state, &token, vec!["CEO", "Manager", "Inventory"]).await?;
+    state.db.read().await.add_supplier(supplier).await
+}
+
+#[tauri::command]
+async fn update_supplier(state: State<'_, AppState>, supplier: Supplier, token: String) -> Result<(), String> {
+    check_auth(&state, &token, vec!["CEO", "Manager", "Inventory"]).await?;
+    state.db.read().await.update_supplier(supplier).await
+}
+
+#[tauri::command]
+async fn delete_supplier(state: State<'_, AppState>, id: i32, token: String) -> Result<(), String> {
+    check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    state.db.read().await.delete_supplier(id).await
+}
+
+#[tauri::command]
+async fn get_supplier_orders(state: State<'_, AppState>, token: String) -> Result<Vec<SupplierOrder>, String> {
+    check_auth(&state, &token, vec!["CEO", "Manager", "Inventory"]).await?;
+    state.db.read().await.get_supplier_orders().await
+}
+
+#[tauri::command]
+async fn add_supplier_order(state: State<'_, AppState>, order: SupplierOrder, token: String) -> Result<i64, String> {
+    check_auth(&state, &token, vec!["CEO", "Manager", "Inventory"]).await?;
+    state.db.read().await.add_supplier_order(order).await
+}
+
+#[tauri::command]
+async fn update_supplier_order(state: State<'_, AppState>, order: SupplierOrder, token: String) -> Result<(), String> {
+    check_auth(&state, &token, vec!["CEO", "Manager", "Inventory"]).await?;
+    state.db.read().await.update_supplier_order(order).await
+}
+
+#[tauri::command]
+async fn delete_supplier_order(state: State<'_, AppState>, id: i32, token: String) -> Result<(), String> {
+    check_auth(&state, &token, vec!["CEO", "Manager", "Inventory"]).await?;
+    state.db.read().await.delete_supplier_order(id).await
+}
+
+#[tauri::command]
+async fn get_product_bom(state: State<'_, AppState>, product_id: i32, token: String) -> Result<BomData, String> {
+    check_auth(&state, &token, vec!["CEO", "Manager", "Inventory"]).await?;
+    let (header, lines) = state.db.read().await.get_product_bom(product_id).await?;
+    Ok(BomData { header, lines })
+}
+
+#[tauri::command]
+async fn save_bom(state: State<'_, AppState>, header: BomHeader, lines: Vec<BomLine>, token: String) -> Result<(), String> {
+    check_auth(&state, &token, vec!["CEO", "Manager", "Inventory"]).await?;
+    state.db.read().await.save_bom(header, lines).await
+}
+
+#[tauri::command]
+async fn get_batches(state: State<'_, AppState>, product_id: i32, token: String) -> Result<Vec<InventoryBatch>, String> {
+    check_auth(&state, &token, vec!["CEO", "Manager", "Inventory"]).await?;
+    state.db.read().await.get_batches(product_id).await
+}
+
+#[tauri::command]
+async fn add_batch(state: State<'_, AppState>, batch: InventoryBatch, token: String) -> Result<i64, String> {
+    check_auth(&state, &token, vec!["CEO", "Manager", "Inventory"]).await?;
+    state.db.read().await.add_batch(batch).await
+}
+
+#[tauri::command]
+async fn update_batch(state: State<'_, AppState>, batch: InventoryBatch, token: String) -> Result<(), String> {
+    check_auth(&state, &token, vec!["CEO", "Manager", "Inventory"]).await?;
+    state.db.read().await.update_batch(batch).await
+}
+
+#[tauri::command]
+async fn get_velocity_report(state: State<'_, AppState>, token: String) -> Result<Vec<VelocityReport>, String> {
+    check_auth(&state, &token, vec!["CEO", "Manager", "Inventory", "Finance"]).await?;
+    state.db.read().await.get_velocity_report().await
+}
+
 // --- Employee Commands ---
 
 #[tauri::command]
@@ -367,25 +454,69 @@ async fn delete_payment(state: State<'_, AppState>, id: i32, token: String) -> R
 
 #[tauri::command]
 async fn get_tasks(state: State<'_, AppState>, token: String) -> Result<Vec<Task>, String> {
-    check_auth(&state, &token, vec![]).await?; // Any authenticated
-    state.db.read().await.get_tasks().await
+    let user = check_auth(&state, &token, vec![]).await?;
+    let db = state.db.read().await;
+    
+    // Check if user is an employee (and not a Manager/CEO)
+    if user.role != "CEO" && user.role != "Manager" {
+        // If user is an employee, try to find their employee record to get ID
+        if let Some(employee) = db.get_employee_by_email(user.email.clone()).await? {
+             if let Some(emp_id) = employee.id {
+                 return db.get_tasks_by_employee(emp_id as i32).await;
+             }
+        }
+        // If employee record not found or has no ID, return empty list
+        return Ok(vec![]);
+    }
+    
+    // CEO/Manager see all tasks
+    db.get_tasks().await
 }
 
 #[tauri::command]
 async fn add_task(state: State<'_, AppState>, task: Task, token: String) -> Result<i64, String> {
-    check_auth(&state, &token, vec![]).await?; // Any authenticated
+    check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
     state.db.read().await.add_task(task).await
 }
 
 #[tauri::command]
 async fn update_task(state: State<'_, AppState>, task: Task, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec![]).await?; // Any authenticated
-    state.db.read().await.update_task(task).await
+    let user = check_auth(&state, &token, vec![]).await?; // Allow all to call, but we check permission inside
+    
+    // If Manager/CEO, allow full update
+    if user.role == "CEO" || user.role == "Manager" {
+        return state.db.read().await.update_task(task).await;
+    }
+
+    // If Employee, only allow updating status of assigned tasks
+    let db = state.db.read().await;
+    if let Some(employee) = db.get_employee_by_email(user.email.clone()).await? {
+        if let Some(emp_id) = employee.id {
+             // Fetch existing task to verify assignment
+             // Note: We don't have get_task_by_id yet, but we can use get_tasks_by_employee or just trust the DB check if we had one.
+             // For now, since we don't have get_task(id), we'll assume the client is honest but we should ideally verify.
+             // A better approach is to fetch the task first.
+             // Since we lack get_task(id), let's fetch all user tasks and check if this task belongs to them.
+             let tasks = db.get_tasks_by_employee(emp_id).await?;
+             if let Some(existing_task) = tasks.iter().find(|t| t.id == task.id) {
+                 // Verify that only status changed, or just allow status update. 
+                 // To be safe, we construct a new task object merging the existing one with the new status.
+                 let mut task_to_update = existing_task.clone();
+                 task_to_update.status = task.status; // Only allow status change
+                 
+                 // If the user tries to change other fields, we ignore them or error. 
+                 // For simplicity, we just save the task with the new status and original other fields.
+                 return db.update_task(task_to_update).await;
+             }
+        }
+    }
+    
+    Err("Insufficient permissions to update this task".to_string())
 }
 
 #[tauri::command]
 async fn delete_task(state: State<'_, AppState>, id: i32, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec![]).await?; // Any authenticated
+    check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
     state.db.read().await.delete_task(id).await
 }
 
@@ -1011,6 +1142,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             greet, ping, login, logout, register_user, verify_connection, generate_invite_token, check_invite_token, accept_invite, get_all_invites, toggle_invite_status,
             get_products, add_product, update_product, delete_product,
+            get_product_bom, save_bom, get_batches, add_batch, update_batch, get_velocity_report,
+            get_suppliers, add_supplier, update_supplier, delete_supplier,
+            get_supplier_orders, add_supplier_order, update_supplier_order, delete_supplier_order,
             get_employees, add_employee, update_employee, delete_employee,
             get_payments, add_payment, update_payment, delete_payment,
             get_tasks, add_task, update_task, delete_task,

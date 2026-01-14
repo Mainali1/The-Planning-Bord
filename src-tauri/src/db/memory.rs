@@ -26,6 +26,8 @@ pub struct InMemoryDatabase {
     invoices: RwLock<Vec<Invoice>>,
     integrations: RwLock<Vec<Integration>>,
     invites: RwLock<Vec<Invite>>,
+    suppliers: RwLock<Vec<Supplier>>,
+    supplier_orders: RwLock<Vec<SupplierOrder>>,
 }
 
 impl InMemoryDatabase {
@@ -53,6 +55,8 @@ impl InMemoryDatabase {
             accounts: RwLock::new(Vec::new()),
             invoices: RwLock::new(Vec::new()),
             integrations: RwLock::new(Vec::new()),
+            suppliers: RwLock::new(Vec::new()),
+            supplier_orders: RwLock::new(Vec::new()),
         }
     }
 }
@@ -247,6 +251,10 @@ impl Database for InMemoryDatabase {
     }
 
     async fn get_tasks(&self) -> Result<Vec<Task>, String> { Ok(self.tasks.read().map_err(|_| "Failed to acquire lock".to_string())?.clone()) }
+    async fn get_tasks_by_employee(&self, employee_id: i32) -> Result<Vec<Task>, String> {
+        let tasks = self.tasks.read().map_err(|_| "Failed to acquire lock".to_string())?;
+        Ok(tasks.iter().filter(|t| t.employee_id == Some(employee_id)).cloned().collect())
+    }
     async fn add_task(&self, mut t: Task) -> Result<i64, String> {
         let mut tasks = self.tasks.write().map_err(|_| "Failed to acquire lock".to_string())?;
         let id = (tasks.iter().map(|x| x.id.unwrap_or(0)).max().unwrap_or(0) + 1) as i32;
@@ -543,5 +551,70 @@ impl Database for InMemoryDatabase {
         }
         Ok(())
     }
+  // Demo Data
     async fn seed_demo_data(&self) -> Result<(), String> { Ok(()) }
+
+    // Supply Chain (BOM, Batches, Velocity)
+    async fn get_product_bom(&self, _product_id: i32) -> Result<(Option<BomHeader>, Vec<BomLine>), String> { Err("Not implemented for InMemory DB".into()) }
+    async fn save_bom(&self, _header: BomHeader, _lines: Vec<BomLine>) -> Result<(), String> { Err("Not implemented for InMemory DB".into()) }
+    async fn get_batches(&self, _product_id: i32) -> Result<Vec<InventoryBatch>, String> { Err("Not implemented for InMemory DB".into()) }
+    async fn add_batch(&self, _batch: InventoryBatch) -> Result<i64, String> { Err("Not implemented for InMemory DB".into()) }
+    async fn update_batch(&self, _batch: InventoryBatch) -> Result<(), String> { Err("Not implemented for InMemory DB".into()) }
+    async fn get_velocity_report(&self) -> Result<Vec<VelocityReport>, String> { Err("Not implemented for InMemory DB".into()) }
+
+    // Suppliers
+    async fn get_suppliers(&self) -> Result<Vec<Supplier>, String> {
+        Ok(self.suppliers.read().map_err(|_| "Failed to acquire lock".to_string())?.clone())
+    }
+    async fn add_supplier(&self, mut supplier: Supplier) -> Result<i64, String> {
+        let mut suppliers = self.suppliers.write().map_err(|_| "Failed to acquire lock".to_string())?;
+        let id = (suppliers.iter().map(|x| x.id.unwrap_or(0)).max().unwrap_or(0) + 1) as i32;
+        supplier.id = Some(id);
+        suppliers.push(supplier);
+        Ok(id as i64)
+    }
+    async fn update_supplier(&self, supplier: Supplier) -> Result<(), String> {
+        let mut suppliers = self.suppliers.write().map_err(|_| "Failed to acquire lock".to_string())?;
+        if let Some(pos) = suppliers.iter().position(|x| x.id == supplier.id) {
+            suppliers[pos] = supplier;
+            Ok(())
+        } else {
+            Err("Supplier not found".into())
+        }
+    }
+    async fn delete_supplier(&self, id: i32) -> Result<(), String> {
+        let mut suppliers = self.suppliers.write().map_err(|_| "Failed to acquire lock".to_string())?;
+        suppliers.retain(|x| x.id != Some(id));
+        Ok(())
+    }
+
+    // Supplier Orders
+    async fn get_supplier_orders(&self) -> Result<Vec<SupplierOrder>, String> {
+        Ok(self.supplier_orders.read().map_err(|_| "Failed to acquire lock".to_string())?.clone())
+    }
+    async fn add_supplier_order(&self, mut order: SupplierOrder) -> Result<i64, String> {
+        let mut orders = self.supplier_orders.write().map_err(|_| "Failed to acquire lock".to_string())?;
+        let id = (orders.iter().map(|x| x.id.unwrap_or(0)).max().unwrap_or(0) + 1) as i32;
+        order.id = Some(id);
+        orders.push(order);
+        Ok(id as i64)
+    }
+    async fn update_supplier_order(&self, order: SupplierOrder) -> Result<(), String> {
+        let mut orders = self.supplier_orders.write().map_err(|_| "Failed to acquire lock".to_string())?;
+        if let Some(pos) = orders.iter().position(|x| x.id == order.id) {
+            orders[pos] = order;
+            Ok(())
+        } else {
+            Err("Supplier Order not found".into())
+        }
+    }
+    async fn delete_supplier_order(&self, id: i32) -> Result<(), String> {
+        let mut orders = self.supplier_orders.write().map_err(|_| "Failed to acquire lock".to_string())?;
+        let len_before = orders.len();
+        orders.retain(|x| x.id != Some(id));
+        if orders.len() == len_before {
+            return Err("Supplier Order not found".to_string());
+        }
+        Ok(())
+    }
 }
