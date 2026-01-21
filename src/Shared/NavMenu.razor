@@ -1,9 +1,10 @@
 @using Microsoft.AspNetCore.Components.Authorization
+@inject ThePlanningBord.Services.ISystemService SystemService
 
 <nav class="bg-gray-800 w-64 flex-shrink-0 flex flex-col justify-between">
     <div class="mt-5">
         <div class="flex items-center justify-center mb-8">
-            <span class="text-white text-2xl font-semibold">Planning Bord</span>
+            <span class="text-white text-2xl font-semibold">@companyName</span>
         </div>
         
         <div class="px-2 space-y-1">
@@ -97,3 +98,23 @@
          </AuthorizeView>
     </div>
 </nav>
+
+@code {
+    private string companyName = "Planning Bord";
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var name = await SystemService.GetCompanyNameAsync();
+            if (!string.IsNullOrWhiteSpace(name))
+            {
+                companyName = name;
+            }
+        }
+        catch
+        {
+            // Ignore and keep default
+        }
+    }
+}

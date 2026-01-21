@@ -72,6 +72,7 @@ impl Database for NoOpDatabase {
     fn get_type(&self) -> String { "noop".to_string() }
     async fn complete_setup(&self, _company_name: String, _admin_name: String, _admin_email: String, _admin_password: String, _admin_username: String) -> Result<(), String> { Err("DB not configured".into()) }
     async fn set_company_name(&self, _company_name: String) -> Result<(), String> { Err("DB not configured".into()) }
+    async fn get_company_name(&self) -> Result<Option<String>, String> { Err("DB not configured".into()) }
 
     // Users & Auth
     async fn check_username_exists(&self, _username: String) -> Result<bool, String> { Err("DB not configured".into()) }

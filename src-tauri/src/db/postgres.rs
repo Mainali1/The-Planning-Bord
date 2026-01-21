@@ -1059,6 +1059,16 @@ impl Database for PostgresDatabase {
         Ok(())
     }
 
+    async fn get_company_name(&self) -> Result<Option<String>, String> {
+        let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
+        let row = client
+            .query_opt("SELECT company_name FROM setup_config LIMIT 1", &[])
+            .await
+            .map_err(|e| e.to_string())?;
+
+        Ok(row.map(|r| r.get::<_, String>(0)))
+    }
+
     async fn seed_demo_data(&self) -> Result<(), String> {
         Ok(())
     }

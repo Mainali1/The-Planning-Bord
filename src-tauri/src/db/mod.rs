@@ -17,6 +17,7 @@ pub trait Database: Send + Sync {
     fn get_type(&self) -> String; // Usually just returns a string literal, no IO
     async fn complete_setup(&self, company_name: String, admin_name: String, admin_email: String, admin_password: String, admin_username: String) -> Result<(), String>;
     async fn set_company_name(&self, company_name: String) -> Result<(), String>;
+    async fn get_company_name(&self) -> Result<Option<String>, String>;
 
     // Users & Auth
     async fn check_username_exists(&self, username: String) -> Result<bool, String>;

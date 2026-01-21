@@ -738,6 +738,11 @@ async fn get_setup_status(state: State<'_, AppState>) -> Result<bool, String> {
 }
 
 #[tauri::command]
+async fn get_company_name(state: State<'_, AppState>) -> Result<Option<String>, String> {
+    state.db.read().await.get_company_name().await
+}
+
+#[tauri::command]
 async fn check_username(state: State<'_, AppState>, username: String) -> Result<bool, String> {
     state.db.read().await.check_username_exists(username).await
 }
@@ -1156,7 +1161,7 @@ pub fn run() {
             assign_tool, return_tool, get_tool_history,
             get_roles, add_role, get_permissions, get_role_permissions, update_role_permissions,
             get_feature_toggles, set_feature_toggle,
-            get_setup_status, complete_setup, check_username, get_active_db_type,
+            get_setup_status, get_company_name, complete_setup, check_username, get_active_db_type,
             get_audit_logs,
             get_dashboard_configs, save_dashboard_config,
             get_projects, add_project, update_project, get_project_tasks, add_project_task, update_project_task, delete_project, assign_project_employee, get_project_assignments, get_all_project_assignments, remove_project_assignment, delete_project_task,

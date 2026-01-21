@@ -23,7 +23,7 @@
                             </svg>
                         </button>
                         <h1 class="text-2xl font-bold leading-tight text-gray-900 truncate">
-                            The Planning Bord™
+                            @companyName
                         </h1>
                     </div>
                 <div class="flex items-center space-x-4">
@@ -57,6 +57,7 @@
 @code {
     private HelpModal? helpModal;
     private bool sidebarOpen = false;
+    private string companyName = "The Planning Bord™";
 
     protected override async Task OnInitializedAsync()
     {
@@ -74,6 +75,12 @@
             {
                 Navigation.NavigateTo("/setup", true);
                 return;
+            }
+
+            var name = await SystemService.GetCompanyNameAsync();
+            if (!string.IsNullOrWhiteSpace(name))
+            {
+                companyName = name;
             }
 
             // Auth check is now handled by App.razor and AuthorizeRouteView

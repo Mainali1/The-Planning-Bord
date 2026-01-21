@@ -67,6 +67,7 @@ impl Database for InMemoryDatabase {
     fn get_type(&self) -> String { "memory".to_string() }
     async fn complete_setup(&self, _c: String, _n: String, _e: String, _p: String, _u: String) -> Result<(), String> { Ok(()) }
     async fn set_company_name(&self, _n: String) -> Result<(), String> { Ok(()) }
+    async fn get_company_name(&self) -> Result<Option<String>, String> { Ok(Some("The Planning Bord".to_string())) }
 
     // Users & Auth
     async fn check_username_exists(&self, username: String) -> Result<bool, String> {

@@ -7,6 +7,7 @@ namespace ThePlanningBord.Services
     {
         // Setup
         Task<bool> GetSetupStatusAsync();
+        Task<string?> GetCompanyNameAsync();
         Task<bool> CheckUsernameExistsAsync(string username);
         Task CompleteSetupAsync(string companyName, string adminName, string adminEmail, string adminPassword, string adminUsername);
         Task<string> GreetAsync(string name);
@@ -59,6 +60,18 @@ namespace ThePlanningBord.Services
         public async Task<bool> GetSetupStatusAsync()
         {
             return await _tauri.InvokeAsync<bool>("get_setup_status", new { });
+        }
+
+        public async Task<string?> GetCompanyNameAsync()
+        {
+            try
+            {
+                return await _tauri.InvokeAsync<string?>("get_company_name", new { });
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         public async Task<bool> CheckUsernameExistsAsync(string username)
