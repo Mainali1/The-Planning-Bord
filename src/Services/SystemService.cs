@@ -31,7 +31,9 @@ namespace ThePlanningBord.Services
         Task SetFeatureToggleAsync(string key, bool isEnabled);
 
         // Audit Logs
-        Task<List<AuditLog>> GetAuditLogsAsync(int page = 1, int pageSize = 50);
+        Task<List<AuditLog>> GetAuditLogsAsync(int page = 1, int pageSize = 50, int? userId = null, string? action = null, string? category = null, string? dateFrom = null, string? dateTo = null);
+        Task<string> ExportAuditLogsAsync();
+        Task UpdateClientInfoAsync(string ipAddress, string userAgent);
 
         // Dashboard Configs
         Task<List<DashboardConfig>> GetDashboardConfigsAsync(int userId);
@@ -168,10 +170,26 @@ namespace ThePlanningBord.Services
             await _tauri.InvokeVoidAsync("set_feature_toggle", new { key, isEnabled, token });
         }
 
-        public async Task<List<AuditLog>> GetAuditLogsAsync(int page = 1, int pageSize = 50)
+        public async Task<List<AuditLog>> GetAuditLogsAsync(int page = 1, int pageSize = 50, int? userId = null, string? action = null, string? category = null, string? dateFrom = null, string? dateTo = null)
         {
             var token = await _userService.GetTokenAsync();
-            return await _tauri.InvokeAsync<List<AuditLog>>("get_audit_logs", new { page, pageSize, token });
+            return await _tauri.InvokeAsync<List<AuditLog>>("get_audit_logs", new { page, pageSize, userId, action, category, dateFrom, dateTo, token });
+        }
+
+        public async Task<string> ExportAuditLogsAsync()
+        {
+            var token = await _userService.GetTokenAsync();
+            return await _tauri.InvokeAsync<string>("export_audit_logs", new { token });
+        }
+
+        public async Task UpdateClientInfoAsync(string ipAddress, string userAgent)
+        {
+            var token = await _userService.GetTokenAsync();
+            // This might fail if user is not logged in (token is empty), so check token
+            if (!string.IsNullOrEmpty(token))
+            {
+                await _tauri.InvokeVoidAsync("update_client_info", new { ipAddress, userAgent, token });
+            }
         }
 
         public async Task<List<DashboardConfig>> GetDashboardConfigsAsync(int userId)

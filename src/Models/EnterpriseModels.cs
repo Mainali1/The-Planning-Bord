@@ -10,6 +10,9 @@ namespace ThePlanningBord.Models
         [JsonPropertyName("user_id")]
         public int? UserId { get; set; }
 
+        [JsonPropertyName("user_name")]
+        public string? UserName { get; set; }
+
         [JsonPropertyName("action")]
         public string Action { get; set; } = string.Empty;
 
@@ -24,6 +27,15 @@ namespace ThePlanningBord.Models
 
         [JsonPropertyName("created_at")]
         public string? CreatedAt { get; set; }
+
+        [JsonPropertyName("category")]
+        public string? Category { get; set; }
+
+        [JsonPropertyName("ip_address")]
+        public string? IpAddress { get; set; }
+
+        [JsonPropertyName("user_agent")]
+        public string? UserAgent { get; set; }
     }
 
     public class DashboardConfig

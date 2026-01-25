@@ -99,8 +99,8 @@ pub trait Database: Send + Sync {
     async fn set_feature_toggle(&self, name: String, is_enabled: bool) -> Result<(), String>;
 
     // Audit Logs
-    async fn get_audit_logs(&self) -> Result<Vec<AuditLog>, String>;
-    async fn log_activity(&self, user_id: Option<i32>, action: String, entity: Option<String>, entity_id: Option<i32>, details: Option<String>) -> Result<(), String>;
+    async fn get_audit_logs(&self, page: Option<i32>, page_size: Option<i32>, user_id: Option<i32>, action: Option<String>, category: Option<String>, date_from: Option<String>, date_to: Option<String>) -> Result<Vec<AuditLog>, String>;
+    async fn log_activity(&self, user_id: Option<i32>, action: String, category: String, entity: Option<String>, entity_id: Option<i32>, details: Option<String>, ip_address: Option<String>, user_agent: Option<String>) -> Result<(), String>;
 
     // Dashboard Config
     async fn get_dashboard_configs(&self) -> Result<Vec<DashboardConfig>, String>;

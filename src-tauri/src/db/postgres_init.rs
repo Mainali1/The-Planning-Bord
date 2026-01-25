@@ -361,6 +361,7 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             id SERIAL PRIMARY KEY,
             user_id INTEGER REFERENCES users(id),
             action TEXT NOT NULL,
+            category TEXT,
             entity TEXT,
             entity_id INTEGER,
             details TEXT,
@@ -370,6 +371,11 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
         )",
         &[],
     )?;
+
+    // Ensure columns exist (for migration)
+    let _ = client.execute("ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS category TEXT", &[]);
+    let _ = client.execute("ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS ip_address TEXT", &[]);
+    let _ = client.execute("ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS user_agent TEXT", &[]);
 
     // 11. Feature Toggles
     client.execute(

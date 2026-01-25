@@ -5,6 +5,7 @@
 @inject NavigationManager Navigation
 @inject NotificationService NotificationService
 @inject AuthenticationStateProvider AuthStateProvider
+@inject IJSRuntime JS
 @using ThePlanningBord.Auth
 
     <div class="flex h-screen bg-gray-100 font-sans overflow-hidden">
@@ -81,6 +82,17 @@
             if (!string.IsNullOrWhiteSpace(name))
             {
                 companyName = name;
+            }
+
+            // Update client info for audit logs
+            try
+            {
+                var ua = await JS.InvokeAsync<string>("getUserAgent");
+                await SystemService.UpdateClientInfoAsync("127.0.0.1", ua);
+            }
+            catch (Exception ex)
+            {
+                 Console.WriteLine($"Client info update failed: {ex.Message}");
             }
 
             // Auth check is now handled by App.razor and AuthorizeRouteView

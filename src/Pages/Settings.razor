@@ -212,20 +212,57 @@
         }
         else if (activeTab == "audit")
         {
-            <div class="bg-white shadow rounded-lg overflow-hidden">
-                <div class="px-6 py-4 border-b border-gray-200">
-                    <h4 class="text-lg font-medium text-gray-900">System Audit Logs</h4>
-                    <p class="text-sm text-gray-500">Track all changes and access events.</p>
+            <div class="bg-white shadow rounded-lg overflow-hidden flex flex-col h-full">
+                <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center flex-shrink-0">
+                    <div>
+                        <h4 class="text-lg font-medium text-gray-900">System Audit Logs</h4>
+                        <p class="text-sm text-gray-500">Track all changes and access events.</p>
+                    </div>
+                    <button @onclick="ExportLogs" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                        Export to CSV
+                    </button>
                 </div>
-                <div class="overflow-x-auto">
+                
+                <!-- Filters -->
+                <div class="px-6 py-4 bg-gray-50 border-b border-gray-200 flex flex-wrap gap-4 items-end flex-shrink-0">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700">User ID</label>
+                        <input type="number" @bind="auditUserId" class="mt-1 block w-32 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" placeholder="ID">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700">Action</label>
+                        <input type="text" @bind="auditAction" class="mt-1 block w-40 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" placeholder="Action">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700">Category</label>
+                        <input type="text" @bind="auditCategory" class="mt-1 block w-40 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" placeholder="Category">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700">From</label>
+                        <input type="date" @bind="auditDateFrom" class="mt-1 block w-40 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700">To</label>
+                        <input type="date" @bind="auditDateTo" class="mt-1 block w-40 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                    </div>
+                    <div>
+                        <button @onclick="FilterLogs" class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            Filter
+                        </button>
+                    </div>
+                </div>
+
+                <div class="overflow-auto flex-1">
                     <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
+                        <thead class="bg-gray-50 sticky top-0">
                             <tr>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Entity</th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Details</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client Info</th>
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
@@ -235,27 +272,32 @@
                                 {
                                     <tr class="hover:bg-gray-50">
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">@log.CreatedAt</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">User @log.UserId</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">@(log.UserName ?? $"User {log.UserId}")</td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                             <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
                                                 @log.Action
                                             </span>
                                         </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">@log.Category</td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">@log.Entity (@log.EntityId)</td>
                                         <td class="px-6 py-4 text-sm text-gray-500 truncate max-w-xs" title="@log.Details">@log.Details</td>
+                                        <td class="px-6 py-4 text-xs text-gray-500">
+                                            <div>@log.IpAddress</div>
+                                            <div class="truncate max-w-xs" title="@log.UserAgent">@log.UserAgent</div>
+                                        </td>
                                     </tr>
                                 }
                             }
                             else
                             {
                                 <tr>
-                                    <td colspan="5" class="px-6 py-4 text-center text-sm text-gray-500">Loading logs...</td>
+                                    <td colspan="7" class="px-6 py-4 text-center text-sm text-gray-500">Loading logs...</td>
                                 </tr>
                             }
                         </tbody>
                     </table>
                 </div>
-                <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-between items-center">
+                <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-between items-center flex-shrink-0">
                     <button class="px-3 py-1 border border-gray-300 rounded-md bg-white text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50" @onclick="PrevPage" disabled="@(auditPage == 1)">Previous</button>
                     <span class="text-sm text-gray-600">Page @auditPage</span>
                     <button class="px-3 py-1 border border-gray-300 rounded-md bg-white text-sm text-gray-600 hover:bg-gray-50" @onclick="NextPage">Next</button>
@@ -345,6 +387,11 @@
     // Audit
     private List<AuditLog>? auditLogs;
     private int auditPage = 1;
+    private int? auditUserId;
+    private string? auditAction;
+    private string? auditCategory;
+    private DateTime? auditDateFrom;
+    private DateTime? auditDateTo;
 
     protected override async Task OnInitializedAsync()
     {
@@ -358,7 +405,19 @@
         await LoadRoles();
         await LoadPermissions();
         await LoadFeatureToggles();
+        await UpdateClientInfo();
         await LoadAuditLogs();
+    }
+    
+    private async Task UpdateClientInfo()
+    {
+        try
+        {
+            var ua = await JS.InvokeAsync<string>("getUserAgent");
+            // In a real web app we might use an IP service, but for this desktop app we'll just use a placeholder or local
+            await SystemService.UpdateClientInfoAsync("127.0.0.1", ua);
+        }
+        catch (Exception ex) { Console.WriteLine("Failed to update client info: " + ex.Message); }
     }
 
     private string GetTabClass(string tab)
@@ -496,12 +555,37 @@
     {
         try
         {
-            auditLogs = await SystemService.GetAuditLogsAsync(auditPage, 50);
+            string? dFrom = auditDateFrom?.ToString("yyyy-MM-dd");
+            string? dTo = auditDateTo?.ToString("yyyy-MM-dd");
+            auditLogs = await SystemService.GetAuditLogsAsync(auditPage, 50, auditUserId, auditAction, auditCategory, dFrom, dTo);
         }
         catch (Exception ex)
         {
             Console.WriteLine(ex.Message);
             auditLogs = new List<AuditLog>();
+        }
+    }
+
+    private async Task FilterLogs()
+    {
+        auditPage = 1;
+        await LoadAuditLogs();
+    }
+
+    private async Task ExportLogs()
+    {
+        try
+        {
+            var csv = await SystemService.ExportAuditLogsAsync();
+            var bytes = System.Text.Encoding.UTF8.GetBytes(csv);
+            var base64 = Convert.ToBase64String(bytes);
+            await JS.InvokeVoidAsync("saveAsFile", $"audit_logs_{DateTime.Now:yyyyMMddHHmmss}.csv", base64, "text/csv");
+            await JS.InvokeVoidAsync("notify", "Export successful!");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+            await JS.InvokeVoidAsync("notify", "Export failed: " + ex.Message);
         }
     }
 

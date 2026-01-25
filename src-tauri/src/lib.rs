@@ -23,6 +23,8 @@ use rand::Rng;
 pub struct Session {
     user: User,
     exp: i64,
+    ip: Option<String>,
+    user_agent: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -79,8 +81,10 @@ async fn login(state: State<'_, AppState>, username: String, password_plain: Str
             
             // Store Session
             let exp = chrono::Utc::now().timestamp() + 86400;
-            state.sessions.write().await.insert(token.clone(), Session { user: user.clone(), exp });
+            state.sessions.write().await.insert(token.clone(), Session { user: user.clone(), exp, ip: None, user_agent: None });
             let _ = db.create_session(token.clone(), user.id.unwrap(), exp).await;
+            
+            let _ = db.log_activity(user.id, "login".to_string(), "UserManagement".to_string(), Some("Session".to_string()), None, Some("User logged in".to_string()), None, None).await;
 
             Ok(LoginResponse {
                 user,
@@ -108,6 +112,8 @@ async fn verify_connection(connection_string: String) -> Result<bool, String> {
     
     Ok(true)
 }
+
+
 
 #[tauri::command]
 async fn generate_invite_token(state: State<'_, AppState>, role: String, name: String, email: String, expiration_hours: u64, token: String) -> Result<String, String> {
@@ -156,7 +162,7 @@ async fn generate_invite_token(state: State<'_, AppState>, role: String, name: S
         let db = state.db.read().await;
         db.create_invite(invite).await?;
         // Log activity
-        let _ = db.log_activity(user.id, "generate_invite".to_string(), Some("Invite".to_string()), None, Some(format!("Role: {}, Email: {}", role, email))).await;
+        let _ = db.log_activity(user.id, "generate_invite".to_string(), "UserManagement".to_string(), Some("Invite".to_string()), None, Some(format!("Role: {}, Email: {}", role, email)), None, None).await;
     }
 
     Ok(invite_token)
@@ -236,12 +242,12 @@ async fn accept_invite(state: State<'_, AppState>, invite_token: String, passwor
     db.mark_invite_used(invite_token).await?;
     
     // Log activity
-    let _ = db.log_activity(user.id, "accept_invite".to_string(), Some("User".to_string()), user.id, Some("User joined via invite".to_string())).await;
+    let _ = db.log_activity(user.id, "accept_invite".to_string(), "UserManagement".to_string(), Some("User".to_string()), user.id, Some("User joined via invite".to_string()), None, None).await;
 
     // 5. Create session
     let session_token = Uuid::new_v4().to_string();
     let exp = chrono::Utc::now().timestamp() + 86400;
-    state.sessions.write().await.insert(session_token.clone(), Session { user: user.clone(), exp });
+    state.sessions.write().await.insert(session_token.clone(), Session { user: user.clone(), exp, ip: None, user_agent: None });
     let _ = db.create_session(session_token.clone(), user.id.unwrap(), exp).await;
 
     Ok(LoginResponse {
@@ -264,12 +270,38 @@ async fn check_auth(state: &State<'_, AppState>, token: &str, allowed_roles: Vec
     }
 }
 
+async fn get_client_info(state: &State<'_, AppState>, token: &str) -> (Option<String>, Option<String>) {
+    let sessions = state.sessions.read().await;
+    if let Some(session) = sessions.get(token) {
+        (session.ip.clone(), session.user_agent.clone())
+    } else {
+        (None, None)
+    }
+}
+
 #[tauri::command]
 async fn logout(state: State<'_, AppState>, token: String) -> Result<(), String> {
+    let mut sessions = state.sessions.write().await;
+    let user_id = sessions.get(&token).and_then(|s| s.user.id);
+    
     let db = state.db.read().await;
     let _ = db.revoke_session(token.clone()).await;
-    let mut sessions = state.sessions.write().await;
+    
+    if let Some(uid) = user_id {
+         let _ = db.log_activity(Some(uid), "logout".to_string(), "UserManagement".to_string(), Some("Session".to_string()), None, Some("User logged out".to_string()), None, None).await;
+    }
+    
     sessions.remove(&token);
+    Ok(())
+}
+
+#[tauri::command]
+async fn update_client_info(state: State<'_, AppState>, ip_address: String, user_agent: String, token: String) -> Result<(), String> {
+    let mut sessions = state.sessions.write().await;
+    if let Some(session) = sessions.get_mut(&token) {
+        session.ip = Some(ip_address);
+        session.user_agent = Some(user_agent);
+    }
     Ok(())
 }
 
@@ -282,7 +314,10 @@ async fn register_user(state: State<'_, AppState>, mut user: User, password_plai
     
     user.hashed_password = password_hash;
     
-    state.db.read().await.create_user(user).await
+    let db = state.db.read().await;
+    let id = db.create_user(user.clone()).await?;
+    let _ = db.log_activity(Some(id as i32), "register".to_string(), "UserManagement".to_string(), Some("User".to_string()), Some(id as i32), Some("User registered".to_string()), None, None).await;
+    Ok(id)
 }
 
 // --- Product Commands ---
@@ -295,20 +330,29 @@ async fn get_products(state: State<'_, AppState>, search: Option<String>, page: 
 
 #[tauri::command]
 async fn add_product(state: State<'_, AppState>, product: Product, token: String) -> Result<i64, String> {
-    check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
-    state.db.read().await.add_product(product).await
+    let user = check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    let db = state.db.read().await;
+    let id = db.add_product(product.clone()).await?;
+    let _ = db.log_activity(user.id, "create".to_string(), "Inventory".to_string(), Some("Product".to_string()), Some(id as i32), Some(format!("Added product: {}", product.name)), None, None).await;
+    Ok(id)
 }
 
 #[tauri::command]
 async fn update_product(state: State<'_, AppState>, product: Product, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
-    state.db.read().await.update_product(product).await
+    let user = check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    let db = state.db.read().await;
+    db.update_product(product.clone()).await?;
+    let _ = db.log_activity(user.id, "update".to_string(), "Inventory".to_string(), Some("Product".to_string()), product.id.map(|i| i as i32), Some(format!("Updated product: {}", product.name)), None, None).await;
+    Ok(())
 }
 
 #[tauri::command]
 async fn delete_product(state: State<'_, AppState>, id: i32, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
-    state.db.read().await.delete_product(id).await
+    let user = check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    let db = state.db.read().await;
+    db.delete_product(id).await?;
+    let _ = db.log_activity(user.id, "delete".to_string(), "Inventory".to_string(), Some("Product".to_string()), Some(id), Some("Deleted product".to_string()), None, None).await;
+    Ok(())
 }
 
 // --- Supply Chain Commands ---
@@ -321,20 +365,29 @@ async fn get_suppliers(state: State<'_, AppState>, token: String) -> Result<Vec<
 
 #[tauri::command]
 async fn add_supplier(state: State<'_, AppState>, supplier: Supplier, token: String) -> Result<i64, String> {
-    check_auth(&state, &token, vec!["CEO", "Manager", "Inventory"]).await?;
-    state.db.read().await.add_supplier(supplier).await
+    let user = check_auth(&state, &token, vec!["CEO", "Manager", "Inventory"]).await?;
+    let db = state.db.read().await;
+    let id = db.add_supplier(supplier.clone()).await?;
+    let _ = db.log_activity(user.id, "create".to_string(), "SupplyChain".to_string(), Some("Supplier".to_string()), Some(id as i32), Some(format!("Added supplier: {}", supplier.name)), None, None).await;
+    Ok(id)
 }
 
 #[tauri::command]
 async fn update_supplier(state: State<'_, AppState>, supplier: Supplier, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec!["CEO", "Manager", "Inventory"]).await?;
-    state.db.read().await.update_supplier(supplier).await
+    let user = check_auth(&state, &token, vec!["CEO", "Manager", "Inventory"]).await?;
+    let db = state.db.read().await;
+    db.update_supplier(supplier.clone()).await?;
+    let _ = db.log_activity(user.id, "update".to_string(), "SupplyChain".to_string(), Some("Supplier".to_string()), supplier.id.map(|i| i as i32), Some(format!("Updated supplier: {}", supplier.name)), None, None).await;
+    Ok(())
 }
 
 #[tauri::command]
 async fn delete_supplier(state: State<'_, AppState>, id: i32, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
-    state.db.read().await.delete_supplier(id).await
+    let user = check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    let db = state.db.read().await;
+    db.delete_supplier(id).await?;
+    let _ = db.log_activity(user.id, "delete".to_string(), "SupplyChain".to_string(), Some("Supplier".to_string()), Some(id), Some("Deleted supplier".to_string()), None, None).await;
+    Ok(())
 }
 
 #[tauri::command]
@@ -345,20 +398,29 @@ async fn get_supplier_orders(state: State<'_, AppState>, token: String) -> Resul
 
 #[tauri::command]
 async fn add_supplier_order(state: State<'_, AppState>, order: SupplierOrder, token: String) -> Result<i64, String> {
-    check_auth(&state, &token, vec!["CEO", "Manager", "Inventory"]).await?;
-    state.db.read().await.add_supplier_order(order).await
+    let user = check_auth(&state, &token, vec!["CEO", "Manager", "Inventory"]).await?;
+    let db = state.db.read().await;
+    let id = db.add_supplier_order(order.clone()).await?;
+    let _ = db.log_activity(user.id, "create".to_string(), "SupplyChain".to_string(), Some("SupplierOrder".to_string()), Some(id as i32), Some(format!("Added order for supplier: {}", order.supplier_id)), None, None).await;
+    Ok(id)
 }
 
 #[tauri::command]
 async fn update_supplier_order(state: State<'_, AppState>, order: SupplierOrder, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec!["CEO", "Manager", "Inventory"]).await?;
-    state.db.read().await.update_supplier_order(order).await
+    let user = check_auth(&state, &token, vec!["CEO", "Manager", "Inventory"]).await?;
+    let db = state.db.read().await;
+    db.update_supplier_order(order.clone()).await?;
+    let _ = db.log_activity(user.id, "update".to_string(), "SupplyChain".to_string(), Some("SupplierOrder".to_string()), order.id.map(|i| i as i32), Some(format!("Updated order for supplier: {}", order.supplier_id)), None, None).await;
+    Ok(())
 }
 
 #[tauri::command]
 async fn delete_supplier_order(state: State<'_, AppState>, id: i32, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec!["CEO", "Manager", "Inventory"]).await?;
-    state.db.read().await.delete_supplier_order(id).await
+    let user = check_auth(&state, &token, vec!["CEO", "Manager", "Inventory"]).await?;
+    let db = state.db.read().await;
+    db.delete_supplier_order(id).await?;
+    let _ = db.log_activity(user.id, "delete".to_string(), "SupplyChain".to_string(), Some("SupplierOrder".to_string()), Some(id), Some("Deleted order".to_string()), None, None).await;
+    Ok(())
 }
 
 #[tauri::command]
@@ -370,8 +432,11 @@ async fn get_product_bom(state: State<'_, AppState>, product_id: i32, token: Str
 
 #[tauri::command]
 async fn save_bom(state: State<'_, AppState>, header: BomHeader, lines: Vec<BomLine>, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec!["CEO", "Manager", "Inventory"]).await?;
-    state.db.read().await.save_bom(header, lines).await
+    let user = check_auth(&state, &token, vec!["CEO", "Manager", "Inventory"]).await?;
+    let db = state.db.read().await;
+    db.save_bom(header.clone(), lines.clone()).await?;
+    let _ = db.log_activity(user.id, "update".to_string(), "SupplyChain".to_string(), Some("BOM".to_string()), header.id, Some(format!("Saved BOM for product: {}", header.product_id)), None, None).await;
+    Ok(())
 }
 
 #[tauri::command]
@@ -382,14 +447,20 @@ async fn get_batches(state: State<'_, AppState>, product_id: i32, token: String)
 
 #[tauri::command]
 async fn add_batch(state: State<'_, AppState>, batch: InventoryBatch, token: String) -> Result<i64, String> {
-    check_auth(&state, &token, vec!["CEO", "Manager", "Inventory"]).await?;
-    state.db.read().await.add_batch(batch).await
+    let user = check_auth(&state, &token, vec!["CEO", "Manager", "Inventory"]).await?;
+    let db = state.db.read().await;
+    let id = db.add_batch(batch.clone()).await?;
+    let _ = db.log_activity(user.id, "create".to_string(), "Inventory".to_string(), Some("Batch".to_string()), Some(id as i32), Some(format!("Added batch: {}", batch.batch_number)), None, None).await;
+    Ok(id)
 }
 
 #[tauri::command]
 async fn update_batch(state: State<'_, AppState>, batch: InventoryBatch, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec!["CEO", "Manager", "Inventory"]).await?;
-    state.db.read().await.update_batch(batch).await
+    let user = check_auth(&state, &token, vec!["CEO", "Manager", "Inventory"]).await?;
+    let db = state.db.read().await;
+    db.update_batch(batch.clone()).await?;
+    let _ = db.log_activity(user.id, "update".to_string(), "Inventory".to_string(), Some("Batch".to_string()), batch.id.map(|i| i as i32), Some(format!("Updated batch: {}", batch.batch_number)), None, None).await;
+    Ok(())
 }
 
 #[tauri::command]
@@ -408,20 +479,29 @@ async fn get_employees(state: State<'_, AppState>, token: String) -> Result<Vec<
 
 #[tauri::command]
 async fn add_employee(state: State<'_, AppState>, employee: Employee, token: String) -> Result<i64, String> {
-    check_auth(&state, &token, vec!["CEO", "Manager", "HR"]).await?;
-    state.db.read().await.add_employee(employee).await
+    let user = check_auth(&state, &token, vec!["CEO", "Manager", "HR"]).await?;
+    let db = state.db.read().await;
+    let id = db.add_employee(employee.clone()).await?;
+    let _ = db.log_activity(user.id, "create".to_string(), "UserManagement".to_string(), Some("Employee".to_string()), Some(id as i32), Some(format!("Added employee: {} {}", employee.first_name, employee.last_name)), None, None).await;
+    Ok(id)
 }
 
 #[tauri::command]
 async fn update_employee(state: State<'_, AppState>, employee: Employee, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec!["CEO", "Manager", "HR"]).await?;
-    state.db.read().await.update_employee(employee).await
+    let user = check_auth(&state, &token, vec!["CEO", "Manager", "HR"]).await?;
+    let db = state.db.read().await;
+    db.update_employee(employee.clone()).await?;
+    let _ = db.log_activity(user.id, "update".to_string(), "UserManagement".to_string(), Some("Employee".to_string()), employee.id.map(|i| i as i32), Some(format!("Updated employee: {} {}", employee.first_name, employee.last_name)), None, None).await;
+    Ok(())
 }
 
 #[tauri::command]
 async fn delete_employee(state: State<'_, AppState>, id: i32, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec!["CEO", "Manager", "HR"]).await?;
-    state.db.read().await.delete_employee(id).await
+    let user = check_auth(&state, &token, vec!["CEO", "Manager", "HR"]).await?;
+    let db = state.db.read().await;
+    db.delete_employee(id).await?;
+    let _ = db.log_activity(user.id, "delete".to_string(), "UserManagement".to_string(), Some("Employee".to_string()), Some(id), Some("Deleted employee".to_string()), None, None).await;
+    Ok(())
 }
 
 // --- Payment Commands ---
@@ -434,20 +514,29 @@ async fn get_payments(state: State<'_, AppState>, token: String) -> Result<Vec<P
 
 #[tauri::command]
 async fn add_payment(state: State<'_, AppState>, payment: Payment, token: String) -> Result<i64, String> {
-    check_auth(&state, &token, vec!["CEO", "Manager", "Finance"]).await?;
-    state.db.read().await.add_payment(payment).await
+    let user = check_auth(&state, &token, vec!["CEO", "Manager", "Finance"]).await?;
+    let db = state.db.read().await;
+    let id = db.add_payment(payment.clone()).await?;
+    let _ = db.log_activity(user.id, "create".to_string(), "Finance".to_string(), Some("Payment".to_string()), Some(id as i32), Some(format!("Added payment amount: {}", payment.amount)), None, None).await;
+    Ok(id)
 }
 
 #[tauri::command]
 async fn update_payment(state: State<'_, AppState>, payment: Payment, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec!["CEO", "Manager", "Finance"]).await?;
-    state.db.read().await.update_payment(payment).await
+    let user = check_auth(&state, &token, vec!["CEO", "Manager", "Finance"]).await?;
+    let db = state.db.read().await;
+    db.update_payment(payment.clone()).await?;
+    let _ = db.log_activity(user.id, "update".to_string(), "Finance".to_string(), Some("Payment".to_string()), payment.id.map(|i| i as i32), Some(format!("Updated payment amount: {}", payment.amount)), None, None).await;
+    Ok(())
 }
 
 #[tauri::command]
 async fn delete_payment(state: State<'_, AppState>, id: i32, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec!["CEO", "Manager", "Finance"]).await?;
-    state.db.read().await.delete_payment(id).await
+    let user = check_auth(&state, &token, vec!["CEO", "Manager", "Finance"]).await?;
+    let db = state.db.read().await;
+    db.delete_payment(id).await?;
+    let _ = db.log_activity(user.id, "delete".to_string(), "Finance".to_string(), Some("Payment".to_string()), Some(id), Some("Deleted payment".to_string()), None, None).await;
+    Ok(())
 }
 
 // --- Task Commands ---
@@ -475,8 +564,11 @@ async fn get_tasks(state: State<'_, AppState>, token: String) -> Result<Vec<Task
 
 #[tauri::command]
 async fn add_task(state: State<'_, AppState>, task: Task, token: String) -> Result<i64, String> {
-    check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
-    state.db.read().await.add_task(task).await
+    let user = check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    let db = state.db.read().await;
+    let id = db.add_task(task.clone()).await?;
+    let _ = db.log_activity(user.id, "create".to_string(), "TaskManagement".to_string(), Some("Task".to_string()), Some(id as i32), Some(format!("Added task: {}", task.title)), None, None).await;
+    Ok(id)
 }
 
 #[tauri::command]
@@ -485,7 +577,10 @@ async fn update_task(state: State<'_, AppState>, task: Task, token: String) -> R
     
     // If Manager/CEO, allow full update
     if user.role == "CEO" || user.role == "Manager" {
-        return state.db.read().await.update_task(task).await;
+        let db = state.db.read().await;
+        db.update_task(task.clone()).await?;
+        let _ = db.log_activity(user.id, "update".to_string(), "TaskManagement".to_string(), Some("Task".to_string()), task.id.map(|i| i as i32), Some(format!("Updated task: {}", task.title)), None, None).await;
+        return Ok(());
     }
 
     // If Employee, only allow updating status of assigned tasks
@@ -493,20 +588,15 @@ async fn update_task(state: State<'_, AppState>, task: Task, token: String) -> R
     if let Some(employee) = db.get_employee_by_email(user.email.clone()).await? {
         if let Some(emp_id) = employee.id {
              // Fetch existing task to verify assignment
-             // Note: We don't have get_task_by_id yet, but we can use get_tasks_by_employee or just trust the DB check if we had one.
-             // For now, since we don't have get_task(id), we'll assume the client is honest but we should ideally verify.
-             // A better approach is to fetch the task first.
-             // Since we lack get_task(id), let's fetch all user tasks and check if this task belongs to them.
              let tasks = db.get_tasks_by_employee(emp_id).await?;
              if let Some(existing_task) = tasks.iter().find(|t| t.id == task.id) {
                  // Verify that only status changed, or just allow status update. 
-                 // To be safe, we construct a new task object merging the existing one with the new status.
                  let mut task_to_update = existing_task.clone();
-                 task_to_update.status = task.status; // Only allow status change
+                 task_to_update.status = task.status.clone(); // Only allow status change
                  
-                 // If the user tries to change other fields, we ignore them or error. 
-                 // For simplicity, we just save the task with the new status and original other fields.
-                 return db.update_task(task_to_update).await;
+                 db.update_task(task_to_update).await?;
+                 let _ = db.log_activity(user.id, "update_status".to_string(), "TaskManagement".to_string(), Some("Task".to_string()), task.id.map(|i| i as i32), Some(format!("Updated task status: {}", task.status)), None, None).await;
+                 return Ok(());
              }
         }
     }
@@ -516,8 +606,11 @@ async fn update_task(state: State<'_, AppState>, task: Task, token: String) -> R
 
 #[tauri::command]
 async fn delete_task(state: State<'_, AppState>, id: i32, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
-    state.db.read().await.delete_task(id).await
+    let user = check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    let db = state.db.read().await;
+    db.delete_task(id).await?;
+    let _ = db.log_activity(user.id, "delete".to_string(), "TaskManagement".to_string(), Some("Task".to_string()), Some(id), Some("Deleted task".to_string()), None, None).await;
+    Ok(())
 }
 
 // --- Attendance Commands ---
@@ -539,7 +632,9 @@ async fn clock_in(state: State<'_, AppState>, mut attendance: Attendance, token:
         return Err("No employee record found for this user.".to_string());
     }
     
-    db.clock_in(attendance).await
+    let id = db.clock_in(attendance.clone()).await?;
+    let _ = db.log_activity(user.id, "clock_in".to_string(), "Attendance".to_string(), Some("Attendance".to_string()), Some(id as i32), Some(format!("Clocked in: {}", attendance.check_in)), None, None).await;
+    Ok(id)
 }
 
 #[tauri::command]
@@ -553,7 +648,9 @@ async fn clock_out(state: State<'_, AppState>, mut attendance: Attendance, token
         return Err("No employee record found for this user.".to_string());
     }
     
-    db.clock_out(attendance).await
+    db.clock_out(attendance.clone()).await?;
+    let _ = db.log_activity(user.id, "clock_out".to_string(), "Attendance".to_string(), Some("Attendance".to_string()), None, Some(format!("Clocked out: {}", attendance.check_out.unwrap_or_default())), None, None).await;
+    Ok(())
 }
 
 // --- Dashboard Commands ---
@@ -598,11 +695,11 @@ async fn get_complaints(state: State<'_, AppState>, token: String) -> Result<Vec
 
 #[tauri::command]
 async fn submit_complaint(state: State<'_, AppState>, content: String, token: String) -> Result<i64, String> {
-    check_auth(&state, &token, vec![]).await?; // Authenticated
+    let user = check_auth(&state, &token, vec![]).await?; // Authenticated
     let created_at = chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
     let complaint = Complaint {
         id: None,
-        content,
+        content: content.clone(),
         created_at: Some(created_at),
         status: "pending".to_string(),
         admin_notes: None,
@@ -610,19 +707,28 @@ async fn submit_complaint(state: State<'_, AppState>, content: String, token: St
         resolved_at: None,
         resolved_by: None,
     };
-    state.db.read().await.submit_complaint(complaint).await
+    let db = state.db.read().await;
+    let id = db.submit_complaint(complaint).await?;
+    let _ = db.log_activity(user.id, "create".to_string(), "HR".to_string(), Some("Complaint".to_string()), Some(id as i32), Some("Submitted complaint".to_string()), None, None).await;
+    Ok(id)
 }
 
 #[tauri::command]
 async fn resolve_complaint(state: State<'_, AppState>, id: i32, status: String, resolution: String, resolved_by: String, admin_notes: Option<String>, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec!["CEO", "Manager", "HR"]).await?;
-    state.db.read().await.resolve_complaint(id, status, resolution, resolved_by, admin_notes).await
+    let user = check_auth(&state, &token, vec!["CEO", "Manager", "HR"]).await?;
+    let db = state.db.read().await;
+    db.resolve_complaint(id, status.clone(), resolution, resolved_by, admin_notes).await?;
+    let _ = db.log_activity(user.id, "resolve".to_string(), "HR".to_string(), Some("Complaint".to_string()), Some(id), Some(format!("Resolved complaint status: {}", status)), None, None).await;
+    Ok(())
 }
 
 #[tauri::command]
 async fn delete_complaint(state: State<'_, AppState>, id: i32, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec!["CEO", "Manager", "HR"]).await?;
-    state.db.read().await.delete_complaint(id).await
+    let user = check_auth(&state, &token, vec!["CEO", "Manager", "HR"]).await?;
+    let db = state.db.read().await;
+    db.delete_complaint(id).await?;
+    let _ = db.log_activity(user.id, "delete".to_string(), "HR".to_string(), Some("Complaint".to_string()), Some(id), Some("Deleted complaint".to_string()), None, None).await;
+    Ok(())
 }
 
 // --- Tool Commands ---
@@ -635,42 +741,57 @@ async fn get_tools(state: State<'_, AppState>, token: String) -> Result<Vec<Tool
 
 #[tauri::command]
 async fn add_tool(state: State<'_, AppState>, tool: Tool, token: String) -> Result<i64, String> {
-    check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
-    state.db.read().await.add_tool(tool).await
+    let user = check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    let db = state.db.read().await;
+    let id = db.add_tool(tool.clone()).await?;
+    let _ = db.log_activity(user.id, "create".to_string(), "ResourceManagement".to_string(), Some("Tool".to_string()), Some(id as i32), Some(format!("Added tool: {}", tool.name)), None, None).await;
+    Ok(id)
 }
 
 #[tauri::command]
 async fn update_tool(state: State<'_, AppState>, tool: Tool, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
-    state.db.read().await.update_tool(tool).await
+    let user = check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    let db = state.db.read().await;
+    db.update_tool(tool.clone()).await?;
+    let _ = db.log_activity(user.id, "update".to_string(), "ResourceManagement".to_string(), Some("Tool".to_string()), tool.id, Some(format!("Updated tool: {}", tool.name)), None, None).await;
+    Ok(())
 }
 
 #[tauri::command]
 async fn delete_tool(state: State<'_, AppState>, id: i32, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
-    state.db.read().await.delete_tool(id).await
+    let user = check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    let db = state.db.read().await;
+    db.delete_tool(id).await?;
+    let _ = db.log_activity(user.id, "delete".to_string(), "ResourceManagement".to_string(), Some("Tool".to_string()), Some(id), Some("Deleted tool".to_string()), None, None).await;
+    Ok(())
 }
 
 #[tauri::command]
 async fn assign_tool(state: State<'_, AppState>, tool_id: i32, employee_id: i32, condition: String, notes: Option<String>, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    let user = check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
     let assignment = ToolAssignment {
         id: None,
         tool_id: Some(tool_id),
         employee_id: Some(employee_id),
         assigned_at: Some(chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string()),
         returned_at: None,
-        condition_on_assignment: Some(condition),
+        condition_on_assignment: Some(condition.clone()),
         condition_on_return: None,
         notes,
     };
-    state.db.read().await.assign_tool(assignment).await.map(|_| ())
+    let db = state.db.read().await;
+    db.assign_tool(assignment).await.map(|_| ())?;
+    let _ = db.log_activity(user.id, "assign".to_string(), "ResourceManagement".to_string(), Some("Tool".to_string()), Some(tool_id), Some(format!("Assigned to emp: {}", employee_id)), None, None).await;
+    Ok(())
 }
 
 #[tauri::command]
 async fn return_tool(state: State<'_, AppState>, tool_id: i32, condition: String, _notes: Option<String>, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
-    state.db.read().await.return_tool(tool_id, condition).await
+    let user = check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    let db = state.db.read().await;
+    db.return_tool(tool_id, condition.clone()).await?;
+    let _ = db.log_activity(user.id, "return".to_string(), "ResourceManagement".to_string(), Some("Tool".to_string()), Some(tool_id), Some(format!("Returned tool, condition: {}", condition)), None, None).await;
+    Ok(())
 }
 
 #[tauri::command]
@@ -689,14 +810,17 @@ async fn get_roles(state: State<'_, AppState>, token: String) -> Result<Vec<Role
 
 #[tauri::command]
 async fn add_role(state: State<'_, AppState>, name: String, description: Option<String>, token: String) -> Result<i64, String> {
-    check_auth(&state, &token, vec!["CEO", "Technical"]).await?;
+    let user = check_auth(&state, &token, vec!["CEO", "Technical"]).await?;
     let role = Role {
         id: None,
-        name,
+        name: name.clone(),
         description,
         is_custom: true,
     };
-    state.db.read().await.add_role(role).await
+    let db = state.db.read().await;
+    let id = db.add_role(role).await?;
+    let _ = db.log_activity(user.id, "create".to_string(), "RoleManagement".to_string(), Some("Role".to_string()), Some(id as i32), Some(format!("Added role: {}", name)), None, None).await;
+    Ok(id)
 }
 
 #[tauri::command]
@@ -714,8 +838,11 @@ async fn get_role_permissions(state: State<'_, AppState>, role_id: i32, token: S
 
 #[tauri::command]
 async fn update_role_permissions(state: State<'_, AppState>, role_id: i32, permission_ids: Vec<i32>, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec!["CEO", "Technical"]).await?;
-    state.db.read().await.update_role_permissions(role_id, permission_ids).await
+    let user = check_auth(&state, &token, vec!["CEO", "Technical"]).await?;
+    let db = state.db.read().await;
+    db.update_role_permissions(role_id, permission_ids.clone()).await?;
+    let _ = db.log_activity(user.id, "update".to_string(), "RoleManagement".to_string(), Some("RolePermissions".to_string()), Some(role_id), Some(format!("Updated permissions: {:?}", permission_ids)), None, None).await;
+    Ok(())
 }
 
 #[tauri::command]
@@ -726,8 +853,11 @@ async fn get_feature_toggles(state: State<'_, AppState>, token: String) -> Resul
 
 #[tauri::command]
 async fn set_feature_toggle(state: State<'_, AppState>, key: String, is_enabled: bool, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec!["CEO", "Technical"]).await?;
-    state.db.read().await.set_feature_toggle(key, is_enabled).await
+    let user = check_auth(&state, &token, vec!["CEO", "Technical"]).await?;
+    let db = state.db.read().await;
+    db.set_feature_toggle(key.clone(), is_enabled).await?;
+    let _ = db.log_activity(user.id, "update".to_string(), "SystemConfig".to_string(), Some("FeatureToggle".to_string()), None, Some(format!("Set {} to {}", key, is_enabled)), None, None).await;
+    Ok(())
 }
 
 // --- Setup Commands ---
@@ -750,7 +880,9 @@ async fn check_username(state: State<'_, AppState>, username: String) -> Result<
 #[tauri::command]
 async fn complete_setup(state: State<'_, AppState>, company_name: String, admin_name: String, admin_email: String, admin_password: String, admin_username: String) -> Result<(), String> {
     let db = state.db.read().await;
-    db.complete_setup(company_name, admin_name, admin_email, admin_password, admin_username).await
+    db.complete_setup(company_name.clone(), admin_name, admin_email, admin_password, admin_username).await?;
+    let _ = db.log_activity(None, "setup".to_string(), "SystemConfig".to_string(), Some("System".to_string()), None, Some(format!("Setup completed for {}", company_name)), None, None).await;
+    Ok(())
 }
 
 #[tauri::command]
@@ -761,9 +893,38 @@ async fn get_active_db_type(state: State<'_, AppState>) -> Result<String, String
 // --- Audit Log Commands ---
 
 #[tauri::command]
-async fn get_audit_logs(state: State<'_, AppState>, _page: Option<i32>, _page_size: Option<i32>, token: String) -> Result<Vec<AuditLog>, String> {
+async fn get_audit_logs(state: State<'_, AppState>, page: Option<i32>, page_size: Option<i32>, user_id: Option<i32>, action: Option<String>, category: Option<String>, date_from: Option<String>, date_to: Option<String>, token: String) -> Result<Vec<AuditLog>, String> {
     check_auth(&state, &token, vec!["CEO", "Technical"]).await?;
-    state.db.read().await.get_audit_logs().await
+    state.db.read().await.get_audit_logs(page, page_size, user_id, action, category, date_from, date_to).await
+}
+
+#[tauri::command]
+async fn export_audit_logs(state: State<'_, AppState>, token: String) -> Result<String, String> {
+    check_auth(&state, &token, vec!["CEO", "Technical"]).await?;
+    let logs = state.db.read().await.get_audit_logs(None, None, None, None, None, None, None).await?;
+    
+    // Generate CSV
+    let mut wtr = csv::Writer::from_writer(vec![]);
+    wtr.write_record(&["ID", "User ID", "User Name", "Action", "Category", "Entity", "Entity ID", "Details", "IP Address", "User Agent", "Timestamp"]).map_err(|e| e.to_string())?;
+    
+    for log in logs {
+        wtr.write_record(&[
+            log.id.map(|i| i.to_string()).unwrap_or_default(),
+            log.user_id.map(|i| i.to_string()).unwrap_or_default(),
+            log.user_name.unwrap_or_default(),
+            log.action,
+            log.category.unwrap_or_default(),
+            log.entity,
+            log.entity_id.map(|i| i.to_string()).unwrap_or_default(),
+            log.details.unwrap_or_default(),
+            log.ip_address.unwrap_or_default(),
+            log.user_agent.unwrap_or_default(),
+            log.created_at.unwrap_or_default(),
+        ]).map_err(|e| e.to_string())?;
+    }
+    
+    let data = String::from_utf8(wtr.into_inner().map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
+    Ok(data)
 }
 
 // --- Dashboard Config Commands ---
@@ -777,8 +938,11 @@ async fn get_dashboard_configs(state: State<'_, AppState>, user_id: i32, token: 
 
 #[tauri::command]
 async fn save_dashboard_config(state: State<'_, AppState>, config: DashboardConfig, token: String) -> Result<i64, String> {
-    check_auth(&state, &token, vec![]).await?; // Any authenticated
-    state.db.read().await.save_dashboard_config(config).await.map(|_| 1)
+    let user = check_auth(&state, &token, vec![]).await?; // Any authenticated
+    let db = state.db.read().await;
+    db.save_dashboard_config(config.clone()).await?;
+    let _ = db.log_activity(user.id, "update".to_string(), "Dashboard".to_string(), Some("DashboardConfig".to_string()), config.id, Some(format!("Saved config: {}", config.name)), None, None).await;
+    Ok(1)
 }
 
 // --- Project Management Commands ---
@@ -791,14 +955,20 @@ async fn get_projects(state: State<'_, AppState>, token: String) -> Result<Vec<P
 
 #[tauri::command]
 async fn add_project(state: State<'_, AppState>, project: Project, token: String) -> Result<i64, String> {
-    check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
-    state.db.read().await.add_project(project).await
+    let user = check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    let db = state.db.read().await;
+    let id = db.add_project(project.clone()).await?;
+    let _ = db.log_activity(user.id, "create".to_string(), "ProjectManagement".to_string(), Some("Project".to_string()), Some(id as i32), Some(format!("Added project: {}", project.name)), None, None).await;
+    Ok(id)
 }
 
 #[tauri::command]
 async fn update_project(state: State<'_, AppState>, project: Project, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
-    state.db.read().await.update_project(project).await
+    let user = check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    let db = state.db.read().await;
+    db.update_project(project.clone()).await?;
+    let _ = db.log_activity(user.id, "update".to_string(), "ProjectManagement".to_string(), Some("Project".to_string()), project.id, Some(format!("Updated project: {}", project.name)), None, None).await;
+    Ok(())
 }
 
 #[tauri::command]
@@ -809,52 +979,62 @@ async fn get_project_tasks(state: State<'_, AppState>, project_id: i32, token: S
 
 #[tauri::command]
 async fn add_project_task(state: State<'_, AppState>, task: ProjectTask, token: String) -> Result<i64, String> {
-    check_auth(&state, &token, vec![]).await?; // Any authenticated
+    let user = check_auth(&state, &token, vec![]).await?; // Any authenticated
+    let db = state.db.read().await;
     if let (Some(pid), Some(emp_id)) = (task.project_id, task.assigned_to) {
-        let db = state.db.read().await;
         let assigns = db.get_project_assignments(pid).await?;
         let allowed = assigns.iter().any(|a| a.employee_id == emp_id);
         if !allowed {
             return Err("Assigned employee is not part of this project".into());
         }
-        db.add_project_task(task).await
-    } else {
-        state.db.read().await.add_project_task(task).await
     }
+    let id = db.add_project_task(task.clone()).await?;
+    let _ = db.log_activity(user.id, "create".to_string(), "ProjectManagement".to_string(), Some("ProjectTask".to_string()), Some(id as i32), Some(format!("Added task: {}", task.name)), None, None).await;
+    Ok(id)
 }
 
 #[tauri::command]
 async fn update_project_task(state: State<'_, AppState>, task: ProjectTask, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec![]).await?; // Any authenticated
+    let user = check_auth(&state, &token, vec![]).await?; // Any authenticated
+    let db = state.db.read().await;
     if let (Some(pid), Some(emp_id)) = (task.project_id, task.assigned_to) {
-        let db = state.db.read().await;
         let assigns = db.get_project_assignments(pid).await?;
         let allowed = assigns.iter().any(|a| a.employee_id == emp_id);
         if !allowed {
             return Err("Assigned employee is not part of this project".into());
         }
-        db.update_project_task(task).await
-    } else {
-        state.db.read().await.update_project_task(task).await
     }
+    db.update_project_task(task.clone()).await?;
+    let _ = db.log_activity(user.id, "update".to_string(), "ProjectManagement".to_string(), Some("ProjectTask".to_string()), task.id, Some(format!("Updated task: {}", task.name)), None, None).await;
+    Ok(())
 }
 
 #[tauri::command]
 async fn delete_project_task(state: State<'_, AppState>, id: i32, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec![]).await?; // Any authenticated
-    state.db.read().await.delete_project_task(id).await
+    let user = check_auth(&state, &token, vec![]).await?; // Any authenticated
+    let db = state.db.read().await;
+    db.delete_project_task(id).await?;
+    let _ = db.log_activity(user.id, "delete".to_string(), "ProjectManagement".to_string(), Some("ProjectTask".to_string()), Some(id), Some("Deleted task".to_string()), None, None).await;
+    Ok(())
 }
 
 #[tauri::command]
 async fn delete_project(state: State<'_, AppState>, id: i32, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
-    state.db.read().await.delete_project(id).await
+    let user = check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    let (ip, ua) = get_client_info(&state, &token).await;
+    let db = state.db.read().await;
+    db.delete_project(id).await?;
+    let _ = db.log_activity(user.id, "delete".to_string(), "ProjectManagement".to_string(), Some("Project".to_string()), Some(id), Some("Deleted project".to_string()), ip, ua).await;
+    Ok(())
 }
 
 #[tauri::command]
 async fn assign_project_employee(state: State<'_, AppState>, project_id: i32, employee_id: i32, role: String, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
-    state.db.read().await.assign_project_employee(project_id, employee_id, role).await
+    let user = check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    let db = state.db.read().await;
+    db.assign_project_employee(project_id, employee_id, role.clone()).await?;
+    let _ = db.log_activity(user.id, "assign".to_string(), "ProjectManagement".to_string(), Some("ProjectAssignment".to_string()), Some(project_id), Some(format!("Assigned emp {} as {}", employee_id, role)), None, None).await;
+    Ok(())
 }
 
 #[tauri::command]
@@ -871,8 +1051,11 @@ async fn get_all_project_assignments(state: State<'_, AppState>, token: String) 
 
 #[tauri::command]
 async fn remove_project_assignment(state: State<'_, AppState>, project_id: i32, employee_id: i32, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
-    state.db.read().await.remove_project_assignment(project_id, employee_id).await
+    let user = check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    let db = state.db.read().await;
+    db.remove_project_assignment(project_id, employee_id).await?;
+    let _ = db.log_activity(user.id, "remove_assignment".to_string(), "ProjectManagement".to_string(), Some("ProjectAssignment".to_string()), Some(project_id), Some(format!("Removed emp {} from project", employee_id)), None, None).await;
+    Ok(())
 }
 
 // --- Finance Commands ---
@@ -885,8 +1068,11 @@ async fn get_accounts(state: State<'_, AppState>, token: String) -> Result<Vec<A
 
 #[tauri::command]
 async fn add_account(state: State<'_, AppState>, account: Account, token: String) -> Result<i64, String> {
-    check_auth(&state, &token, vec!["CEO", "Manager", "Finance"]).await?;
-    state.db.read().await.add_account(account).await
+    let user = check_auth(&state, &token, vec!["CEO", "Manager", "Finance"]).await?;
+    let db = state.db.read().await;
+    let id = db.add_account(account.clone()).await?;
+    let _ = db.log_activity(user.id, "create".to_string(), "Finance".to_string(), Some("Account".to_string()), Some(id as i32), Some(format!("Added account: {}", account.name)), None, None).await;
+    Ok(id)
 }
 
 #[tauri::command]
@@ -897,8 +1083,11 @@ async fn get_invoices(state: State<'_, AppState>, token: String) -> Result<Vec<I
 
 #[tauri::command]
 async fn create_invoice(state: State<'_, AppState>, invoice: Invoice, token: String) -> Result<i64, String> {
-    check_auth(&state, &token, vec!["CEO", "Manager", "Finance"]).await?;
-    state.db.read().await.create_invoice(invoice).await
+    let user = check_auth(&state, &token, vec!["CEO", "Manager", "Finance"]).await?;
+    let db = state.db.read().await;
+    let id = db.create_invoice(invoice.clone()).await?;
+    let _ = db.log_activity(user.id, "create".to_string(), "Finance".to_string(), Some("Invoice".to_string()), Some(id as i32), Some(format!("Created invoice for: {}", invoice.customer_name)), None, None).await;
+    Ok(id)
 }
 
 // --- Integration Commands ---
@@ -911,20 +1100,29 @@ async fn get_integrations(state: State<'_, AppState>, token: String) -> Result<V
 
 #[tauri::command]
 async fn toggle_integration(state: State<'_, AppState>, id: i32, is_connected: bool, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec!["CEO", "Technical"]).await?;
-    state.db.read().await.toggle_integration(id, is_connected).await
+    let user = check_auth(&state, &token, vec!["CEO", "Technical"]).await?;
+    let db = state.db.read().await;
+    db.toggle_integration(id, is_connected).await?;
+    let _ = db.log_activity(user.id, "update".to_string(), "SystemConfig".to_string(), Some("Integration".to_string()), Some(id), Some(format!("Toggled integration: {}", is_connected)), None, None).await;
+    Ok(())
 }
 
 #[tauri::command]
 async fn configure_integration(state: State<'_, AppState>, id: i32, api_key: Option<String>, config_json: Option<String>, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec!["CEO", "Technical"]).await?;
-    state.db.read().await.configure_integration(id, api_key, config_json).await
+    let user = check_auth(&state, &token, vec!["CEO", "Technical"]).await?;
+    let db = state.db.read().await;
+    db.configure_integration(id, api_key, config_json).await?;
+    let _ = db.log_activity(user.id, "update".to_string(), "SystemConfig".to_string(), Some("Integration".to_string()), Some(id), Some("Configured integration".to_string()), None, None).await;
+    Ok(())
 }
 
 #[tauri::command]
 async fn seed_demo_data(state: State<'_, AppState>, token: String) -> Result<(), String> {
-    check_auth(&state, &token, vec!["CEO", "Technical"]).await?;
-    state.db.read().await.seed_demo_data().await
+    let user = check_auth(&state, &token, vec!["CEO", "Technical"]).await?;
+    let db = state.db.read().await;
+    db.seed_demo_data().await?;
+    let _ = db.log_activity(user.id, "create".to_string(), "SystemConfig".to_string(), Some("DemoData".to_string()), None, Some("Seeded demo data".to_string()), None, None).await;
+    Ok(())
 }
 
 #[tauri::command]
@@ -1012,7 +1210,7 @@ async fn toggle_invite_status(state: State<'_, AppState>, token: String, invite_
     db.toggle_invite_status(invite_id, is_active).await?;
     
     // Log activity
-    let _ = db.log_activity(user.id, "toggle_invite".to_string(), Some("Invite".to_string()), Some(invite_id), Some(format!("New Status: {}", is_active))).await;
+    let _ = db.log_activity(user.id, "toggle_invite".to_string(), "UserManagement".to_string(), Some("Invite".to_string()), Some(invite_id), Some(format!("New Status: {}", is_active)), None, None).await;
     
     Ok(())
 }
@@ -1162,7 +1360,7 @@ pub fn run() {
             get_roles, add_role, get_permissions, get_role_permissions, update_role_permissions,
             get_feature_toggles, set_feature_toggle,
             get_setup_status, get_company_name, complete_setup, check_username, get_active_db_type,
-            get_audit_logs,
+            get_audit_logs, export_audit_logs, update_client_info,
             get_dashboard_configs, save_dashboard_config,
             get_projects, add_project, update_project, get_project_tasks, add_project_task, update_project_task, delete_project, assign_project_employee, get_project_assignments, get_all_project_assignments, remove_project_assignment, delete_project_task,
             get_accounts, add_account, get_invoices, create_invoice,

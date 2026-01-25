@@ -354,8 +354,52 @@ impl Database for PostgresDatabase {
     }
 
     async fn delete_product(&self, id: i32) -> Result<(), String> {
-        let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
-        client.execute("DELETE FROM products WHERE id = $1", &[&id]).await.map_err(|e| e.to_string())?;
+        let mut client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
+        
+        // Check if product is used as a component in any BOM
+        let rows = client.query("SELECT count(*) FROM bom_lines WHERE component_product_id = $1", &[&id]).await.map_err(|e| e.to_string())?;
+        if let Some(row) = rows.get(0) {
+            let count: i64 = row.get(0);
+            if count > 0 {
+                return Err("Cannot delete product: It is used as a component in a Bill of Materials.".to_string());
+            }
+        }
+
+        // Start transaction for cleanup
+        let tx = client.transaction().await.map_err(|e| e.to_string())?;
+
+        // Delete related inventory logs
+        tx.execute("DELETE FROM inventory_logs WHERE product_id = $1", &[&id]).await.map_err(|e| e.to_string())?;
+
+        // Delete related inventory batches
+        tx.execute("DELETE FROM inventory_batches WHERE product_id = $1", &[&id]).await.map_err(|e| e.to_string())?;
+
+        // Delete BOMs where this product is the parent (headers) - Cascade handles lines
+        tx.execute("DELETE FROM bom_headers WHERE product_id = $1", &[&id]).await.map_err(|e| e.to_string())?;
+
+        // Check and delete from inventory_movements if table exists
+        let check_movements = tx.query_one(
+            "SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_schema = 'public' 
+                AND table_name = 'inventory_movements'
+            )", 
+            &[]
+        ).await.map_err(|e| e.to_string())?;
+        
+        if check_movements.get::<_, bool>(0) {
+            tx.execute("DELETE FROM inventory_movements WHERE product_id = $1", &[&id]).await.map_err(|e| e.to_string())?;
+        }
+
+        let result = tx.execute("DELETE FROM products WHERE id = $1", &[&id]).await.map_err(|e| e.to_string())?;
+        
+        if result == 0 {
+            // Transaction rolled back on return
+            return Err("Product not found".to_string());
+        }
+        
+        tx.commit().await.map_err(|e| e.to_string())?;
+        
         Ok(())
     }
 
@@ -1074,29 +1118,93 @@ impl Database for PostgresDatabase {
     }
 
     // --- Audit Logs ---
-    async fn get_audit_logs(&self) -> Result<Vec<AuditLog>, String> {
+    async fn get_audit_logs(&self, page: Option<i32>, page_size: Option<i32>, user_id: Option<i32>, action: Option<String>, category: Option<String>, date_from: Option<String>, date_to: Option<String>) -> Result<Vec<AuditLog>, String> {
         let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
-        // Assuming audit_logs table exists. If not, this will fail. It wasn't in init_db but is in models.
-        // Adding basic support if table exists
-        let rows = client.query("SELECT id, user_id, action, entity, entity_id, details, created_at FROM audit_logs ORDER BY created_at DESC LIMIT 100", &[]).await.map_err(|_| "Audit logs table not found".to_string())?;
+        
+        let mut query = "SELECT a.id, a.user_id, COALESCE(u.full_name, u.username) as user_name, a.action, a.category, a.entity, a.entity_id, a.details, a.ip_address, a.user_agent, a.created_at FROM audit_logs a LEFT JOIN users u ON a.user_id = u.id WHERE 1=1".to_string();
+        let mut params: Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>> = Vec::new();
+        let mut param_idx = 1;
+
+        if let Some(uid) = user_id {
+            query.push_str(&format!(" AND a.user_id = ${}", param_idx));
+            params.push(Box::new(uid));
+            param_idx += 1;
+        }
+
+        if let Some(act) = action {
+             if !act.is_empty() {
+                query.push_str(&format!(" AND a.action = ${}", param_idx));
+                params.push(Box::new(act));
+                param_idx += 1;
+             }
+        }
+        
+        if let Some(cat) = category {
+             if !cat.is_empty() {
+                query.push_str(&format!(" AND a.category = ${}", param_idx));
+                params.push(Box::new(cat));
+                param_idx += 1;
+             }
+        }
+
+        if let Some(from) = date_from {
+            if let Some(dt) = parse_timestamp(Some(from)) {
+                 query.push_str(&format!(" AND a.created_at >= ${}", param_idx));
+                 params.push(Box::new(dt));
+                 param_idx += 1;
+            }
+        }
+        
+        if let Some(to) = date_to {
+            if let Some(dt) = parse_timestamp(Some(to)) {
+                 query.push_str(&format!(" AND a.created_at <= ${}", param_idx));
+                 params.push(Box::new(dt));
+                 param_idx += 1;
+            }
+        }
+
+        query.push_str(" ORDER BY a.created_at DESC");
+
+        if let Some(p) = page {
+            if let Some(ps) = page_size {
+                let limit = ps as i64;
+                let offset = ((p - 1) * ps) as i64;
+                query.push_str(&format!(" LIMIT ${} OFFSET ${}", param_idx, param_idx + 1));
+                params.push(Box::new(limit));
+                params.push(Box::new(offset));
+            } else {
+                query.push_str(" LIMIT 100");
+            }
+        } else {
+             query.push_str(" LIMIT 100");
+        }
+
+        let param_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params.iter().map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync)).collect();
+
+        let rows = client.query(&query, &param_refs).await.map_err(|e| e.to_string())?;
+        
         let mut logs = Vec::new();
         for row in rows {
             logs.push(AuditLog {
                 id: Some(row.get(0)),
                 user_id: row.get(1),
-                action: row.get(2),
-                entity: row.get(3),
-                entity_id: row.get(4),
-                details: row.get(5),
-                created_at: format_timestamp(row.get(6)),
+                user_name: row.get(2),
+                action: row.get(3),
+                category: row.get(4),
+                entity: row.get(5),
+                entity_id: row.get(6),
+                details: row.get(7),
+                ip_address: row.get(8),
+                user_agent: row.get(9),
+                created_at: format_timestamp(row.get(10)),
             });
         }
         Ok(logs)
     }
 
-    async fn log_activity(&self, user_id: Option<i32>, action: String, entity: Option<String>, entity_id: Option<i32>, details: Option<String>) -> Result<(), String> {
+    async fn log_activity(&self, user_id: Option<i32>, action: String, category: String, entity: Option<String>, entity_id: Option<i32>, details: Option<String>, ip_address: Option<String>, user_agent: Option<String>) -> Result<(), String> {
         let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
-        client.execute("INSERT INTO audit_logs (user_id, action, entity, entity_id, details) VALUES ($1, $2, $3, $4, $5)", &[&user_id, &action, &entity, &entity_id, &details]).await.map_err(|_| "Failed to log".to_string())?;
+        client.execute("INSERT INTO audit_logs (user_id, action, category, entity, entity_id, details, ip_address, user_agent) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)", &[&user_id, &action, &category, &entity, &entity_id, &details, &ip_address, &user_agent]).await.map_err(|e| e.to_string())?;
         Ok(())
     }
 

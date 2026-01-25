@@ -191,10 +191,14 @@ pub struct FeatureToggle {
 pub struct AuditLog {
     pub id: Option<i32>,
     pub user_id: Option<i32>,
+    pub user_name: Option<String>,
     pub action: String,
+    pub category: Option<String>,
     pub entity: String,
     pub entity_id: Option<i32>,
     pub details: Option<String>,
+    pub ip_address: Option<String>,
+    pub user_agent: Option<String>,
     pub created_at: Option<String>,
 }
 

@@ -93,8 +93,8 @@ impl Database for NoOpDatabase {
     async fn toggle_invite_status(&self, _id: i32, _is_active: bool) -> Result<(), String> { Err("DB not configured".into()) }
 
     // Audit Logs
-    async fn get_audit_logs(&self) -> Result<Vec<AuditLog>, String> { Err("DB not configured".into()) }
-    async fn log_activity(&self, _user_id: Option<i32>, _action: String, _entity: Option<String>, _entity_id: Option<i32>, _details: Option<String>) -> Result<(), String> { Err("DB not configured".into()) }
+    async fn get_audit_logs(&self, _page: Option<i32>, _page_size: Option<i32>, _user_id: Option<i32>, _action: Option<String>, _category: Option<String>, _date_from: Option<String>, _date_to: Option<String>) -> Result<Vec<AuditLog>, String> { Err("DB not configured".into()) }
+    async fn log_activity(&self, _user_id: Option<i32>, _action: String, _category: String, _entity: Option<String>, _entity_id: Option<i32>, _details: Option<String>, _ip_address: Option<String>, _user_agent: Option<String>) -> Result<(), String> { Err("DB not configured".into()) }
 
     // Dashboard Config
     async fn get_dashboard_configs(&self) -> Result<Vec<DashboardConfig>, String> { Err("DB not configured".into()) }

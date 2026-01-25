@@ -418,17 +418,55 @@ impl Database for InMemoryDatabase {
         Ok(())
     }
 
-    async fn get_audit_logs(&self) -> Result<Vec<AuditLog>, String> { Ok(self.audit_logs.read().map_err(|_| "Failed to acquire lock".to_string())?.clone()) }
-    async fn log_activity(&self, user_id: Option<i32>, action: String, entity: Option<String>, entity_id: Option<i32>, details: Option<String>) -> Result<(), String> {
+    async fn get_audit_logs(&self, page: Option<i32>, page_size: Option<i32>, user_id: Option<i32>, action: Option<String>, category: Option<String>, _date_from: Option<String>, _date_to: Option<String>) -> Result<Vec<AuditLog>, String> {
+        let logs = self.audit_logs.read().map_err(|_| "Failed to acquire lock".to_string())?;
+        let users = self.users.read().map_err(|_| "Failed to acquire lock".to_string())?;
+        
+        let mut filtered: Vec<AuditLog> = logs.iter().map(|l| {
+            let mut log = l.clone();
+            // Lookup user name
+            if let Some(uid) = log.user_id {
+                if let Some(user) = users.iter().find(|u| u.id == Some(uid)) {
+                    log.user_name = user.full_name.clone().or(Some(user.username.clone()));
+                }
+            }
+            log
+        }).filter(|l| {
+            if let Some(uid) = user_id { if l.user_id != Some(uid) { return false; } }
+            if let Some(act) = &action { if !act.is_empty() && l.action != *act { return false; } }
+            if let Some(cat) = &category { if !cat.is_empty() && l.category.as_ref() != Some(cat) { return false; } }
+            true
+        }).collect();
+        
+        // Sort descending by created_at (assuming ISO string)
+        filtered.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+
+        if let (Some(p), Some(ps)) = (page, page_size) {
+            let start = ((p - 1) * ps) as usize;
+            if start >= filtered.len() {
+                Ok(Vec::new())
+            } else {
+                let end = (start + ps as usize).min(filtered.len());
+                Ok(filtered[start..end].to_vec())
+            }
+        } else {
+            Ok(filtered.into_iter().take(100).collect())
+        }
+    }
+    async fn log_activity(&self, user_id: Option<i32>, action: String, category: String, entity: Option<String>, entity_id: Option<i32>, details: Option<String>, ip_address: Option<String>, user_agent: Option<String>) -> Result<(), String> {
         let mut logs = self.audit_logs.write().map_err(|_| "Failed to acquire lock".to_string())?;
         let id = (logs.iter().map(|x| x.id.unwrap_or(0)).max().unwrap_or(0) + 1) as i32;
         logs.push(AuditLog {
             id: Some(id),
             user_id,
+            user_name: None, // Populated on read
             action,
+            category: Some(category),
             entity: entity.unwrap_or_default(),
             entity_id,
             details,
+            ip_address,
+            user_agent,
             created_at: Some(chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string()),
         });
         Ok(())

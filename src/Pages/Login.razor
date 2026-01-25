@@ -8,6 +8,8 @@
 @using ThePlanningBord.Auth
 @using Microsoft.AspNetCore.Components.Authorization
 
+@inject ISystemService SystemService
+
 <div class="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
     <div class="max-w-md w-full space-y-8">
         <div>
@@ -15,7 +17,7 @@
                 Sign in to your account
             </h2>
             <p class="mt-2 text-center text-sm text-gray-600">
-                The Planning Bord
+                @companyName
             </p>
         </div>
         <form class="mt-8 space-y-6" @onsubmit="HandleLogin">
@@ -70,6 +72,16 @@
     private string password = "";
     private string errorMessage = "";
     private bool isLoading = false;
+    private string companyName = "The Planning Bord";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var name = await SystemService.GetCompanyNameAsync();
+        if (!string.IsNullOrWhiteSpace(name))
+        {
+            companyName = name;
+        }
+    }
 
     private async Task HandleLogin()
     {
