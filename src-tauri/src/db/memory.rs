@@ -1,3 +1,4 @@
+#![cfg(test)]
 use std::sync::RwLock;
 use crate::models::*;
 use super::Database;
@@ -592,6 +593,35 @@ impl Database for InMemoryDatabase {
     }
   // Demo Data
     async fn seed_demo_data(&self) -> Result<(), String> { Ok(()) }
+
+    // System
+    async fn reset_database(&self) -> Result<(), String> {
+        *self.users.write().unwrap() = Vec::new();
+        *self.sessions.write().unwrap() = Vec::new();
+        *self.invites.write().unwrap() = Vec::new();
+        *self.products.write().unwrap() = Vec::new();
+        *self.employees.write().unwrap() = Vec::new();
+        *self.payments.write().unwrap() = Vec::new();
+        *self.tasks.write().unwrap() = Vec::new();
+        *self.attendances.write().unwrap() = Vec::new();
+        *self.complaints.write().unwrap() = Vec::new();
+        *self.tools.write().unwrap() = Vec::new();
+        *self.tool_assignments.write().unwrap() = Vec::new();
+        *self.roles.write().unwrap() = Vec::new();
+        *self.permissions.write().unwrap() = Vec::new();
+        *self.feature_toggles.write().unwrap() = Vec::new();
+        *self.audit_logs.write().unwrap() = Vec::new();
+        *self.dashboard_configs.write().unwrap() = Vec::new();
+        *self.projects.write().unwrap() = Vec::new();
+        *self.project_tasks.write().unwrap() = Vec::new();
+        *self.project_assignments.write().unwrap() = Vec::new();
+        *self.accounts.write().unwrap() = Vec::new();
+        *self.invoices.write().unwrap() = Vec::new();
+        *self.integrations.write().unwrap() = Vec::new();
+        *self.suppliers.write().unwrap() = Vec::new();
+        *self.supplier_orders.write().unwrap() = Vec::new();
+        Ok(())
+    }
 
     // Supply Chain (BOM, Batches, Velocity)
     async fn get_product_bom(&self, _product_id: i32) -> Result<(Option<BomHeader>, Vec<BomLine>), String> { Err("Not implemented for InMemory DB".into()) }

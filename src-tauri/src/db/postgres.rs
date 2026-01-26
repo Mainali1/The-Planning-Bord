@@ -45,6 +45,7 @@ use async_trait::async_trait;
 
 pub struct PostgresDatabase {
     pub pool: Pool,
+    pub connection_string: String,
 }
 
 impl PostgresDatabase {
@@ -70,7 +71,10 @@ impl PostgresDatabase {
             .build()
             .map_err(|e| format!("Failed to create pool: {}", e))?;
             
-        Ok(Self { pool })
+        Ok(Self { 
+            pool,
+            connection_string: connection_string.to_string() 
+        })
     }
 }
 
@@ -1114,6 +1118,27 @@ impl Database for PostgresDatabase {
     }
 
     async fn seed_demo_data(&self) -> Result<(), String> {
+        Ok(())
+    }
+
+    async fn reset_database(&self) -> Result<(), String> {
+        let mut client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
+        let transaction = client.transaction().await.map_err(|e| e.to_string())?;
+        
+        transaction.batch_execute("
+            DROP SCHEMA public CASCADE;
+            CREATE SCHEMA public;
+            GRANT ALL ON SCHEMA public TO public;
+        ").await.map_err(|e| e.to_string())?;
+        
+        transaction.commit().await.map_err(|e| e.to_string())?;
+        
+        // Re-initialize using synchronous init_db
+        let conn_str = self.connection_string.clone();
+        tokio::task::spawn_blocking(move || {
+            crate::db::postgres_init::init_db(&conn_str).map_err(|e| e.to_string())
+        }).await.map_err(|e| e.to_string())??;
+        
         Ok(())
     }
 

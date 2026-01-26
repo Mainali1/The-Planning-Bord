@@ -131,6 +131,9 @@ impl Database for NoOpDatabase {
     // Demo Data
     async fn seed_demo_data(&self) -> Result<(), String> { Err("DB not configured".into()) }
 
+    // System
+    async fn reset_database(&self) -> Result<(), String> { Err("DB not configured".into()) }
+
     // Supply Chain (BOM, Batches, Velocity)
     async fn get_product_bom(&self, _product_id: i32) -> Result<(Option<BomHeader>, Vec<BomLine>), String> { Err("DB not configured".into()) }
     async fn save_bom(&self, _header: BomHeader, _lines: Vec<BomLine>) -> Result<(), String> { Err("DB not configured".into()) }

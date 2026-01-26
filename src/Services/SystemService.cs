@@ -41,6 +41,9 @@ namespace ThePlanningBord.Services
         
         // Demo Data
         Task SeedDemoDataAsync();
+        
+        // Maintenance
+        Task ResetDatabaseAsync();
     }
 
     public class SystemService : ISystemService
@@ -208,6 +211,12 @@ namespace ThePlanningBord.Services
         {
             var token = await _userService.GetTokenAsync();
             await _tauri.InvokeVoidAsync("seed_demo_data", new { token });
+        }
+
+        public async Task ResetDatabaseAsync()
+        {
+            var token = await _userService.GetTokenAsync();
+            await _tauri.InvokeVoidAsync("reset_database", new { token });
         }
     }
 }

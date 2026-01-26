@@ -67,6 +67,7 @@ namespace ThePlanningBord.Services
             _token = null;
             await _jsRuntime.InvokeVoidAsync("sessionStorage.removeItem", "currentUser");
             await _jsRuntime.InvokeVoidAsync("sessionStorage.removeItem", "authToken");
+            await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", "tour_completed");
         }
 
         public async Task<User?> GetCurrentUserAsync()

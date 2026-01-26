@@ -3,10 +3,12 @@ pub mod postgres_init;
 pub mod config;
 pub mod noop;
 
+#[cfg(test)]
 pub mod memory;
 pub use postgres::PostgresDatabase;
 pub use config::DbConfig;
 pub use noop::NoOpDatabase;
+#[cfg(test)]
 pub use memory::InMemoryDatabase;
 use crate::models::*;
 use async_trait::async_trait;
@@ -136,6 +138,9 @@ pub trait Database: Send + Sync {
     
     // Demo Data
     async fn seed_demo_data(&self) -> Result<(), String>;
+    
+    // System
+    async fn reset_database(&self) -> Result<(), String>;
 
     // Supply Chain (BOM, Batches, Velocity)
     async fn get_product_bom(&self, product_id: i32) -> Result<(Option<BomHeader>, Vec<BomLine>), String>;

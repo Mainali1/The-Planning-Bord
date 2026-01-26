@@ -1215,6 +1215,19 @@ async fn toggle_invite_status(state: State<'_, AppState>, token: String, invite_
     Ok(())
 }
 
+#[tauri::command]
+async fn reset_database(state: State<'_, AppState>, token: String) -> Result<(), String> {
+    let _ = check_auth(&state, &token, vec!["CEO", "Technical"]).await?;
+    let db = state.db.read().await;
+    db.reset_database().await?;
+    
+    // Clear all sessions to invalidate current tokens
+    let mut sessions = state.sessions.write().await;
+    sessions.clear();
+    
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     dotenv::dotenv().ok();
@@ -1242,14 +1255,15 @@ pub fn run() {
                             Ok(pg_db) => { db = Box::new(pg_db); }
                             Err(e) => {
                                 println!("Postgres connect error: {}", e);
-                                println!("Falling back to InMemoryDatabase");
-                                db = Box::new(crate::db::InMemoryDatabase::new());
+                                println!("Critical Error: Failed to connect to configured Postgres database. Application is in Error State.");
+                                db = Box::new(crate::db::NoOpDatabase);
                             }
                         }
                     }
                     Err(e) => {
-                        println!("Postgres not available, using InMemoryDatabase. Error details: {:?}", e);
-                        db = Box::new(crate::db::InMemoryDatabase::new());
+                        println!("Postgres init error: {:?}", e);
+                        println!("Critical Error: Failed to initialize Postgres database. Application is in Error State.");
+                        db = Box::new(crate::db::NoOpDatabase);
                     }
                  }
             } else {
@@ -1263,18 +1277,20 @@ pub fn run() {
                                 Ok(pg_db) => { db = Box::new(pg_db); }
                                 Err(e) => {
                                     println!("Postgres connect error: {:?}", e);
-                                    db = Box::new(crate::db::InMemoryDatabase::new());
+                                    println!("Critical Error: Failed to connect to Postgres (env var). Application is in Error State.");
+                                    db = Box::new(crate::db::NoOpDatabase);
                                 }
                             }
                         }
                         Err(e) => {
                             println!("Postgres init error: {:?}", e);
-                            db = Box::new(crate::db::InMemoryDatabase::new());
+                            println!("Critical Error: Failed to initialize Postgres (env var). Application is in Error State.");
+                            db = Box::new(crate::db::NoOpDatabase);
                         }
                     }
                  } else {
-                    println!("No DB config found. Using InMemoryDatabase.");
-                    db = Box::new(crate::db::InMemoryDatabase::new());
+                    println!("No DB config found. Starting in Setup Mode (NoOpDatabase).");
+                    db = Box::new(crate::db::NoOpDatabase);
                  }
             }
 
@@ -1364,7 +1380,7 @@ pub fn run() {
             get_dashboard_configs, save_dashboard_config,
             get_projects, add_project, update_project, get_project_tasks, add_project_task, update_project_task, delete_project, assign_project_employee, get_project_assignments, get_all_project_assignments, remove_project_assignment, delete_project_task,
             get_accounts, add_account, get_invoices, create_invoice,
-            get_integrations, toggle_integration, configure_integration, seed_demo_data,
+            get_integrations, toggle_integration, configure_integration, seed_demo_data, reset_database,
             save_db_config, ensure_local_db, cleanup_local_db, check_embedded_pg_available, check_postgres_installed, exit_app
         ])
         .run(tauri::generate_context!())

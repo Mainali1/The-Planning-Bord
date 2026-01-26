@@ -15,14 +15,7 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
         &[],
     )?;
 
-    client.execute(
-        "CREATE TABLE IF NOT EXISTS sessions (
-            token TEXT PRIMARY KEY,
-            user_id INTEGER REFERENCES users(id),
-            exp BIGINT
-        )",
-        &[],
-    )?;
+
 
     // Insert default roles
     client.execute("INSERT INTO roles (name, description, is_custom) VALUES ('CEO', 'Chief Executive Officer', FALSE) ON CONFLICT (name) DO NOTHING", &[])?;
@@ -88,6 +81,15 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
     let _ = client.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS username TEXT UNIQUE", &[]);
     let _ = client.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'Employee'", &[]);
     let _ = client.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE", &[]);
+
+    client.execute(
+        "CREATE TABLE IF NOT EXISTS sessions (
+            token TEXT PRIMARY KEY,
+            user_id INTEGER REFERENCES users(id),
+            exp BIGINT
+        )",
+        &[],
+    )?;
 
 
     // Invite Tokens
@@ -471,8 +473,7 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
         &[],
     )?;
 
-    // Patch inventory_batches
-    let _ = client.execute("ALTER TABLE inventory_batches ADD COLUMN IF NOT EXISTS supplier_id INTEGER REFERENCES suppliers(id)", &[]);
+
 
     // 14. Generic Tasks
     client.execute(
@@ -505,6 +506,9 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
         )",
         &[],
     )?;
+
+    // Patch inventory_batches
+    let _ = client.execute("ALTER TABLE inventory_batches ADD COLUMN IF NOT EXISTS supplier_id INTEGER REFERENCES suppliers(id)", &[]);
 
     // 16. Supplier Orders
     client.execute(
