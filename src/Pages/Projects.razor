@@ -1529,9 +1529,10 @@
             ComputeDependencies();
             ComputeCriticalPath();
         }
-        catch
+        catch (Exception ex)
         {
-            // Silent fail for drag operations to avoid spamming
+            // Only log significant errors to avoid spamming user during drag
+            NotificationService.ShowError($"Timeline drag error: {ex.Message}");
         }
     }
     

@@ -116,7 +116,15 @@
              }
          }
 
-         try { employees = await HrService.GetEmployeesAsync() ?? new List<Employee>(); } catch {}
+         try 
+         { 
+             employees = await HrService.GetEmployeesAsync() ?? new List<Employee>(); 
+         } 
+         catch (Exception ex)
+         {
+             NotificationService.ShowError($"Failed to load employees: {ex.Message}");
+             employees = new List<Employee>();
+         }
          await LoadAttendances();
          CheckCurrentStatus();
     }
@@ -145,6 +153,11 @@
         { 
             attendances = await HrService.GetAttendancesAsync() ?? new List<AttendanceModel>();
             CheckCurrentStatus();
+        }
+        catch (TauriValidationException ex)
+        {
+            NotificationService.ShowError(ex.Message);
+            attendances = new List<AttendanceModel>();
         }
         catch (Exception ex) 
         { 

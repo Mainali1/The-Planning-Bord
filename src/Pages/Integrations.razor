@@ -114,6 +114,10 @@
         {
             integrations = await IntegrationService.GetIntegrationsAsync() ?? new List<Integration>();
         }
+        catch (TauriValidationException ex)
+        {
+            NotificationService.ShowError(ex.Message);
+        }
         catch (Exception ex)
         {
             NotificationService.ShowError("Error loading integrations: " + ex.Message);
@@ -150,6 +154,12 @@
                 }
             }
         }
+        catch (TauriValidationException ex)
+        {
+            NotificationService.ShowError(ex.Message);
+            // Reload to ensure UI matches DB state
+            await LoadIntegrations();
+        }
         catch (Exception ex)
         {
             NotificationService.ShowError($"Error toggling integration: {ex.Message}");
@@ -176,17 +186,28 @@
     {
         if (selectedIntegration != null && selectedIntegration.Id.HasValue)
         {
-            selectedIntegration.ApiKey = configApiKey;
-            selectedIntegration.ConfigJson = configJson;
-            
-            await IntegrationService.ConfigureIntegrationAsync(selectedIntegration.Id.Value, configApiKey, configJson);
-            
-            // Auto-connect if saving config
-            selectedIntegration.IsConnected = true;
-            await IntegrationService.ToggleIntegrationAsync(selectedIntegration.Id.Value, true);
-            
-            NotificationService.ShowSuccess($"Configuration saved for {selectedIntegration.Name}");
-            CloseModal();
+            try
+            {
+                selectedIntegration.ApiKey = configApiKey;
+                selectedIntegration.ConfigJson = configJson;
+                
+                await IntegrationService.ConfigureIntegrationAsync(selectedIntegration.Id.Value, configApiKey, configJson);
+                
+                // Auto-connect if saving config
+                selectedIntegration.IsConnected = true;
+                await IntegrationService.ToggleIntegrationAsync(selectedIntegration.Id.Value, true);
+                
+                NotificationService.ShowSuccess($"Configuration saved for {selectedIntegration.Name}");
+                CloseModal();
+            }
+            catch (TauriValidationException ex)
+            {
+                NotificationService.ShowError(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                NotificationService.ShowError($"Failed to save configuration: {ex.Message}");
+            }
         }
     }
 
