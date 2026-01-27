@@ -12,8 +12,8 @@ mod tests {
         PostgresDatabase::new(&connection_string).ok()
     }
 
-    #[test]
-    fn test_auth_flow() {
+    #[tokio::test]
+    async fn test_auth_flow() {
         let db = match get_db() {
             Some(db) => db,
             None => {
@@ -28,7 +28,7 @@ mod tests {
         let admin_email = format!("{}@example.com", admin_username);
         
         // Ensure username doesn't exist
-        assert_eq!(db.check_username_exists(admin_username.clone()).unwrap(), false);
+        assert_eq!(db.check_username_exists(admin_username.clone()).await.unwrap(), false);
 
         let result = db.complete_setup(
             company_name.clone(),
@@ -36,17 +36,17 @@ mod tests {
             admin_email.clone(),
             "password123".to_string(),
             admin_username.clone()
-        );
+        ).await;
         assert!(result.is_ok(), "Failed to complete setup: {:?}", result.err());
 
         // Verify Admin Exists
-        let user = db.get_user_by_username(admin_username.clone()).expect("Failed to get user").expect("User not found");
+        let user = db.get_user_by_username(admin_username.clone()).await.expect("Failed to get user").expect("User not found");
         assert_eq!(user.username, admin_username);
         assert_eq!(user.email, admin_email);
         assert_eq!(user.role, "CEO");
 
         // Verify Username Check
-        assert_eq!(db.check_username_exists(admin_username.clone()).unwrap(), true);
+        assert_eq!(db.check_username_exists(admin_username.clone()).await.unwrap(), true);
 
         // 2. Invite Flow
         let invite_token = Uuid::new_v4().to_string(); // In real app, this is a JWT, but DB just stores string
@@ -63,11 +63,11 @@ mod tests {
             is_active: true,
         };
 
-        let invite_id = db.create_invite(invite).expect("Failed to create invite");
+        let invite_id = db.create_invite(invite).await.expect("Failed to create invite");
         assert!(invite_id > 0);
 
         // Verify Invite exists
-        let stored_invite = db.get_invite(invite_token.clone()).expect("Failed to get invite").expect("Invite not found");
+        let stored_invite = db.get_invite(invite_token.clone()).await.expect("Failed to get invite").expect("Invite not found");
         assert_eq!(stored_invite.email, invite_email);
         assert_eq!(stored_invite.is_used, false);
 
@@ -84,21 +84,22 @@ mod tests {
             role: "Employee".to_string(),
             is_active: true,
             last_login: None,
+            permissions: None,
         };
 
-        let emp_id = db.create_user(new_user).expect("Failed to create employee user");
+        let emp_id = db.create_user(new_user).await.expect("Failed to create employee user");
         assert!(emp_id > 0);
 
         // Mark invite used
-        let mark_result = db.mark_invite_used(invite_token.clone());
+        let mark_result = db.mark_invite_used(invite_token.clone()).await;
         assert!(mark_result.is_ok());
 
         // Verify Invite is used
-        let used_invite = db.get_invite(invite_token.clone()).expect("Failed to get invite").unwrap();
+        let used_invite = db.get_invite(invite_token.clone()).await.expect("Failed to get invite").unwrap();
         assert_eq!(used_invite.is_used, true);
 
         // Verify Employee Login Fetch
-        let emp_user = db.get_user_by_username(emp_username.clone()).expect("Failed to get employee").unwrap();
+        let emp_user = db.get_user_by_username(emp_username.clone()).await.expect("Failed to get employee").unwrap();
         assert_eq!(emp_user.email, invite_email);
     }
 }

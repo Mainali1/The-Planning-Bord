@@ -233,6 +233,7 @@ async fn accept_invite(state: State<'_, AppState>, invite_token: String, passwor
         role: claims.role,
         is_active: true,
         last_login: Some(chrono::Local::now().to_string()),
+        permissions: None,
     };
     let id = db.create_user(new_user.clone()).await?;
     let mut user = new_user;
@@ -1384,5 +1385,8 @@ pub fn run() {
             save_db_config, ensure_local_db, cleanup_local_db, check_embedded_pg_available, check_postgres_installed, exit_app
         ])
         .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .unwrap_or_else(|e| {
+            eprintln!("Error while running tauri application: {}", e);
+            std::process::exit(1);
+        });
 }

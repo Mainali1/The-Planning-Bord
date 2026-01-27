@@ -6,6 +6,7 @@
 @inject NotificationService NotificationService
 @using Microsoft.JSInterop
 @using ThePlanningBord.Models
+@using ThePlanningBord.Services
 
 <PageTitle>Inventory - The Planning Bord</PageTitle>
 
@@ -330,6 +331,11 @@
         {
             employees = await HrService.GetEmployeesAsync();
         }
+        catch (TauriValidationException ex)
+        {
+            Console.WriteLine("Validation error loading employees: " + ex.Message);
+            employees = new List<Employee>();
+        }
         catch (Exception ex)
         {
             Console.WriteLine("Error loading employees: " + ex.Message);
@@ -352,16 +358,22 @@
             if (activeTab == "products")
             {
                 var result = await InventoryService.GetProductsAsync(searchTerm, currentPage, pageSize);
-                products = result.Items;
+                products = result.Items ?? new List<Product>();
                 totalItems = result.Total;
                 currentPage = result.Page;
             }
             else
             {
                 // Tools don't have pagination on backend yet, so we load all
-                tools = await InventoryService.GetToolsAsync();
+                tools = await InventoryService.GetToolsAsync() ?? new List<Tool>();
                 // Client-side filtering is done in FilteredTools property
             }
+        }
+        catch (TauriValidationException ex)
+        {
+            Console.WriteLine($"Validation error loading {activeTab}: {ex.Message}");
+            if (activeTab == "products") products = new List<Product>();
+            else tools = new List<Tool>();
         }
         catch (Exception ex)
         {
@@ -403,40 +415,62 @@
 
     private async Task ExportToExcel()
     {
-        if (activeTab == "products")
+        try
         {
-            var allProducts = await InventoryService.GetProductsAsync(searchTerm, 1, 100000); 
-            if (allProducts.Items == null || !allProducts.Items.Any()) return;
-            
-            var csvBuilder = new System.Text.StringBuilder();
-            csvBuilder.AppendLine("Name,SKU,Category,Current Quantity,Minimum Quantity,Unit Price,Status");
-
-            foreach (var p in allProducts.Items)
+            if (activeTab == "products")
             {
-                var status = p.CurrentQuantity <= 0 ? "Out of Stock" : (p.CurrentQuantity <= p.MinimumQuantity ? "Low Stock" : "In Stock");
-                csvBuilder.AppendLine($"\"{p.Name}\",\"{p.Sku}\",\"{p.Category}\",{p.CurrentQuantity},{p.MinimumQuantity},{p.UnitPrice},\"{status}\"");
-            }
+                var allProducts = await InventoryService.GetProductsAsync(searchTerm, 1, 100000); 
+                if (allProducts?.Items == null || !allProducts.Items.Any()) 
+                {
+                    NotificationService.ShowInfo("No products to export.");
+                    return;
+                }
+                
+                var csvBuilder = new System.Text.StringBuilder();
+                csvBuilder.AppendLine("Name,SKU,Category,Current Quantity,Minimum Quantity,Unit Price,Status");
 
-            var bytes = System.Text.Encoding.UTF8.GetBytes(csvBuilder.ToString());
-            var base64 = Convert.ToBase64String(bytes);
-            await JSRuntime.InvokeVoidAsync("saveAsFile", $"Inventory_Products_{DateTime.Now:yyyyMMdd}.csv", base64);
+                foreach (var p in allProducts.Items)
+                {
+                    var status = p.CurrentQuantity <= 0 ? "Out of Stock" : (p.CurrentQuantity <= p.MinimumQuantity ? "Low Stock" : "In Stock");
+                    csvBuilder.AppendLine($"\"{p.Name}\",\"{p.Sku}\",\"{p.Category}\",{p.CurrentQuantity},{p.MinimumQuantity},{p.UnitPrice},\"{status}\"");
+                }
+
+                var bytes = System.Text.Encoding.UTF8.GetBytes(csvBuilder.ToString());
+                var base64 = Convert.ToBase64String(bytes);
+                await JSRuntime.InvokeVoidAsync("saveAsFile", $"Inventory_Products_{DateTime.Now:yyyyMMdd}.csv", base64);
+                NotificationService.ShowSuccess("Export completed successfully.");
+            }
+            else
+            {
+                if (tools == null || !tools.Any()) 
+                {
+                    NotificationService.ShowInfo("No tools to export.");
+                    return;
+                }
+                
+                var csvBuilder = new System.Text.StringBuilder();
+                csvBuilder.AppendLine("Name,Type,Condition,Assigned To,Status");
+
+                foreach (var t in tools)
+                {
+                    var assignedTo = t.AssignedToEmployeeId.HasValue ? GetEmployeeName(t.AssignedToEmployeeId.Value) : "-";
+                    csvBuilder.AppendLine($"\"{t.Name}\",\"{t.TypeName}\",\"{t.Condition}\",\"{assignedTo}\",\"{t.Status}\"");
+                }
+
+                var bytes = System.Text.Encoding.UTF8.GetBytes(csvBuilder.ToString());
+                var base64 = Convert.ToBase64String(bytes);
+                await JSRuntime.InvokeVoidAsync("saveAsFile", $"Inventory_Tools_{DateTime.Now:yyyyMMdd}.csv", base64);
+                NotificationService.ShowSuccess("Export completed successfully.");
+            }
         }
-        else
+        catch (TauriValidationException ex)
         {
-            if (tools == null || !tools.Any()) return;
-            
-            var csvBuilder = new System.Text.StringBuilder();
-            csvBuilder.AppendLine("Name,Type,Condition,Assigned To,Status");
-
-            foreach (var t in tools)
-            {
-                var assignedTo = t.AssignedToEmployeeId.HasValue ? GetEmployeeName(t.AssignedToEmployeeId.Value) : "-";
-                csvBuilder.AppendLine($"\"{t.Name}\",\"{t.TypeName}\",\"{t.Condition}\",\"{assignedTo}\",\"{t.Status}\"");
-            }
-
-            var bytes = System.Text.Encoding.UTF8.GetBytes(csvBuilder.ToString());
-            var base64 = Convert.ToBase64String(bytes);
-            await JSRuntime.InvokeVoidAsync("saveAsFile", $"Inventory_Tools_{DateTime.Now:yyyyMMdd}.csv", base64);
+            NotificationService.ShowError(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Export failed: {ex.Message}");
+            NotificationService.ShowError($"Failed to export data: {ex.Message}");
         }
     }
 
@@ -498,6 +532,10 @@
             showAddModal = false;
             await LoadData();
         }
+        catch (TauriValidationException ex)
+        {
+            NotificationService.ShowError(ex.Message);
+        }
         catch (Exception ex) 
         { 
             NotificationService.ShowError("Failed to save: " + ex.Message); 
@@ -513,6 +551,10 @@
             await LoadData(); 
             NotificationService.ShowSuccess("Product deleted."); 
         }
+        catch (TauriValidationException ex)
+        {
+            NotificationService.ShowError(ex.Message);
+        }
         catch (Exception ex) 
         { 
             NotificationService.ShowError("Failed to delete product: " + ex.Message); 
@@ -527,6 +569,10 @@
             await InventoryService.DeleteToolAsync(t.Id.Value);
             await LoadData();
             NotificationService.ShowSuccess("Tool deleted.");
+        }
+        catch (TauriValidationException ex)
+        {
+            NotificationService.ShowError(ex.Message);
         }
         catch (Exception ex)
         {

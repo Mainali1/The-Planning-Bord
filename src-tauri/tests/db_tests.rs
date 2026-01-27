@@ -11,8 +11,8 @@ mod tests {
         PostgresDatabase::new(&connection_string).ok()
     }
 
-    #[test]
-    fn test_seed_demo_data() {
+    #[tokio::test]
+    async fn test_seed_demo_data() {
         let db = match get_db() {
             Some(db) => db,
             None => {
@@ -25,24 +25,24 @@ mod tests {
         // So we will just run seed_demo_data and check if it succeeds and counts are > 0.
         // Real integration tests usually use a separate DB.
         
-        let result = db.seed_demo_data();
+        let result = db.seed_demo_data().await;
         assert!(result.is_ok(), "Failed to seed demo data: {:?}", result.err());
 
         // Verify Employees
-        let employees = db.get_employees().expect("Failed to get employees");
+        let employees = db.get_employees().await.expect("Failed to get employees");
         assert!(!employees.is_empty(), "Employees should not be empty after seeding");
 
         // Verify Projects
-        let projects = db.get_projects().expect("Failed to get projects");
+        let projects = db.get_projects().await.expect("Failed to get projects");
         assert!(!projects.is_empty(), "Projects should not be empty after seeding");
         
         // Verify Tools
-        let tools = db.get_tools().expect("Failed to get tools");
+        let tools = db.get_tools().await.expect("Failed to get tools");
         assert!(!tools.is_empty(), "Tools should not be empty after seeding");
     }
 
-    #[test]
-    fn test_tool_management() {
+    #[tokio::test]
+    async fn test_tool_management() {
         let db = match get_db() {
             Some(db) => db,
             None => {
@@ -64,10 +64,10 @@ mod tests {
             condition: Some("new".to_string()),
         };
 
-        let id = db.add_tool(new_tool).expect("Failed to add tool");
+        let id = db.add_tool(new_tool).await.expect("Failed to add tool");
         assert!(id > 0);
 
-        let tools = db.get_tools().expect("Failed to get tools");
+        let tools = db.get_tools().await.expect("Failed to get tools");
         let added_tool = tools.iter().find(|t| t.id == Some(id as i32));
         assert!(added_tool.is_some());
         assert_eq!(added_tool.unwrap().name, tool_name);
@@ -75,17 +75,17 @@ mod tests {
         // Update
         let mut tool_to_update = added_tool.unwrap().clone();
         tool_to_update.condition = Some("used".to_string());
-        db.update_tool(tool_to_update).expect("Failed to update tool");
+        db.update_tool(tool_to_update).await.expect("Failed to update tool");
 
         // Delete
-        db.delete_tool(id as i32).expect("Failed to delete tool");
+        db.delete_tool(id as i32).await.expect("Failed to delete tool");
         
-        let tools_after = db.get_tools().expect("Failed to get tools");
+        let tools_after = db.get_tools().await.expect("Failed to get tools");
         assert!(tools_after.iter().find(|t| t.id == Some(id as i32)).is_none());
     }
 
-    #[test]
-    fn test_project_management() {
+    #[tokio::test]
+    async fn test_project_management() {
         let db = match get_db() {
             Some(db) => db,
             None => {
@@ -106,7 +106,7 @@ mod tests {
             manager_id: None,
         };
 
-        let pid = db.add_project(new_project).expect("Failed to add project");
+        let pid = db.add_project(new_project).await.expect("Failed to add project");
         
         // Add Task
         let task_name = format!("Test Task {}", chrono::Utc::now().timestamp());
@@ -124,20 +124,20 @@ mod tests {
             dependencies_json: None,
         };
 
-        let tid = db.add_project_task(new_task).expect("Failed to add project task");
+        let tid = db.add_project_task(new_task).await.expect("Failed to add project task");
         assert!(tid > 0);
 
         // Assign Employee (Need an employee first)
-        let employees = db.get_employees().expect("Failed to get employees");
+        let employees = db.get_employees().await.expect("Failed to get employees");
         if let Some(emp) = employees.first() {
             let eid = emp.id.unwrap();
-            db.assign_project_employee(pid as i32, eid, "Member".to_string()).expect("Failed to assign employee");
+            db.assign_project_employee(pid as i32, eid, "Member".to_string()).await.expect("Failed to assign employee");
             
-            let assignments = db.get_project_assignments(pid as i32).expect("Failed to get assignments");
+            let assignments = db.get_project_assignments(pid as i32).await.expect("Failed to get assignments");
             assert!(assignments.iter().any(|a| a.employee_id == eid));
         }
 
         // Clean up
-        db.delete_project(pid as i32).expect("Failed to delete project");
+        db.delete_project(pid as i32).await.expect("Failed to delete project");
     }
 }

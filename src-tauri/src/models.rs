@@ -28,6 +28,7 @@ pub struct User {
     pub role: String,
     pub is_active: bool,
     pub last_login: Option<String>,
+    pub permissions: Option<Vec<String>>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

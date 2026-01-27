@@ -426,7 +426,7 @@
             // In a real web app we might use an IP service, but for this desktop app we'll just use a placeholder or local
             await SystemService.UpdateClientInfoAsync("127.0.0.1", ua);
         }
-        catch (Exception ex) { Console.WriteLine("Failed to update client info: " + ex.Message); }
+        catch (Exception ex) { await JS.InvokeVoidAsync("notify", "Failed to update client info: " + ex.Message); }
     }
 
     private string GetTabClass(string tab)
@@ -471,14 +471,28 @@
     // Access Control
     private async Task LoadRoles()
     {
-        try { roles = await SystemService.GetRolesAsync(); }
-        catch (Exception ex) { Console.WriteLine(ex.Message); roles = new List<Role>(); }
+        try
+        {
+            roles = await SystemService.GetRolesAsync() ?? new List<Role>();
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("notify", "Failed to load roles: " + ex.Message);
+            roles = new List<Role>();
+        }
     }
 
     private async Task LoadPermissions()
     {
-        try { permissions = await SystemService.GetPermissionsAsync(); }
-        catch (Exception ex) { Console.WriteLine(ex.Message); permissions = new List<Permission>(); }
+        try
+        {
+            permissions = await SystemService.GetPermissionsAsync() ?? new List<Permission>();
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("notify", "Failed to load permissions: " + ex.Message);
+            permissions = new List<Permission>();
+        }
     }
 
     private async Task SelectRole(Role role)
@@ -489,10 +503,13 @@
         {
             try
             {
-                var ids = await SystemService.GetRolePermissionsAsync(role.Id.Value);
+                var ids = await SystemService.GetRolePermissionsAsync(role.Id.Value) ?? new List<int>();
                 foreach (var id in ids) rolePermissionIds.Add(id);
             }
-            catch (Exception ex) { Console.WriteLine(ex.Message); }
+            catch (Exception ex)
+            {
+                await JS.InvokeVoidAsync("notify", "Failed to load role permissions: " + ex.Message);
+            }
         }
     }
 
@@ -513,7 +530,10 @@
             await SystemService.UpdateRolePermissionsAsync(selectedRole.Id.Value, rolePermissionIds.ToList());
             await JS.InvokeVoidAsync("notify", "Permissions saved!");
         }
-        catch (Exception ex) { Console.WriteLine(ex.Message); await JS.InvokeVoidAsync("notify", "Error saving permissions"); }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("notify", "Error saving permissions: " + ex.Message);
+        }
     }
 
     private void OpenAddRoleModal()
@@ -532,14 +552,24 @@
             showAddRoleModal = false;
             await LoadRoles();
         }
-        catch (Exception ex) { Console.WriteLine(ex.Message); }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("notify", "Failed to save new role: " + ex.Message);
+        }
     }
 
     // Features
     private async Task LoadFeatureToggles()
     {
-        try { featureToggles = await SystemService.GetFeatureTogglesAsync(); }
-        catch (Exception ex) { Console.WriteLine(ex.Message); featureToggles = new List<FeatureToggle>(); }
+        try
+        {
+            featureToggles = await SystemService.GetFeatureTogglesAsync() ?? new List<FeatureToggle>();
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("notify", "Failed to load feature toggles: " + ex.Message);
+            featureToggles = new List<FeatureToggle>();
+        }
     }
 
     private async Task ToggleFeature(FeatureToggle toggle)
@@ -550,7 +580,10 @@
             await SystemService.SetFeatureToggleAsync(toggle.Key, toggle.IsEnabled);
             // Optionally notify or refresh
         }
-        catch (Exception ex) { Console.WriteLine(ex.Message); }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("notify", "Failed to toggle feature: " + ex.Message);
+        }
     }
 
     // System
@@ -579,7 +612,6 @@
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.Message);
                 await JS.InvokeVoidAsync("notify", "Error resetting database: " + ex.Message);
             }
         }
@@ -592,11 +624,11 @@
         {
             string? dFrom = auditDateFrom?.ToString("yyyy-MM-dd");
             string? dTo = auditDateTo?.ToString("yyyy-MM-dd");
-            auditLogs = await SystemService.GetAuditLogsAsync(auditPage, 50, auditUserId, auditAction, auditCategory, dFrom, dTo);
+            auditLogs = await SystemService.GetAuditLogsAsync(auditPage, 50, auditUserId, auditAction, auditCategory, dFrom, dTo) ?? new List<AuditLog>();
         }
         catch (Exception ex)
         {
-            Console.WriteLine(ex.Message);
+            await JS.InvokeVoidAsync("notify", "Failed to load audit logs: " + ex.Message);
             auditLogs = new List<AuditLog>();
         }
     }
@@ -619,7 +651,6 @@
         }
         catch (Exception ex)
         {
-            Console.WriteLine(ex.Message);
             await JS.InvokeVoidAsync("notify", "Export failed: " + ex.Message);
         }
     }

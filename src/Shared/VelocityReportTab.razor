@@ -154,19 +154,20 @@
     }
 
     private async Task LoadData()
-    {
-        isLoading = true;
-        try
         {
-            reports = await InventoryService.GetVelocityReportAsync();
+            isLoading = true;
+            try
+            {
+                reports = await InventoryService.GetVelocityReportAsync() ?? new List<VelocityReport>();
+            }
+            catch (Exception ex)
+            {
+                NotificationService.ShowError("Failed to load velocity report: " + ex.Message);
+                reports = new List<VelocityReport>();
+            }
+            finally
+            {
+                isLoading = false;
+            }
         }
-        catch (Exception ex)
-        {
-            NotificationService.ShowError("Failed to load velocity report: " + ex.Message);
-        }
-        finally
-        {
-            isLoading = false;
-        }
-    }
 }

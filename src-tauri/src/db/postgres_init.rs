@@ -43,6 +43,7 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
         ("MANAGE_ROLES", "Can create and modify roles"),
         ("MANAGE_TOOLS", "Can create, update, and delete tools"),
         ("MANAGE_PROJECTS", "Can create, update, and delete projects"),
+        ("VIEW_BACKEND_ERRORS", "Can view detailed backend error notifications"),
     ];
     for (code, desc) in permissions {
         client.execute("INSERT INTO permissions (code, description) VALUES ($1, $2) ON CONFLICT (code) DO NOTHING", &[&code, &desc])?;
@@ -54,6 +55,16 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             permission_id INTEGER REFERENCES permissions(id),
             PRIMARY KEY (role_id, permission_id)
         )",
+        &[],
+    )?;
+
+    // Assign VIEW_BACKEND_ERRORS to Technical and CEO
+    client.execute(
+        "INSERT INTO role_permissions (role_id, permission_id)
+         SELECT r.id, p.id
+         FROM roles r, permissions p
+         WHERE r.name IN ('Technical', 'CEO') AND p.code = 'VIEW_BACKEND_ERRORS'
+         ON CONFLICT DO NOTHING",
         &[],
     )?;
 
@@ -81,6 +92,12 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
     let _ = client.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS username TEXT UNIQUE", &[]);
     let _ = client.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'Employee'", &[]);
     let _ = client.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE", &[]);
+
+    // Patch projects
+    let _ = client.execute("ALTER TABLE projects ADD COLUMN IF NOT EXISTS manager_id INTEGER REFERENCES employees(id)", &[]);
+
+    // Patch payments
+    let _ = client.execute("ALTER TABLE payments ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'USD'", &[]);
 
     client.execute(
         "CREATE TABLE IF NOT EXISTS sessions (
@@ -180,7 +197,7 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             id SERIAL PRIMARY KEY,
             date TIMESTAMP NOT NULL,
             amount DOUBLE PRECISION NOT NULL,
-            type TEXT NOT NULL,
+            payment_type TEXT NOT NULL,
             category TEXT,
             description TEXT,
             status TEXT DEFAULT 'pending',
@@ -204,7 +221,7 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             id SERIAL PRIMARY KEY,
             code TEXT UNIQUE NOT NULL,
             name TEXT NOT NULL,
-            type TEXT NOT NULL,
+            account_type TEXT NOT NULL,
             currency TEXT DEFAULT 'USD',
             is_active BOOLEAN DEFAULT TRUE,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -286,11 +303,16 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             end_date TIMESTAMP,
             budget DOUBLE PRECISION,
             client_name TEXT,
+            manager_id INTEGER REFERENCES employees(id),
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )",
         &[],
     )?;
+
+    // Patch projects
+    let _ = client.execute("ALTER TABLE projects ADD COLUMN IF NOT EXISTS manager_id INTEGER REFERENCES employees(id)", &[]);
+
 
     client.execute(
         "CREATE TABLE IF NOT EXISTS project_tasks (
@@ -529,8 +551,45 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
     Ok(())
 }
 
-fn ensure_database_exists(_connection_string: &str) -> Result<(), Error> {
-    // Basic implementation: assumes DB exists or created externally.
-    // In production, might want to connect to 'postgres' db and create target db.
+fn ensure_database_exists(connection_string: &str) -> Result<(), Error> {
+    // Parse the connection string to separate the base URL and the database name.
+    // We connect to the default 'postgres' database to check/create the target database.
+    
+    if let Some(last_slash_idx) = connection_string.rfind('/') {
+        let base_url = &connection_string[..last_slash_idx];
+        let db_name = &connection_string[last_slash_idx + 1..];
+
+        // Handle potential query parameters (e.g., ?sslmode=disable)
+        let (db_name_clean, params) = if let Some(q_idx) = db_name.find('?') {
+             (&db_name[..q_idx], &db_name[q_idx..])
+        } else {
+             (db_name, "")
+        };
+
+        // If target is already 'postgres', nothing to do
+        if db_name_clean == "postgres" {
+            return Ok(());
+        }
+
+        // Connect to maintenance DB 'postgres'
+        let postgres_conn_str = format!("{}/postgres{}", base_url, params);
+        
+        // Attempt to connect to the maintenance database
+        // We use a match here to handle cases where 'postgres' db might not be accessible, 
+        // though strictly speaking if we can't connect to maintenance DB, we probably can't ensure existence.
+        // However, we'll propagate the error if connection fails.
+        let mut client = Client::connect(&postgres_conn_str, NoTls)?;
+        
+        // Check if database exists
+        let exists: bool = client.query_opt("SELECT 1 FROM pg_database WHERE datname = $1", &[&db_name_clean])?
+            .is_some();
+
+        if !exists {
+            // CREATE DATABASE cannot take parameters for the DB name, so we must format the string.
+            // We wrap the name in double quotes to handle special characters safely.
+            let query = format!("CREATE DATABASE \"{}\"", db_name_clean);
+            client.execute(&query, &[])?;
+        }
+    }
     Ok(())
 }

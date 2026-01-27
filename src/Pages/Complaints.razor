@@ -125,8 +125,15 @@
 
     private async Task LoadComplaints()
     {
-        try { complaints = await ComplaintService.GetComplaintsAsync(); }
-        catch (Exception ex) { Console.WriteLine(ex.Message); complaints = new List<Complaint>(); }
+        try
+        {
+            complaints = await ComplaintService.GetComplaintsAsync() ?? new List<Complaint>();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+            complaints = new List<Complaint>();
+        }
     }
 
     private void OpenAddModal()

@@ -6,6 +6,7 @@
 @using System.Security.Claims
 @inject IJSRuntime JS
 @inject NotificationService NotificationService
+@using ThePlanningBord.Services
 
 <PageTitle>Attendance - The Planning Bord</PageTitle>
 
@@ -115,7 +116,7 @@
              }
          }
 
-         try { employees = await HrService.GetEmployeesAsync(); } catch {}
+         try { employees = await HrService.GetEmployeesAsync() ?? new List<Employee>(); } catch {}
          await LoadAttendances();
          CheckCurrentStatus();
     }
@@ -142,7 +143,7 @@
     {
         try 
         { 
-            attendances = await HrService.GetAttendancesAsync();
+            attendances = await HrService.GetAttendancesAsync() ?? new List<AttendanceModel>();
             CheckCurrentStatus();
         }
         catch (Exception ex) 
@@ -235,6 +236,7 @@
             await LoadAttendances();
             NotificationService.ShowSuccess("Clocked in successfully.");
         }
+        catch (TauriValidationException ex) { NotificationService.ShowError(ex.Message); }
         catch (Exception ex)
         {
             NotificationService.ShowError("Failed to clock in: " + ex.Message);
@@ -271,7 +273,12 @@
             NotificationService.ShowSuccess("Clocked out successfully");
             await LoadAttendances();
         }
-        catch (Exception ex) { NotificationService.ShowError(ex.Message); }
+        catch (TauriValidationException ex) { NotificationService.ShowError(ex.Message); }
+        catch (Exception ex) 
+        { 
+            Console.WriteLine($"ClockOut failed: {ex.Message}");
+            NotificationService.ShowError("Clock out failed. Please try again."); 
+        }
     }
     
     private bool IsToday(string checkIn)

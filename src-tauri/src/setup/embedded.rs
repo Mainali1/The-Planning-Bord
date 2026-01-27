@@ -32,15 +32,27 @@ fn pid_file(app: &tauri::AppHandle) -> Result<PathBuf, String> {
 }
 
 fn pick_port() -> i32 {
-    5432
+    if let Ok(listener) = std::net::TcpListener::bind("127.0.0.1:0") {
+        if let Ok(addr) = listener.local_addr() {
+            return addr.port() as i32;
+        }
+    }
+    5432 // Fallback to default if dynamic binding fails
 }
 
 fn wait_ready(conn: &str) -> bool {
-    for _ in 0..40 {
-        if crate::db::postgres_init::init_db(conn).is_ok() {
-            return true;
+    // Retry for up to 20 seconds (40 * 500ms)
+    for i in 0..40 {
+        match crate::db::postgres_init::init_db(conn) {
+            Ok(_) => return true,
+            Err(_) => {
+                if i == 39 {
+                    // Last attempt failed
+                    return false;
+                }
+                std::thread::sleep(Duration::from_millis(500));
+            }
         }
-        std::thread::sleep(Duration::from_millis(500));
     }
     false
 }

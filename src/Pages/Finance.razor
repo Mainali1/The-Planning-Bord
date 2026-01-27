@@ -1,7 +1,9 @@
 @page "/finance"
 @attribute [Authorize]
 @inject IFinanceService FinanceService
+@inject NotificationService NotificationService
 @using ThePlanningBord.Models
+@using ThePlanningBord.Services
 
 <PageTitle>Finance - The Planning Bord</PageTitle>
 
@@ -272,19 +274,22 @@
 
     private async Task LoadPayments()
     {
-        try { payments = await FinanceService.GetPaymentsAsync(); }
+        try { payments = await FinanceService.GetPaymentsAsync() ?? new List<Payment>(); }
+        catch (TauriValidationException ex) { NotificationService.ShowError(ex.Message); payments = new List<Payment>(); }
         catch (Exception ex) { Console.WriteLine(ex.Message); payments = new List<Payment>(); }
     }
     
     private async Task LoadInvoices()
     {
-        try { invoices = await FinanceService.GetInvoicesAsync(); }
+        try { invoices = await FinanceService.GetInvoicesAsync() ?? new List<Invoice>(); }
+        catch (TauriValidationException ex) { NotificationService.ShowError(ex.Message); invoices = new List<Invoice>(); }
         catch (Exception ex) { Console.WriteLine(ex.Message); invoices = new List<Invoice>(); }
     }
     
     private async Task LoadAccounts()
     {
-        try { accounts = await FinanceService.GetAccountsAsync(); }
+        try { accounts = await FinanceService.GetAccountsAsync() ?? new List<Account>(); }
+        catch (TauriValidationException ex) { NotificationService.ShowError(ex.Message); accounts = new List<Account>(); }
         catch (Exception ex) { Console.WriteLine(ex.Message); accounts = new List<Account>(); }
     }
 
@@ -314,20 +319,27 @@
             else await FinanceService.AddPaymentAsync(newPayment);
             showAddModal = false;
             await LoadPayments();
-        }
         catch (Exception ex) { Console.WriteLine(ex.Message); }
-    }
-    
+    }ClWLi(e
     private async Task SaveInvoice()
     {
         try
         {
-            // Only add is supported for now as per service
-            await FinanceService.CreateInvoiceAsync(newInvoice);
+            if (newInvoice.Id.HasValue) await FinanceService.UpdateInvoiceAsync(newInvoice);
+            else await FinanceService.AddInvoiceAsync(newInvoice);
             showAddInvoiceModal = false;
             await LoadInvoices();
+            NotificationService.ShowSuccess("Invoice saved successfully.");
         }
-        catch (Exception ex) { Console.WriteLine(ex.Message); }
+        catch (TauriValidationException ex)
+        {
+            NotificationService.ShowError(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+            NotificationService.ShowError("Failed to save invoice: " + ex.Message);
+        }
     }
     
     private void OnInvoiceDueChanged(ChangeEventArgs e)
@@ -368,3 +380,12 @@
         catch (Exception ex) { Console.WriteLine(ex.Message); }
     }
 }
+    NotificationService.ShowSuccess("Account saved successfully.");
+        TauriValidationNtificatioService.ShowError(ex.Mesage); }
+        catch (Exception ex) { NotificatinServicShowErro($"Faled o sav accout: {}" 
+        
+            
+           ts();
+            NotificaionService.ShowSucces"Payment deleted successfully."
+       TauriValidationNotificatiService.ShowError(ex.Mesage); }
+        catch (Exception ex) { NotificatinServicShowErro($"Faled to delee paymt: {}"

@@ -17,6 +17,7 @@ pub struct InMemoryDatabase {
     tool_assignments: RwLock<Vec<ToolAssignment>>,
     roles: RwLock<Vec<Role>>,
     permissions: RwLock<Vec<Permission>>,
+    role_permissions: RwLock<Vec<(i32, i32)>>, // role_id, permission_id
     feature_toggles: RwLock<Vec<FeatureToggle>>,
     audit_logs: RwLock<Vec<AuditLog>>,
     dashboard_configs: RwLock<Vec<DashboardConfig>>,
@@ -33,6 +34,34 @@ pub struct InMemoryDatabase {
 
 impl InMemoryDatabase {
     pub fn new() -> Self {
+        let mut roles = Vec::new();
+        roles.push(Role { id: Some(1), name: "CEO".to_string(), description: Some("Chief Executive Officer".to_string()), is_custom: false });
+        roles.push(Role { id: Some(2), name: "Manager".to_string(), description: Some("Managerial Role".to_string()), is_custom: false });
+        roles.push(Role { id: Some(3), name: "Employee".to_string(), description: Some("Standard Employee".to_string()), is_custom: false });
+        roles.push(Role { id: Some(4), name: "Technical".to_string(), description: Some("System Admin / Technical Support".to_string()), is_custom: false });
+
+        let mut permissions = Vec::new();
+        let perms_data = vec![
+            (1, "MANAGE_INVENTORY", "Can add/edit/delete products"),
+            (2, "VIEW_INVENTORY", "Can view products"),
+            (3, "MANAGE_EMPLOYEES", "Can add/edit/delete employees"),
+            (4, "ASSIGN_TOOLS", "Can assign tools to employees"),
+            (5, "MANAGE_COMPLAINTS", "Can view and resolve complaints"),
+            (6, "MANAGE_SETTINGS", "Can change system settings"),
+            (7, "MANAGE_ROLES", "Can create and modify roles"),
+            (8, "MANAGE_TOOLS", "Can create, update, and delete tools"),
+            (9, "MANAGE_PROJECTS", "Can create, update, and delete projects"),
+            (10, "VIEW_BACKEND_ERRORS", "Can view detailed backend error notifications"),
+        ];
+        for (id, code, desc) in perms_data {
+            permissions.push(Permission { id, code: code.to_string(), description: Some(desc.to_string()) });
+        }
+
+        let mut role_permissions = Vec::new();
+        // Assign VIEW_BACKEND_ERRORS (10) to Technical (4) and CEO (1)
+        role_permissions.push((4, 10));
+        role_permissions.push((1, 10));
+
         Self {
             users: RwLock::new(Vec::new()),
             sessions: RwLock::new(Vec::new()),
@@ -45,8 +74,9 @@ impl InMemoryDatabase {
             complaints: RwLock::new(Vec::new()),
             tools: RwLock::new(Vec::new()),
             tool_assignments: RwLock::new(Vec::new()),
-            roles: RwLock::new(Vec::new()),
-            permissions: RwLock::new(Vec::new()),
+            roles: RwLock::new(roles),
+            permissions: RwLock::new(permissions),
+            role_permissions: RwLock::new(role_permissions),
             feature_toggles: RwLock::new(Vec::new()),
             audit_logs: RwLock::new(Vec::new()),
             dashboard_configs: RwLock::new(Vec::new()),
@@ -77,7 +107,33 @@ impl Database for InMemoryDatabase {
     }
     async fn get_user_by_username(&self, username: String) -> Result<Option<User>, String> {
         let users = self.users.read().map_err(|_| "Failed to acquire lock".to_string())?;
-        Ok(users.iter().find(|u| u.username == username).cloned())
+        if let Some(user) = users.iter().find(|u| u.username == username) {
+            let mut user_clone = user.clone();
+            
+            // Populate permissions
+            let roles = self.roles.read().map_err(|_| "Failed to acquire lock".to_string())?;
+            if let Some(role) = roles.iter().find(|r| r.name == user_clone.role) {
+                if let Some(role_id) = role.id {
+                    let role_perms = self.role_permissions.read().map_err(|_| "Failed to acquire lock".to_string())?;
+                    let perms = self.permissions.read().map_err(|_| "Failed to acquire lock".to_string())?;
+                    
+                    let perm_codes: Vec<String> = role_perms.iter()
+                        .filter(|(rid, _)| *rid == role_id)
+                        .filter_map(|(_, pid)| {
+                            perms.iter().find(|p| p.id == *pid).map(|p| p.code.clone())
+                        })
+                        .collect();
+                    
+                    if !perm_codes.is_empty() {
+                        user_clone.permissions = Some(perm_codes);
+                    }
+                }
+            }
+            
+            Ok(Some(user_clone))
+        } else {
+            Ok(None)
+        }
     }
     async fn create_user(&self, mut user: User) -> Result<i64, String> {
         let mut users = self.users.write().map_err(|_| "Failed to acquire lock".to_string())?;
@@ -119,7 +175,32 @@ impl Database for InMemoryDatabase {
                 return Ok(None);
             }
             let users = self.users.read().map_err(|_| "Failed to acquire lock".to_string())?;
-            Ok(users.iter().find(|u| u.id == Some(*uid)).cloned())
+            if let Some(user) = users.iter().find(|u| u.id == Some(*uid)) {
+                let mut user_clone = user.clone();
+                
+                // Populate permissions
+                let roles = self.roles.read().map_err(|_| "Failed to acquire lock".to_string())?;
+                if let Some(role) = roles.iter().find(|r| r.name == user_clone.role) {
+                    if let Some(role_id) = role.id {
+                        let role_perms = self.role_permissions.read().map_err(|_| "Failed to acquire lock".to_string())?;
+                        let perms = self.permissions.read().map_err(|_| "Failed to acquire lock".to_string())?;
+                        
+                        let perm_codes: Vec<String> = role_perms.iter()
+                            .filter(|(rid, _)| *rid == role_id)
+                            .filter_map(|(_, pid)| {
+                                perms.iter().find(|p| p.id == *pid).map(|p| p.code.clone())
+                            })
+                            .collect();
+                        
+                        if !perm_codes.is_empty() {
+                            user_clone.permissions = Some(perm_codes);
+                        }
+                    }
+                }
+                Ok(Some(user_clone))
+            } else {
+                Ok(None)
+            }
         } else {
             Ok(None)
         }
@@ -596,30 +677,30 @@ impl Database for InMemoryDatabase {
 
     // System
     async fn reset_database(&self) -> Result<(), String> {
-        *self.users.write().unwrap() = Vec::new();
-        *self.sessions.write().unwrap() = Vec::new();
-        *self.invites.write().unwrap() = Vec::new();
-        *self.products.write().unwrap() = Vec::new();
-        *self.employees.write().unwrap() = Vec::new();
-        *self.payments.write().unwrap() = Vec::new();
-        *self.tasks.write().unwrap() = Vec::new();
-        *self.attendances.write().unwrap() = Vec::new();
-        *self.complaints.write().unwrap() = Vec::new();
-        *self.tools.write().unwrap() = Vec::new();
-        *self.tool_assignments.write().unwrap() = Vec::new();
-        *self.roles.write().unwrap() = Vec::new();
-        *self.permissions.write().unwrap() = Vec::new();
-        *self.feature_toggles.write().unwrap() = Vec::new();
-        *self.audit_logs.write().unwrap() = Vec::new();
-        *self.dashboard_configs.write().unwrap() = Vec::new();
-        *self.projects.write().unwrap() = Vec::new();
-        *self.project_tasks.write().unwrap() = Vec::new();
-        *self.project_assignments.write().unwrap() = Vec::new();
-        *self.accounts.write().unwrap() = Vec::new();
-        *self.invoices.write().unwrap() = Vec::new();
-        *self.integrations.write().unwrap() = Vec::new();
-        *self.suppliers.write().unwrap() = Vec::new();
-        *self.supplier_orders.write().unwrap() = Vec::new();
+        *self.users.write().map_err(|_| "Failed to acquire lock".to_string())? = Vec::new();
+        *self.sessions.write().map_err(|_| "Failed to acquire lock".to_string())? = Vec::new();
+        *self.invites.write().map_err(|_| "Failed to acquire lock".to_string())? = Vec::new();
+        *self.products.write().map_err(|_| "Failed to acquire lock".to_string())? = Vec::new();
+        *self.employees.write().map_err(|_| "Failed to acquire lock".to_string())? = Vec::new();
+        *self.payments.write().map_err(|_| "Failed to acquire lock".to_string())? = Vec::new();
+        *self.tasks.write().map_err(|_| "Failed to acquire lock".to_string())? = Vec::new();
+        *self.attendances.write().map_err(|_| "Failed to acquire lock".to_string())? = Vec::new();
+        *self.complaints.write().map_err(|_| "Failed to acquire lock".to_string())? = Vec::new();
+        *self.tools.write().map_err(|_| "Failed to acquire lock".to_string())? = Vec::new();
+        *self.tool_assignments.write().map_err(|_| "Failed to acquire lock".to_string())? = Vec::new();
+        *self.roles.write().map_err(|_| "Failed to acquire lock".to_string())? = Vec::new();
+        *self.permissions.write().map_err(|_| "Failed to acquire lock".to_string())? = Vec::new();
+        *self.feature_toggles.write().map_err(|_| "Failed to acquire lock".to_string())? = Vec::new();
+        *self.audit_logs.write().map_err(|_| "Failed to acquire lock".to_string())? = Vec::new();
+        *self.dashboard_configs.write().map_err(|_| "Failed to acquire lock".to_string())? = Vec::new();
+        *self.projects.write().map_err(|_| "Failed to acquire lock".to_string())? = Vec::new();
+        *self.project_tasks.write().map_err(|_| "Failed to acquire lock".to_string())? = Vec::new();
+        *self.project_assignments.write().map_err(|_| "Failed to acquire lock".to_string())? = Vec::new();
+        *self.accounts.write().map_err(|_| "Failed to acquire lock".to_string())? = Vec::new();
+        *self.invoices.write().map_err(|_| "Failed to acquire lock".to_string())? = Vec::new();
+        *self.integrations.write().map_err(|_| "Failed to acquire lock".to_string())? = Vec::new();
+        *self.suppliers.write().map_err(|_| "Failed to acquire lock".to_string())? = Vec::new();
+        *self.supplier_orders.write().map_err(|_| "Failed to acquire lock".to_string())? = Vec::new();
         Ok(())
     }
 

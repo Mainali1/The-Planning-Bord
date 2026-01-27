@@ -61,6 +61,14 @@ namespace ThePlanningBord.Auth
                 claims.Add(new Claim("FullName", user.FullName));
             }
 
+            if (user.Permissions != null)
+            {
+                foreach (var permission in user.Permissions)
+                {
+                    claims.Add(new Claim("Permission", permission));
+                }
+            }
+
             return claims;
         }
     }

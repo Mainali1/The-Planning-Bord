@@ -137,13 +137,29 @@
 
     protected override async Task OnInitializedAsync()
     {
-        currentUser = await UserService.GetCurrentUserAsync();
+        try
+        {
+            currentUser = await UserService.GetCurrentUserAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to load user: {ex.Message}");
+            NotificationService.ShowError("Failed to load user profile.");
+        }
+
         if (CanManageTasks)
         {
             try {
                 employees = await HrService.GetEmployeesAsync();
-            } catch (Exception ex) {
+            } 
+            catch (TauriValidationException ex)
+            {
+                Console.WriteLine($"Validation error loading employees: {ex.Message}");
+                NotificationService.ShowError(ex.Message);
+            }
+            catch (Exception ex) {
                 Console.WriteLine($"Error loading employees: {ex.Message}");
+                NotificationService.ShowError("Failed to load employees.");
             }
         }
         await LoadTasks();
@@ -153,11 +169,18 @@
     {
         try
         {
-            tasks = await TaskService.GetTasksAsync();
+            tasks = await TaskService.GetTasksAsync() ?? new List<TaskModel>();
+        }
+        catch (TauriValidationException ex)
+        {
+            Console.WriteLine($"Validation error loading tasks: {ex.Message}");
+            NotificationService.ShowError(ex.Message);
+            tasks = new List<TaskModel>();
         }
         catch (Exception ex)
         {
             Console.WriteLine(ex.Message);
+            NotificationService.ShowError("Failed to load tasks.");
             tasks = new List<TaskModel>();
         }
     }
@@ -212,11 +235,16 @@
             }
             showAddModal = false;
             await LoadTasks();
+            NotificationService.ShowSuccess("Task saved successfully.");
+        }
+        catch (TauriValidationException ex)
+        {
+            NotificationService.ShowError(ex.Message);
         }
         catch (Exception ex)
         {
             Console.WriteLine(ex.Message);
-            // Show error notification?
+            NotificationService.ShowError("Failed to save task: " + ex.Message);
         }
     }
 
@@ -224,8 +252,20 @@
     {
         if (await JSRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to delete this task?"))
         {
-            await TaskService.DeleteTaskAsync(id);
-            await LoadTasks();
+            try 
+            {
+                await TaskService.DeleteTaskAsync(id);
+                await LoadTasks();
+                NotificationService.ShowSuccess("Task deleted successfully.");
+            }
+            catch (TauriValidationException ex)
+            {
+                NotificationService.ShowError(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                NotificationService.ShowError("Failed to delete task: " + ex.Message);
+            }
         }
     }
 }

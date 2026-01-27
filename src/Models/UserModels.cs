@@ -24,6 +24,9 @@ namespace ThePlanningBord.Models
 
         [JsonPropertyName("last_login")]
         public string? LastLogin { get; set; }
+
+        [JsonPropertyName("permissions")]
+        public List<string>? Permissions { get; set; }
     }
 
     public class LoginResponse

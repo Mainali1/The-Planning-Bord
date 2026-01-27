@@ -5,6 +5,8 @@
 @inject NotificationService NotificationService
 @inject IJSRuntime JSRuntime
 @using ThePlanningBord.Models
+@using ThePlanningBord.Services
+@using Microsoft.JSInterop
 
 <PageTitle>Employees - The Planning Bord</PageTitle>
 
@@ -286,6 +288,10 @@
             // Pass 0 for expiration to indicate permanent token
             generatedToken = await UserService.GenerateInviteTokenAsync(inviteRole, inviteName, inviteEmail, 0);
         }
+        catch (TauriValidationException ex)
+        {
+            NotificationService.ShowError(ex.Message);
+        }
         catch (Exception ex)
         {
             NotificationService.ShowError(ex.Message, "Error");
@@ -329,8 +335,22 @@
 
     private async Task LoadInvites()
     {
-        try { invites = await UserService.GetInvitesAsync(); }
-        catch (Exception ex) { Console.WriteLine(ex.Message); invites = new List<Invite>(); }
+        try 
+        { 
+            invites = await UserService.GetInvitesAsync(); 
+        }
+        catch (TauriValidationException ex)
+        {
+            Console.WriteLine($"Validation error loading invites: {ex.Message}");
+            NotificationService.ShowError(ex.Message);
+            invites = new List<Invite>();
+        }
+        catch (Exception ex) 
+        { 
+            Console.WriteLine($"Error loading invites: {ex.Message}"); 
+            NotificationService.ShowError("Failed to load invites.");
+            invites = new List<Invite>(); 
+        }
     }
 
     private async Task ToggleInviteStatus(Invite invite)
@@ -342,6 +362,10 @@
             await LoadInvites();
             NotificationService.ShowSuccess($"Invite {(invite.IsActive ? "disabled" : "enabled")} successfully.");
         }
+        catch (TauriValidationException ex)
+        {
+            NotificationService.ShowError(ex.Message);
+        }
         catch (Exception ex)
         {
             NotificationService.ShowError($"Failed to update invite status: {ex.Message}");
@@ -350,7 +374,7 @@
 
     private async Task LoadEmployees()
     {
-        try { employees = await HrService.GetEmployeesAsync(); }
+        try { employees = await HrService.GetEmployeesAsync() ?? new List<Employee>(); }
         catch (Exception ex) { Console.WriteLine(ex.Message); employees = new List<Employee>(); }
     }
 
@@ -390,6 +414,10 @@
             showAddModal = false;
             await LoadEmployees();
         }
+        catch (TauriValidationException ex)
+        {
+            NotificationService.ShowError(ex.Message);
+        }
         catch (Exception ex) 
         { 
             Console.WriteLine(ex.Message); 
@@ -421,6 +449,10 @@
             await LoadEmployees(); 
             NotificationService.ShowSuccess("Employee deleted successfully.");
         }
+        catch (TauriValidationException ex)
+        {
+            NotificationService.ShowError(ex.Message);
+        }
         catch (Exception ex) 
         { 
             Console.WriteLine(ex.Message); 
@@ -443,6 +475,10 @@
             await HrService.DeleteEmployeeAsync(e.Id.Value);
             await LoadEmployees();
             NotificationService.ShowSuccess("Employee deleted successfully.");
+        }
+        catch (TauriValidationException ex)
+        {
+            NotificationService.ShowError(ex.Message);
         }
         catch (Exception ex)
         {

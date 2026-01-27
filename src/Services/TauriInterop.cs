@@ -1,5 +1,7 @@
 using Microsoft.JSInterop;
 using System.Text.Json;
+using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace ThePlanningBord.Services
 {
@@ -15,22 +17,21 @@ namespace ThePlanningBord.Services
     {
         private readonly IJSRuntime _jsRuntime;
         private readonly NotificationService _notificationService;
+        private readonly IServiceProvider _serviceProvider;
         
         public bool IsConnected { get; private set; } = true;
 
-        public TauriInterop(IJSRuntime jsRuntime, NotificationService notificationService)
+        public TauriInterop(IJSRuntime jsRuntime, NotificationService notificationService, IServiceProvider serviceProvider)
         {
             _jsRuntime = jsRuntime;
             _notificationService = notificationService;
+            _serviceProvider = serviceProvider;
         }
 
         public async Task<bool> CheckHealthAsync()
         {
             try
             {
-                // We use a separate direct call to avoid infinite recursion if we used InvokeAsync (which could check health)
-                // But here InvokeAsync is fine as it doesn't call CheckHealthAsync automatically yet.
-                // However, to be safe and simple, let's just use InvokeAsync but catch errors silently here.
                 var response = await InvokeAsync<string>("ping");
                 IsConnected = response == "pong";
                 return IsConnected;
@@ -38,6 +39,35 @@ namespace ThePlanningBord.Services
             catch
             {
                 IsConnected = false;
+                return false;
+            }
+        }
+
+        private async Task HandleErrorAsync(string command, string msg)
+        {
+            IsConnected = false;
+            
+            if (await ShouldShowBackendErrorAsync())
+            {
+                _notificationService.ShowError($"System Error ({command}): {msg}");
+            }
+        }
+
+        private async Task<bool> ShouldShowBackendErrorAsync()
+        {
+            try
+            {
+                var authStateProvider = _serviceProvider.GetRequiredService<AuthenticationStateProvider>();
+                var authState = await authStateProvider.GetAuthenticationStateAsync();
+                var user = authState.User;
+
+                return user.Identity?.IsAuthenticated == true && 
+                       (user.HasClaim(c => c.Type == "Permission" && c.Value == "VIEW_BACKEND_ERRORS") || 
+                        user.IsInRole("Technical") || 
+                        user.IsInRole("CEO"));
+            }
+            catch
+            {
                 return false;
             }
         }
@@ -81,8 +111,7 @@ namespace ThePlanningBord.Services
                     
                     if (i == maxRetries - 1)
                     {
-                        IsConnected = false;
-                        _notificationService.ShowError($"System Error ({command}): {msg}");
+                        await HandleErrorAsync(command, msg);
                         throw;
                     }
 
@@ -132,8 +161,7 @@ namespace ThePlanningBord.Services
 
                     if (i == maxRetries - 1)
                     {
-                        IsConnected = false;
-                        _notificationService.ShowError($"System Error ({command}): {msg}");
+                        await HandleErrorAsync(command, msg);
                         
                          if (msg.Contains("Connection") || msg.Contains("timeout") || msg.Contains("Network"))
                              throw new TauriNetworkException(msg, ex);

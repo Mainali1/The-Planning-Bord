@@ -341,6 +341,10 @@
         {
             suppliers = await InventoryService.GetSuppliersAsync();
         }
+        catch (TauriValidationException ex)
+        {
+            NotificationService.ShowError(ex.Message);
+        }
         catch (Exception ex)
         {
             NotificationService.ShowError("Failed to load suppliers: " + ex.Message);
@@ -358,6 +362,10 @@
         {
             orders = await InventoryService.GetSupplierOrdersAsync();
         }
+        catch (TauriValidationException ex)
+        {
+            NotificationService.ShowError(ex.Message);
+        }
         catch (Exception ex)
         {
             NotificationService.ShowError("Failed to load orders: " + ex.Message);
@@ -373,11 +381,17 @@
         try
         {
             var pagedResult = await InventoryService.GetProductsAsync();
-            products = pagedResult.Items;
+            products = pagedResult?.Items ?? new List<Product>();
+        }
+        catch (TauriValidationException ex)
+        {
+            NotificationService.ShowError(ex.Message);
+            products = new List<Product>();
         }
         catch (Exception ex)
         {
             NotificationService.ShowError("Failed to load products: " + ex.Message);
+            products = new List<Product>();
         }
     }
 
@@ -550,6 +564,10 @@
             await LoadSuppliers();
             await LoadProducts(); // Reload to reflect changes
         }
+        catch (TauriValidationException ex)
+        {
+            NotificationService.ShowError(ex.Message);
+        }
         catch (Exception ex)
         {
             NotificationService.ShowError("Failed to save supplier: " + ex.Message);
@@ -566,6 +584,10 @@
             await InventoryService.DeleteSupplierAsync(supplier.Id ?? 0);
             NotificationService.ShowSuccess("Supplier deleted.");
             await LoadSuppliers();
+        }
+        catch (TauriValidationException ex)
+        {
+            NotificationService.ShowError(ex.Message);
         }
         catch (Exception ex)
         {
@@ -782,6 +804,10 @@
             await InventoryService.DeleteSupplierOrderAsync(order.Id ?? 0);
             NotificationService.ShowSuccess("Order deleted.");
             await LoadOrders();
+        }
+        catch (TauriValidationException ex)
+        {
+            NotificationService.ShowError(ex.Message);
         }
         catch (Exception ex)
         {

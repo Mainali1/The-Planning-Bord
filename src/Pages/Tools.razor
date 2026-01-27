@@ -318,13 +318,13 @@
 
     private async Task LoadTools()
     {
-        try { tools = await InventoryService.GetToolsAsync(); }
+        try { tools = await InventoryService.GetToolsAsync() ?? new List<Tool>(); }
         catch (Exception ex) { Console.WriteLine(ex.Message); tools = new List<Tool>(); }
     }
 
     private async Task LoadEmployees()
     {
-        try { employees = await HrService.GetEmployeesAsync(); }
+        try { employees = await HrService.GetEmployeesAsync() ?? new List<Employee>(); }
         catch (Exception ex) { Console.WriteLine(ex.Message); employees = new List<Employee>(); }
     }
 
@@ -496,9 +496,13 @@
         {
             try
             {
-                toolHistory = await InventoryService.GetToolHistoryAsync(t.Id.Value);
+                toolHistory = await InventoryService.GetToolHistoryAsync(t.Id.Value) ?? new List<ToolAssignment>();
             }
-            catch (Exception ex) { Console.WriteLine(ex.Message); toolHistory = new List<ToolAssignment>(); }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+                toolHistory = new List<ToolAssignment>();
+            }
         }
     }
 }

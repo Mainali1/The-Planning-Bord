@@ -106,7 +106,7 @@
     {
         try
         {
-            integrations = await IntegrationService.GetIntegrationsAsync();
+            integrations = await IntegrationService.GetIntegrationsAsync() ?? new List<Integration>();
             
             // Seed default integrations if missing (Client-side seeding for UI demo)
             var defaults = new List<Integration>

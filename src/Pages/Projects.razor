@@ -643,17 +643,77 @@
 
     protected override async Task OnInitializedAsync()
     {
-        currentUser = await UserService.GetCurrentUserAsync();
-        try { employees = await HrService.GetEmployeesAsync(); } catch {}
-        await LoadProjects();
-        await LoadAllAssignments();
-        InitializeSelection();
+        try
+        {
+            currentUser = await UserService.GetCurrentUserAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to load user: {ex.Message}");
+        }
+
+        try 
+        { 
+            employees = await HrService.GetEmployeesAsync(); 
+        } 
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to load employees: {ex.Message}");
+            // Non-critical, but good to know
+        }
+        
+        try 
+        {
+            await LoadProjects();
+        } 
+        catch (TauriValidationException ex)
+        {
+            Console.WriteLine($"Validation error loading projects: {ex.Message}");
+            NotificationService.ShowError(ex.Message);
+            projects = new List<Project>();
+        }
+        catch (Exception ex) 
+        {
+            Console.WriteLine($"Failed to load projects: {ex.Message}");
+            NotificationService.ShowError("Failed to load projects.");
+            projects = new List<Project>();
+        }
+
+        try
+        {
+            await LoadAllAssignments();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to load assignments: {ex.Message}");
+        }
+
+        // Safe initialization if load failed
+        if (selectedProjectId == null && projects != null && projects.Any())
+        {
+            InitializeSelection();
+        }
     }
 
     private async Task LoadProjects()
     {
-        projects = await ProjectService.GetProjectsAsync();
-        InitializeSelection();
+        try
+        {
+            projects = await ProjectService.GetProjectsAsync();
+            InitializeSelection();
+        }
+        catch (TauriValidationException ex)
+        {
+            Console.WriteLine(ex.Message);
+            NotificationService.ShowError(ex.Message);
+            projects = new List<Project>();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+            NotificationService.ShowError("Failed to load projects.");
+            projects = new List<Project>();
+        }
     }
 
     private void OpenAddModal()
@@ -704,6 +764,11 @@
             }
             showModal = false;
             await LoadProjects();
+        }
+        catch (TauriValidationException ex)
+        {
+            Console.WriteLine(ex.Message);
+            NotificationService.ShowError(ex.Message);
         }
         catch (Exception ex)
         {
@@ -771,6 +836,10 @@
                 await LoadProjects();
                 NotificationService.ShowSuccess("Project deleted successfully.");
             }
+            catch (TauriValidationException ex)
+            {
+                NotificationService.ShowError(ex.Message);
+            }
             catch (Exception ex)
             {
                 NotificationService.ShowError($"Failed to delete project: {ex.Message}");
@@ -782,10 +851,22 @@
     {
         if (projectToDeleteId.HasValue)
         {
-            await ProjectService.DeleteProjectAsync(projectToDeleteId.Value);
-            showDeleteConfirmModal = false;
-            projectToDeleteId = null;
-            await LoadProjects();
+            try
+            {
+                await ProjectService.DeleteProjectAsync(projectToDeleteId.Value);
+                showDeleteConfirmModal = false;
+                projectToDeleteId = null;
+                await LoadProjects();
+                NotificationService.ShowSuccess("Project deleted successfully.");
+            }
+            catch (TauriValidationException ex)
+            {
+                NotificationService.ShowError(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                NotificationService.ShowError($"Failed to delete project: {ex.Message}");
+            }
         }
     }
 
@@ -799,10 +880,22 @@
     {
         if (taskToDelete != null && taskToDelete.Id.HasValue)
         {
-            await ProjectService.DeleteProjectTaskAsync(taskToDelete.Id.Value);
-            showTaskDeleteConfirmModal = false;
-            taskToDelete = null;
-            await ReloadTasks();
+            try
+            {
+                await ProjectService.DeleteProjectTaskAsync(taskToDelete.Id.Value);
+                showTaskDeleteConfirmModal = false;
+                taskToDelete = null;
+                await ReloadTasks();
+                NotificationService.ShowSuccess("Task deleted successfully.");
+            }
+            catch (TauriValidationException ex)
+            {
+                NotificationService.ShowError(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                NotificationService.ShowError($"Failed to delete task: {ex.Message}");
+            }
         }
     }
 
@@ -845,17 +938,31 @@
     {
         if (selectedProjectId.HasValue)
         {
-            projectTasks = await ProjectService.GetProjectTasksAsync(selectedProjectId.Value);
-            var sp = projects?.FirstOrDefault(p => p.Id == selectedProjectId);
-            if (sp != null) selectedProjectStatus = sp.Status ?? "planning";
-            ComputeRange();
-            ComputeDependencies();
-            ComputeCriticalPath();
-            
-            // Ensure assignments are loaded for the dropdowns in Task view
-            if (activeTab == "team" || activeTab == "tasks")
+            try
             {
-                await LoadAssignments();
+                projectTasks = await ProjectService.GetProjectTasksAsync(selectedProjectId.Value);
+                var sp = projects?.FirstOrDefault(p => p.Id == selectedProjectId);
+                if (sp != null) selectedProjectStatus = sp.Status ?? "planning";
+                ComputeRange();
+                ComputeDependencies();
+                ComputeCriticalPath();
+                
+                // Ensure assignments are loaded for the dropdowns in Task view
+                if (activeTab == "team" || activeTab == "tasks")
+                {
+                    await LoadAssignments();
+                }
+            }
+            catch (TauriValidationException ex)
+            {
+                NotificationService.ShowError(ex.Message);
+                projectTasks = new List<ProjectTask>();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error reloading tasks: {ex.Message}");
+                NotificationService.ShowError("Failed to load tasks.");
+                projectTasks = new List<ProjectTask>();
             }
         }
     }
@@ -882,6 +989,10 @@
                 await ProjectService.UpdateProjectAsync(updated);
                 await LoadProjects();
                 NotificationService.ShowSuccess("Project status updated.");
+            }
+            catch (TauriValidationException ex)
+            {
+                NotificationService.ShowError(ex.Message);
             }
             catch (Exception ex)
             {
@@ -953,6 +1064,10 @@
                 await LoadAssignments();
                 NotificationService.ShowSuccess("Team member added successfully");
             }
+            catch (TauriValidationException ex)
+            {
+                NotificationService.ShowError(ex.Message);
+            }
             catch (Exception ex)
             {
                 NotificationService.ShowError($"Failed to add member: {ex.Message}");
@@ -975,6 +1090,10 @@
                 await ProjectService.RemoveProjectAssignmentAsync(assignment.ProjectId, assignment.EmployeeId);
                 await LoadAssignments();
                 NotificationService.ShowSuccess("Team member removed");
+            }
+            catch (TauriValidationException ex)
+            {
+                NotificationService.ShowError(ex.Message);
             }
             catch (Exception ex)
             {
@@ -1064,47 +1183,59 @@
 
     private async Task SaveTask()
     {
-        if (string.IsNullOrWhiteSpace(newTask.Name) || !newTask.ProjectId.HasValue) return;
-
-        if (newTask.AssignedTo.HasValue && selectedProjectId.HasValue)
+        try
         {
-            var pid = selectedProjectId.Value;
-            var allowed = projectAssignmentsMap.ContainsKey(pid) && projectAssignmentsMap[pid].Any(a => a.EmployeeId == newTask.AssignedTo.Value);
-            if (!allowed)
+            if (string.IsNullOrWhiteSpace(newTask.Name) || !newTask.ProjectId.HasValue) return;
+
+            if (newTask.AssignedTo.HasValue && selectedProjectId.HasValue)
             {
-                NotificationService.ShowError("Selected assignee is not part of this project.");
-                return;
+                var pid = selectedProjectId.Value;
+                var allowed = projectAssignmentsMap.ContainsKey(pid) && projectAssignmentsMap[pid].Any(a => a.EmployeeId == newTask.AssignedTo.Value);
+                if (!allowed)
+                {
+                    NotificationService.ShowError("Selected assignee is not part of this project.");
+                    return;
+                }
             }
-        }
 
-        if (isMilestone)
-        {
-            newTask.DueDate = newTask.StartDate;
-        }
-        
-        if (selectedPredecessorIdsStrings.Count > 0)
-        {
-            var deps = selectedPredecessorIdsStrings.Select(s => { int.TryParse(s, out var id); return id; }).Where(id => id > 0).Distinct().ToList();
-            selectedPredecessorIds = new HashSet<int>(deps);
-            newTask.DependenciesJson = System.Text.Json.JsonSerializer.Serialize(deps);
-        }
-        else
-        {
-            newTask.DependenciesJson = null;
-        }
+            if (isMilestone)
+            {
+                newTask.DueDate = newTask.StartDate;
+            }
+            
+            if (selectedPredecessorIdsStrings.Count > 0)
+            {
+                var deps = selectedPredecessorIdsStrings.Select(s => { int.TryParse(s, out var id); return id; }).Where(id => id > 0).Distinct().ToList();
+                selectedPredecessorIds = new HashSet<int>(deps);
+                newTask.DependenciesJson = System.Text.Json.JsonSerializer.Serialize(deps);
+            }
+            else
+            {
+                newTask.DependenciesJson = null;
+            }
 
-        EnforceDependencyConstraints(newTask);
-        
-        if (newTask.Id.HasValue)
-        {
-            await ProjectService.UpdateProjectTaskAsync(newTask);
+            EnforceDependencyConstraints(newTask);
+            
+            if (newTask.Id.HasValue)
+            {
+                await ProjectService.UpdateProjectTaskAsync(newTask);
+            }
+            else
+            {
+                await ProjectService.AddProjectTaskAsync(newTask);
+            }
+            showTaskModal = false;
+            await ReloadTasks();
+            NotificationService.ShowSuccess($"Task {(newTask.Id.HasValue ? "updated" : "created")} successfully.");
         }
-        else
+        catch (TauriValidationException ex)
         {
-            await ProjectService.AddProjectTaskAsync(newTask);
+            NotificationService.ShowError(ex.Message);
         }
-        showTaskModal = false;
-        await ReloadTasks();
+        catch (Exception ex)
+        {
+            NotificationService.ShowError($"Failed to save task: {ex.Message}");
+        }
     }
     
     private void OnTaskStartChanged(ChangeEventArgs e)
@@ -1355,9 +1486,23 @@
         var task = projectTasks.FirstOrDefault(x => (x.Id ?? 0) == dragTaskId);
         if (task != null)
         {
-            EnforceDependencyConstraints(task);
-            await ProjectService.UpdateProjectTaskAsync(task);
-            await ReloadTasks();
+            try
+            {
+                EnforceDependencyConstraints(task);
+                await ProjectService.UpdateProjectTaskAsync(task);
+                await ReloadTasks();
+            }
+            catch (TauriValidationException ex)
+            {
+                NotificationService.ShowError(ex.Message);
+                // Revert changes or reload to sync with backend
+                await ReloadTasks();
+            }
+            catch (Exception ex)
+            {
+                NotificationService.ShowError($"Failed to update task: {ex.Message}");
+                await ReloadTasks();
+            }
         }
         dragTaskId = 0;
     }
@@ -1372,9 +1517,15 @@
                 .GroupBy(a => a.ProjectId)
                 .ToDictionary(g => g.Key, g => g.ToList());
         }
+        catch (TauriValidationException ex)
+        {
+            Console.WriteLine($"Validation error loading assignments: {ex.Message}");
+            projectAssignmentsMap = new Dictionary<int, List<ProjectAssignment>>();
+        }
         catch (Exception ex)
         {
             Console.WriteLine($"Error loading all assignments: {ex.Message}");
+            projectAssignmentsMap = new Dictionary<int, List<ProjectAssignment>>();
         }
     }
 
