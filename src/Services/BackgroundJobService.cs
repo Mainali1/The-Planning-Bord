@@ -70,7 +70,9 @@ namespace ThePlanningBord.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Background job error: {ex.Message}");
+                // Background job errors should not crash the app, but maybe notify admin?
+                // For now, suppress or log to notification if critical
+                // _notificationService.ShowError($"Background job error: {ex.Message}");
             }
         }
 

@@ -649,7 +649,7 @@
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Failed to load user: {ex.Message}");
+            NotificationService.ShowError($"Failed to load user: {ex.Message}");
         }
 
         try 
@@ -658,8 +658,7 @@
         } 
         catch (Exception ex)
         {
-            Console.WriteLine($"Failed to load employees: {ex.Message}");
-            // Non-critical, but good to know
+            NotificationService.ShowError($"Failed to load employees: {ex.Message}");
         }
         
         try 
@@ -668,13 +667,11 @@
         } 
         catch (TauriValidationException ex)
         {
-            Console.WriteLine($"Validation error loading projects: {ex.Message}");
             NotificationService.ShowError(ex.Message);
             projects = new List<Project>();
         }
         catch (Exception ex) 
         {
-            Console.WriteLine($"Failed to load projects: {ex.Message}");
             NotificationService.ShowError("Failed to load projects.");
             projects = new List<Project>();
         }
@@ -685,7 +682,7 @@
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Failed to load assignments: {ex.Message}");
+            NotificationService.ShowError($"Failed to load assignments: {ex.Message}");
         }
 
         // Safe initialization if load failed
@@ -704,13 +701,11 @@
         }
         catch (TauriValidationException ex)
         {
-            Console.WriteLine(ex.Message);
             NotificationService.ShowError(ex.Message);
             projects = new List<Project>();
         }
         catch (Exception ex)
         {
-            Console.WriteLine(ex.Message);
             NotificationService.ShowError("Failed to load projects.");
             projects = new List<Project>();
         }
@@ -767,12 +762,10 @@
         }
         catch (TauriValidationException ex)
         {
-            Console.WriteLine(ex.Message);
             NotificationService.ShowError(ex.Message);
         }
         catch (Exception ex)
         {
-            Console.WriteLine(ex.Message);
             NotificationService.ShowError($"Failed to save project: {ex.Message}");
         }
         finally
@@ -960,7 +953,6 @@
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error reloading tasks: {ex.Message}");
                 NotificationService.ShowError("Failed to load tasks.");
                 projectTasks = new List<ProjectTask>();
             }
@@ -1022,9 +1014,14 @@
                     }
                 }
             }
+            catch (TauriValidationException ex)
+            {
+                NotificationService.ShowError(ex.Message);
+                projectAssignments = new List<ProjectAssignment>();
+            }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error loading assignments: {ex.Message}");
+                NotificationService.ShowError("Failed to load assignments.");
                 projectAssignments = new List<ProjectAssignment>();
             }
         }
@@ -1107,54 +1104,64 @@
         dependencyLines.Clear();
         if (projectTasks == null || !projectTasks.Any()) return;
 
-        var taskMap = projectTasks.Select((t, i) => new { Task = t, Index = i }).ToDictionary(x => x.Task.Id ?? 0, x => x);
-
-        foreach (var t in projectTasks)
+        try
         {
-            if (string.IsNullOrEmpty(t.DependenciesJson)) continue;
-            try
+            var taskMap = projectTasks.Select((t, i) => new { Task = t, Index = i }).ToDictionary(x => x.Task.Id ?? 0, x => x);
+
+            foreach (var t in projectTasks)
             {
-                var deps = System.Text.Json.JsonSerializer.Deserialize<List<int>>(t.DependenciesJson);
-                if (deps == null) continue;
-
-                foreach (var predId in deps)
+                if (string.IsNullOrEmpty(t.DependenciesJson)) continue;
+                try
                 {
-                    if (taskMap.TryGetValue(predId, out var pred))
+                    var deps = System.Text.Json.JsonSerializer.Deserialize<List<int>>(t.DependenciesJson);
+                    if (deps == null) continue;
+
+                    foreach (var predId in deps)
                     {
-                        var pPos = GetBarPosition(pred.Task);
-                        var tPos = GetBarPosition(t);
-
-                        if (double.TryParse(pPos.left.TrimEnd('%'), out double pLeftPct) &&
-                            double.TryParse(pPos.width.TrimEnd('%'), out double pWidthPct) &&
-                            double.TryParse(tPos.left.TrimEnd('%'), out double tLeftPct))
+                        if (taskMap.TryGetValue(predId, out var pred))
                         {
-                            var pRight = pLeftPct + pWidthPct;
-                            var tLeft = tLeftPct;
-                            
-                            var pY = pred.Index * rowHeight + 20 + ((rowHeight - 8) / 2); // Center of bar
-                            var tY = taskMap[t.Id ?? 0].Index * rowHeight + 20 + ((rowHeight - 8) / 2);
+                            var pPos = GetBarPosition(pred.Task);
+                            var tPos = GetBarPosition(t);
 
-                            string path;
-                            // Bezier Curve Logic
-                            if (tLeft > pRight + 2)
+                            if (double.TryParse(pPos.left.TrimEnd('%'), out double pLeftPct) &&
+                                double.TryParse(pPos.width.TrimEnd('%'), out double pWidthPct) &&
+                                double.TryParse(tPos.left.TrimEnd('%'), out double tLeftPct))
                             {
-                                var midX = (pRight + tLeft) / 2;
-                                path = $"M {pRight} {pY} C {midX} {pY}, {midX} {tY}, {tLeft} {tY}";
+                                var pRight = pLeftPct + pWidthPct;
+                                var tLeft = tLeftPct;
+                                
+                                var pY = pred.Index * rowHeight + 20 + ((rowHeight - 8) / 2); // Center of bar
+                                var tY = taskMap[t.Id ?? 0].Index * rowHeight + 20 + ((rowHeight - 8) / 2);
+
+                                string path;
+                                // Bezier Curve Logic
+                                if (tLeft > pRight + 2)
+                                {
+                                    var midX = (pRight + tLeft) / 2;
+                                    path = $"M {pRight} {pY} C {midX} {pY}, {midX} {tY}, {tLeft} {tY}";
+                                }
+                                else
+                                {
+                                    var outX = pRight + 2;
+                                    var inX = tLeft - 2;
+                                    var midY = (pY + tY) / 2;
+                                    path = $"M {pRight} {pY} C {outX} {pY}, {outX} {midY}, {outX} {midY} L {inX} {midY} C {inX} {midY}, {inX} {tY}, {tLeft} {tY}";
+                                }
+                                
+                                dependencyLines.Add(new DependencyLine { Path = path });
                             }
-                            else
-                            {
-                                var outX = pRight + 2;
-                                var inX = tLeft - 2;
-                                var midY = (pY + tY) / 2;
-                                path = $"M {pRight} {pY} C {outX} {pY}, {outX} {midY}, {outX} {midY} L {inX} {midY} C {inX} {midY}, {inX} {tY}, {tLeft} {tY}";
-                            }
-                            
-                            dependencyLines.Add(new DependencyLine { Path = path });
                         }
                     }
                 }
+                catch 
+                {
+                    // Ignore malformed dependency JSON for individual tasks
+                }
             }
-            catch {}
+        }
+        catch (Exception ex)
+        {
+            NotificationService.ShowError($"Error computing dependencies: {ex.Message}");
         }
     }
 
@@ -1313,97 +1320,131 @@
 
     private void ComputeRange()
     {
-        if (projectTasks == null || !projectTasks.Any())
+        try
         {
-            minDate = DateTime.Today;
-            maxDate = DateTime.Today.AddDays(1);
-            totalDays = 1;
-            return;
+            if (projectTasks == null || !projectTasks.Any())
+            {
+                minDate = DateTime.Today;
+                maxDate = DateTime.Today.AddDays(1);
+                totalDays = 1;
+                return;
+            }
+            var starts = projectTasks.Select(t => Parse(t.StartDate));
+            var ends = projectTasks.Select(t => Parse(string.IsNullOrWhiteSpace(t.DueDate) ? t.StartDate : t.DueDate));
+            minDate = starts.Min();
+            maxDate = ends.Max();
+            if (maxDate < minDate) maxDate = minDate;
+            totalDays = (maxDate - minDate).TotalDays + 1;
+            if (totalDays <= 0) totalDays = 1;
+            ComputeGrid();
         }
-        var starts = projectTasks.Select(t => Parse(t.StartDate));
-        var ends = projectTasks.Select(t => Parse(string.IsNullOrWhiteSpace(t.DueDate) ? t.StartDate : t.DueDate));
-        minDate = starts.Min();
-        maxDate = ends.Max();
-        if (maxDate < minDate) maxDate = minDate;
-        totalDays = (maxDate - minDate).TotalDays + 1;
-        if (totalDays <= 0) totalDays = 1;
-        ComputeGrid();
+        catch (Exception ex)
+        {
+            NotificationService.ShowError($"Error computing timeline range: {ex.Message}");
+            // Fallback
+            minDate = DateTime.Today;
+            maxDate = DateTime.Today.AddDays(7);
+            totalDays = 7;
+        }
     }
 
     private (string left, string width) GetBarPosition(ProjectTask t)
     {
-        var start = Parse(t.StartDate);
-        var end = Parse(string.IsNullOrWhiteSpace(t.DueDate) ? t.StartDate : t.DueDate);
-        if (end < start) end = start;
-        var leftPct = ((start - minDate).TotalDays / totalDays) * 100.0;
-        var widthPct = (((end - start).TotalDays + 1) / totalDays) * 100.0;
-        if (widthPct < 0.5) widthPct = 0.5;
-        return (leftPct.ToString("0.##") + "%", widthPct.ToString("0.##") + "%");
+        try 
+        {
+            var start = Parse(t.StartDate);
+            var end = Parse(string.IsNullOrWhiteSpace(t.DueDate) ? t.StartDate : t.DueDate);
+            if (end < start) end = start;
+            var leftPct = ((start - minDate).TotalDays / totalDays) * 100.0;
+            var widthPct = (((end - start).TotalDays + 1) / totalDays) * 100.0;
+            if (widthPct < 0.5) widthPct = 0.5;
+            return (leftPct.ToString("0.##") + "%", widthPct.ToString("0.##") + "%");
+        }
+        catch
+        {
+            return ("0%", "10%");
+        }
     }
     
     private void ComputeGrid()
     {
-        gridLines.Clear();
-        var days = (int)Math.Round(totalDays);
-        for (int d = 0; d <= days; d += 7)
+        try
         {
-            var pct = (d / totalDays) * 100.0;
-            var labelDate = minDate.AddDays(d).ToString("MM-dd");
-            gridLines.Add((pct.ToString("0.##"), labelDate));
+            gridLines.Clear();
+            var days = (int)Math.Round(totalDays);
+            for (int d = 0; d <= days; d += 7)
+            {
+                var pct = (d / totalDays) * 100.0;
+                var labelDate = minDate.AddDays(d).ToString("MM-dd");
+                gridLines.Add((pct.ToString("0.##"), labelDate));
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificationService.ShowError($"Error computing grid: {ex.Message}");
         }
     }
     
     private void ComputeCriticalPath()
     {
-        criticalTaskIds.Clear();
-        if (projectTasks == null || !projectTasks.Any()) return;
-        var tasks = projectTasks;
-        var idMap = tasks.ToDictionary(t => t.Id ?? 0, t => t);
-        var deps = tasks.ToDictionary(t => t.Id ?? 0, t => DeserializeDependencies(t.DependenciesJson));
-        var succs = tasks.ToDictionary(t => t.Id ?? 0, t => new List<int>());
-        foreach (var kv in deps)
+        try
         {
-            foreach (var p in kv.Value)
+            criticalTaskIds.Clear();
+            if (projectTasks == null || !projectTasks.Any()) return;
+            var tasks = projectTasks;
+            var idMap = tasks.ToDictionary(t => t.Id ?? 0, t => t);
+            var deps = tasks.ToDictionary(t => t.Id ?? 0, t => DeserializeDependencies(t.DependenciesJson));
+            var succs = tasks.ToDictionary(t => t.Id ?? 0, t => new List<int>());
+            foreach (var kv in deps)
             {
-                if (succs.ContainsKey(p)) succs[p].Add(kv.Key);
+                foreach (var p in kv.Value)
+                {
+                    if (succs.ContainsKey(p)) succs[p].Add(kv.Key);
+                }
+            }
+            var visited = new HashSet<int>();
+            var order = new List<int>();
+            foreach (var t in tasks)
+            {
+                DfsTopological(t.Id ?? 0, deps, visited, order);
+            }
+            var es = new Dictionary<int, DateTime>();
+            var ef = new Dictionary<int, DateTime>();
+            foreach (var id in order)
+            {
+                if (!idMap.ContainsKey(id)) continue;
+                var t = idMap[id];
+                var duration = (Parse(string.IsNullOrWhiteSpace(t.DueDate) ? t.StartDate : t.DueDate) - Parse(t.StartDate)).TotalDays + 1;
+                if (duration < 1) duration = 1;
+                var predEF = deps[id].Select(pid => ef.ContainsKey(pid) ? ef[pid] : minDate).DefaultIfEmpty(minDate).Max();
+                var start = Parse(t.StartDate);
+                var taskES = predEF > start ? predEF : start;
+                es[id] = taskES;
+                ef[id] = taskES.AddDays(duration);
+            }
+            var projectFinish = ef.Values.DefaultIfEmpty(minDate).Max();
+            var ls = new Dictionary<int, DateTime>();
+            var lf = new Dictionary<int, DateTime>();
+            for (int i = order.Count - 1; i >= 0; i--)
+            {
+                var id = order[i];
+                if (!idMap.ContainsKey(id)) continue;
+                var t = idMap[id];
+                var duration = (Parse(string.IsNullOrWhiteSpace(t.DueDate) ? t.StartDate : t.DueDate) - Parse(t.StartDate)).TotalDays + 1;
+                if (duration < 1) duration = 1;
+                var succLS = succs[id].Select(sid => ls.ContainsKey(sid) ? ls[sid] : projectFinish).DefaultIfEmpty(projectFinish).Min();
+                lf[id] = succLS;
+                ls[id] = lf[id].AddDays(-duration);
+                var slack = (ls[id] - es[id]).TotalDays;
+                if (Math.Abs(slack) < 0.0001)
+                {
+                    criticalTaskIds.Add(id);
+                }
             }
         }
-        var visited = new HashSet<int>();
-        var order = new List<int>();
-        foreach (var t in tasks)
+        catch (Exception ex)
         {
-            DfsTopological(t.Id ?? 0, deps, visited, order);
-        }
-        var es = new Dictionary<int, DateTime>();
-        var ef = new Dictionary<int, DateTime>();
-        foreach (var id in order)
-        {
-            var t = idMap[id];
-            var duration = (Parse(string.IsNullOrWhiteSpace(t.DueDate) ? t.StartDate : t.DueDate) - Parse(t.StartDate)).TotalDays + 1;
-            if (duration < 1) duration = 1;
-            var predEF = deps[id].Select(pid => ef.ContainsKey(pid) ? ef[pid] : minDate).DefaultIfEmpty(minDate).Max();
-            var start = Parse(t.StartDate);
-            var taskES = predEF > start ? predEF : start;
-            es[id] = taskES;
-            ef[id] = taskES.AddDays(duration);
-        }
-        var projectFinish = ef.Values.DefaultIfEmpty(minDate).Max();
-        var ls = new Dictionary<int, DateTime>();
-        var lf = new Dictionary<int, DateTime>();
-        for (int i = order.Count - 1; i >= 0; i--)
-        {
-            var id = order[i];
-            var t = idMap[id];
-            var duration = (Parse(string.IsNullOrWhiteSpace(t.DueDate) ? t.StartDate : t.DueDate) - Parse(t.StartDate)).TotalDays + 1;
-            if (duration < 1) duration = 1;
-            var succLS = succs[id].Select(sid => ls.ContainsKey(sid) ? ls[sid] : projectFinish).DefaultIfEmpty(projectFinish).Min();
-            lf[id] = succLS;
-            ls[id] = lf[id].AddDays(-duration);
-            var slack = (ls[id] - es[id]).TotalDays;
-            if (Math.Abs(slack) < 0.0001)
-            {
-                criticalTaskIds.Add(id);
-            }
+            NotificationService.ShowError($"Error computing critical path: {ex.Message}");
         }
     }
     
@@ -1426,55 +1467,72 @@
     
     private void StartDrag(ProjectTask t, DragMode mode)
     {
-        isDragging = true;
-        currentDragMode = mode;
-        dragTaskId = t.Id ?? 0;
-        dragStartMouseDate = null;
-        dragOriginalStart = Parse(t.StartDate);
-        dragOriginalEnd = Parse(string.IsNullOrWhiteSpace(t.DueDate) ? t.StartDate : t.DueDate);
+        try
+        {
+            isDragging = true;
+            currentDragMode = mode;
+            dragTaskId = t.Id ?? 0;
+            dragStartMouseDate = null;
+            dragOriginalStart = Parse(t.StartDate);
+            dragOriginalEnd = Parse(string.IsNullOrWhiteSpace(t.DueDate) ? t.StartDate : t.DueDate);
+        }
+        catch (Exception ex)
+        {
+            NotificationService.ShowError($"Error starting drag: {ex.Message}");
+            isDragging = false;
+        }
     }
     
     private void OnTimelineMouseMove(MouseEventArgs e)
     {
         if (!isDragging || projectTasks == null || dragTaskId == 0) return;
-        var task = projectTasks.FirstOrDefault(x => (x.Id ?? 0) == dragTaskId);
-        if (task == null) return;
-        
-        var x = e.OffsetX;
-        var pxPerDay = timelineWidthPx / totalDays;
-        var dayOffset = Math.Round(x / pxPerDay);
-        var mouseDate = minDate.AddDays(dayOffset);
-        
-        if (dragStartMouseDate == null)
+        try
         {
-            dragStartMouseDate = mouseDate;
-            return;
-        }
+            var task = projectTasks.FirstOrDefault(x => (x.Id ?? 0) == dragTaskId);
+            if (task == null) return;
+            
+            var x = e.OffsetX;
+            if (totalDays <= 0) return;
+            var pxPerDay = timelineWidthPx / totalDays;
+            
+            var dayOffset = Math.Round(x / pxPerDay);
+            var mouseDate = minDate.AddDays(dayOffset);
+            
+            if (dragStartMouseDate == null)
+            {
+                dragStartMouseDate = mouseDate;
+                return;
+            }
 
-        if (currentDragMode == DragMode.Move)
-        {
-             var delta = mouseDate - dragStartMouseDate.Value;
-             var newStart = dragOriginalStart.Add(delta);
-             var newEnd = dragOriginalEnd.Add(delta);
-             task.StartDate = newStart.ToString("yyyy-MM-dd");
-             task.DueDate = newEnd.ToString("yyyy-MM-dd");
+            if (currentDragMode == DragMode.Move)
+            {
+                 var delta = mouseDate - dragStartMouseDate.Value;
+                 var newStart = dragOriginalStart.Add(delta);
+                 var newEnd = dragOriginalEnd.Add(delta);
+                 task.StartDate = newStart.ToString("yyyy-MM-dd");
+                 task.DueDate = newEnd.ToString("yyyy-MM-dd");
+            }
+            else if (currentDragMode == DragMode.ResizeLeft)
+            {
+                var newDateStr = mouseDate.ToString("yyyy-MM-dd");
+                task.StartDate = newDateStr;
+                if (Parse(task.DueDate) < Parse(task.StartDate)) task.DueDate = task.StartDate;
+            }
+            else if (currentDragMode == DragMode.ResizeRight)
+            {
+                var newDateStr = mouseDate.ToString("yyyy-MM-dd");
+                task.DueDate = newDateStr;
+                if (Parse(task.DueDate) < Parse(task.StartDate)) task.StartDate = task.DueDate;
+            }
+            
+            ComputeRange();
+            ComputeDependencies();
+            ComputeCriticalPath();
         }
-        else if (currentDragMode == DragMode.ResizeLeft)
+        catch
         {
-            var newDateStr = mouseDate.ToString("yyyy-MM-dd");
-            task.StartDate = newDateStr;
-            if (Parse(task.DueDate) < Parse(task.StartDate)) task.DueDate = task.StartDate;
+            // Silent fail for drag operations to avoid spamming
         }
-        else if (currentDragMode == DragMode.ResizeRight)
-        {
-            var newDateStr = mouseDate.ToString("yyyy-MM-dd");
-            task.DueDate = newDateStr;
-            if (Parse(task.DueDate) < Parse(task.StartDate)) task.StartDate = task.DueDate;
-        }
-        
-        ComputeRange();
-        ComputeDependencies();
-        ComputeCriticalPath();
     }
     
     private async Task OnTimelineMouseUp(MouseEventArgs e)
@@ -1519,12 +1577,12 @@
         }
         catch (TauriValidationException ex)
         {
-            Console.WriteLine($"Validation error loading assignments: {ex.Message}");
+            NotificationService.ShowError(ex.Message);
             projectAssignmentsMap = new Dictionary<int, List<ProjectAssignment>>();
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error loading all assignments: {ex.Message}");
+            NotificationService.ShowError("Failed to load all assignments.");
             projectAssignmentsMap = new Dictionary<int, List<ProjectAssignment>>();
         }
     }

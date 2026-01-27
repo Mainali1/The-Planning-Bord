@@ -304,14 +304,21 @@
 
     private async Task CopyToken()
     {
-        if (!string.IsNullOrWhiteSpace(generatedToken))
+        try
         {
-            await JSRuntime.InvokeVoidAsync("copyToClipboard", generatedToken);
-            copyMessage = "Token copied to clipboard!";
-            StateHasChanged();
-            await Task.Delay(3000);
-            copyMessage = "";
-            StateHasChanged();
+            if (!string.IsNullOrWhiteSpace(generatedToken))
+            {
+                await JSRuntime.InvokeVoidAsync("copyToClipboard", generatedToken);
+                copyMessage = "Token copied to clipboard!";
+                StateHasChanged();
+                await Task.Delay(3000);
+                copyMessage = "";
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificationService.ShowError("Failed to copy token: " + ex.Message);
         }
     }
 
@@ -341,14 +348,12 @@
         }
         catch (TauriValidationException ex)
         {
-            Console.WriteLine($"Validation error loading invites: {ex.Message}");
             NotificationService.ShowError(ex.Message);
             invites = new List<Invite>();
         }
         catch (Exception ex) 
         { 
-            Console.WriteLine($"Error loading invites: {ex.Message}"); 
-            NotificationService.ShowError("Failed to load invites.");
+            NotificationService.ShowError($"Failed to load invites: {ex.Message}");
             invites = new List<Invite>(); 
         }
     }
@@ -375,7 +380,8 @@
     private async Task LoadEmployees()
     {
         try { employees = await HrService.GetEmployeesAsync() ?? new List<Employee>(); }
-        catch (Exception ex) { Console.WriteLine(ex.Message); employees = new List<Employee>(); }
+        catch (TauriValidationException ex) { NotificationService.ShowError(ex.Message); employees = new List<Employee>(); }
+        catch (Exception ex) { NotificationService.ShowError($"Failed to load employees: {ex.Message}"); employees = new List<Employee>(); }
     }
 
     private void OpenAddModal()
@@ -420,7 +426,6 @@
         }
         catch (Exception ex) 
         { 
-            Console.WriteLine(ex.Message); 
             NotificationService.ShowError($"Failed to save employee: {ex.Message}");
         }
         finally
@@ -455,7 +460,6 @@
         }
         catch (Exception ex) 
         { 
-            Console.WriteLine(ex.Message); 
             NotificationService.ShowError($"Failed to delete employee: {ex.Message}");
         }
         finally
@@ -482,7 +486,6 @@
         }
         catch (Exception ex)
         {
-            Console.WriteLine(ex.Message);
             NotificationService.ShowError($"Failed to delete employee: {ex.Message}");
         }
         finally

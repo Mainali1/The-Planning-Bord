@@ -103,12 +103,10 @@
         }
         catch (TauriValidationException ex)
         {
-            Console.WriteLine($"Validation error loading reports: {ex.Message}");
             NotificationService.ShowError(ex.Message);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error loading reports: {ex.Message}");
             NotificationService.ShowError("Failed to load reports.");
         }
     }
@@ -195,9 +193,12 @@
             await JSRuntime.InvokeVoidAsync("saveAsFile", $"Report_{DateTime.Now:yyyyMMdd}.pdf", base64, "application/pdf");
             NotificationService.ShowSuccess("PDF report exported successfully.");
         }
+        catch (TauriValidationException ex)
+        {
+            NotificationService.ShowError(ex.Message);
+        }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error exporting PDF: {ex.Message}");
             NotificationService.ShowError("Failed to export PDF: " + ex.Message);
         }
     }
@@ -240,7 +241,6 @@
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error exporting Excel: {ex.Message}");
             NotificationService.ShowError("Failed to export Excel: " + ex.Message);
         }
     }

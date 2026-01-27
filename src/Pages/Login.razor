@@ -104,6 +104,10 @@
                 errorMessage = "Invalid username or password.";
             }
         }
+        catch (TauriValidationException ex)
+        {
+            errorMessage = ex.Message;
+        }
         catch (Exception ex)
         {
             errorMessage = $"Login failed: {ex.Message}";

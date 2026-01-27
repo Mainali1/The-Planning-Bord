@@ -184,13 +184,12 @@
             }
             catch (TauriValidationException ex)
             {
-                Console.WriteLine($"Dashboard validation error: {ex.Message}");
-                NotificationService.ShowError(ex.Message);
+                NotificationService.ShowError($"Stats Error: {ex.Message}");
                 stats = new DashboardStats();
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error loading dashboard stats: {ex.Message}");
+                NotificationService.ShowError($"Failed to load stats: {ex.Message}");
                 stats = new DashboardStats();
             }
 
@@ -198,9 +197,14 @@
             {
                 cashflow = await ReportService.GetMonthlyCashflowAsync() ?? new List<ChartDataPoint>();
             }
+            catch (TauriValidationException ex)
+            {
+                NotificationService.ShowError($"Cashflow Error: {ex.Message}");
+                cashflow = new List<ChartDataPoint>();
+            }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error loading cashflow: {ex.Message}");
+                NotificationService.ShowError($"Failed to load cashflow: {ex.Message}");
                 cashflow = new List<ChartDataPoint>();
             }
             
@@ -213,9 +217,14 @@
                     lowStockProducts = productResult.Items.Where(p => p.CurrentQuantity <= p.MinimumQuantity).ToList();
                 }
             }
+            catch (TauriValidationException ex)
+            {
+                NotificationService.ShowError($"Inventory Error: {ex.Message}");
+                lowStockProducts = new List<Product>();
+            }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error loading products: {ex.Message}");
+                NotificationService.ShowError($"Failed to check stock: {ex.Message}");
                 lowStockProducts = new List<Product>();
             }
 
@@ -234,16 +243,21 @@
                     inventoryTurnover = 0;
                 }
             }
+            catch (TauriValidationException ex)
+            {
+                 // Non-critical, but good to know
+                 NotificationService.ShowError($"Turnover calc error: {ex.Message}");
+                 inventoryTurnover = 0;
+            }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error loading summary: {ex.Message}");
+                // Non-critical
                 inventoryTurnover = 0;
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Critical error loading dashboard: {ex.Message}");
-            NotificationService.ShowError("Failed to load dashboard data.");
+            NotificationService.ShowError($"Critical Dashboard Error: {ex.Message}");
             // Ensure non-nulls to prevent crash
             if (stats == null) stats = new DashboardStats();
             if (cashflow == null) cashflow = new List<ChartDataPoint>();

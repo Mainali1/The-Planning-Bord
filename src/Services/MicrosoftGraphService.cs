@@ -11,18 +11,35 @@ namespace ThePlanningBord.Services
         private readonly HttpClient _httpClient;
         private readonly IJSRuntime _jsRuntime;
         private readonly NotificationService _notificationService;
+        private readonly IIntegrationService _integrationService;
         private const string GraphApiUrl = "https://graph.microsoft.com/v1.0";
 
-        public MicrosoftGraphService(HttpClient httpClient, IJSRuntime jsRuntime, NotificationService notificationService)
+        public MicrosoftGraphService(HttpClient httpClient, IJSRuntime jsRuntime, NotificationService notificationService, IIntegrationService integrationService)
         {
             _httpClient = httpClient;
             _jsRuntime = jsRuntime;
             _notificationService = notificationService;
+            _integrationService = integrationService;
+        }
+
+        private async Task<string?> GetAccessTokenAsync()
+        {
+            try
+            {
+                var integrations = await _integrationService.GetIntegrationsAsync();
+                // We use "Outlook Calendar" as the primary M365/Graph integration for now
+                var m365 = integrations.FirstOrDefault(i => i.Name == "Outlook Calendar" && i.IsConnected);
+                return m365?.ApiKey;
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         public async Task<bool> IsConnected()
         {
-            var token = await _jsRuntime.InvokeAsync<string>("getSetting", "m365_token");
+            var token = await GetAccessTokenAsync();
             return !string.IsNullOrEmpty(token);
         }
 
@@ -30,7 +47,7 @@ namespace ThePlanningBord.Services
         {
             try
             {
-                var token = await _jsRuntime.InvokeAsync<string>("getSetting", "m365_token");
+                var token = await GetAccessTokenAsync();
                 if (string.IsNullOrEmpty(token))
                 {
                     // Fallback to mailto if not connected
@@ -75,8 +92,8 @@ namespace ThePlanningBord.Services
                 }
                 else
                 {
-                     _notificationService.ShowError($"Failed to send email: {response.ReasonPhrase}");
-                     return false;
+                    _notificationService.ShowError($"Failed to send email: {response.ReasonPhrase}");
+                    return false;
                 }
             }
             catch (Exception ex)
@@ -86,17 +103,32 @@ namespace ThePlanningBord.Services
             }
         }
 
-        // Simulates a login flow - in production this would use MSAL.js or a popup
-        public async Task LoginAsync(string clientId)
+        public async Task LoginAsync(string token)
         {
-            // For this standalone demo, we might prompt the user to paste a token or 
-            // initiate a device flow. Here we just mock it or set a dummy token for testing.
-            await _jsRuntime.InvokeVoidAsync("setSetting", "m365_token", "demo_token_xyz");
+            var integrations = await _integrationService.GetIntegrationsAsync();
+            var m365 = integrations.FirstOrDefault(i => i.Name == "Outlook Calendar");
+            if (m365 != null && m365.Id.HasValue)
+            {
+                await _integrationService.ConfigureIntegrationAsync(m365.Id.Value, token, null);
+                await _integrationService.ToggleIntegrationAsync(m365.Id.Value, true);
+                _notificationService.ShowSuccess("Connected to Microsoft 365");
+            }
+            else
+            {
+                _notificationService.ShowError("Outlook Calendar integration not found in database");
+            }
         }
         
         public async Task LogoutAsync()
         {
-            await _jsRuntime.InvokeVoidAsync("setSetting", "m365_token", "");
+            var integrations = await _integrationService.GetIntegrationsAsync();
+            var m365 = integrations.FirstOrDefault(i => i.Name == "Outlook Calendar");
+            if (m365 != null && m365.Id.HasValue)
+            {
+                await _integrationService.ConfigureIntegrationAsync(m365.Id.Value, null, null);
+                await _integrationService.ToggleIntegrationAsync(m365.Id.Value, false);
+                 _notificationService.ShowSuccess("Disconnected from Microsoft 365");
+            }
         }
     }
 }

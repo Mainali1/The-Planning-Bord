@@ -333,12 +333,12 @@
         }
         catch (TauriValidationException ex)
         {
-            Console.WriteLine("Validation error loading employees: " + ex.Message);
+            NotificationService.ShowError("Validation error loading employees: " + ex.Message);
             employees = new List<Employee>();
         }
         catch (Exception ex)
         {
-            Console.WriteLine("Error loading employees: " + ex.Message);
+            NotificationService.ShowError("Error loading employees: " + ex.Message);
             employees = new List<Employee>();
         }
     }
@@ -371,13 +371,13 @@
         }
         catch (TauriValidationException ex)
         {
-            Console.WriteLine($"Validation error loading {activeTab}: {ex.Message}");
+            NotificationService.ShowError(ex.Message);
             if (activeTab == "products") products = new List<Product>();
             else tools = new List<Tool>();
         }
         catch (Exception ex)
         {
-            Console.WriteLine(ex.Message);
+            NotificationService.ShowError($"Failed to load {activeTab}.");
             if (activeTab == "products") products = new List<Product>();
             else tools = new List<Tool>();
         }
@@ -469,7 +469,6 @@
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Export failed: {ex.Message}");
             NotificationService.ShowError($"Failed to export data: {ex.Message}");
         }
     }

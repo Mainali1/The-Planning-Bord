@@ -457,6 +457,12 @@
             }
             await SaveState();
         }
+        catch (TauriValidationException ex)
+        {
+            NotificationService.ShowError(ex.Message, "Validation Error");
+            isDbSaving = false;
+            progressMessage = "";
+        }
         catch (Exception ex)
         {
             NotificationService.ShowError(ex.Message, "Error");
@@ -564,7 +570,7 @@
         }
         catch (Exception ex)
         {
-             Console.WriteLine(ex.Message);
+             NotificationService.ShowError("Error checking username: " + ex.Message, "Error");
         }
         finally
         {

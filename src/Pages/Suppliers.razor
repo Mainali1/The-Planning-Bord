@@ -744,6 +744,10 @@
             showOrderModal = false;
             await LoadOrders();
         }
+        catch (TauriValidationException ex)
+        {
+            NotificationService.ShowError(ex.Message);
+        }
         catch (Exception ex)
         {
             NotificationService.ShowError("Failed to save order: " + ex.Message);
@@ -787,6 +791,10 @@
             editingOrder.Status = "received";
             await SaveOrder();
             NotificationService.ShowSuccess($"Received {successCount} items into inventory.");
+        }
+        catch (TauriValidationException ex)
+        {
+            NotificationService.ShowError(ex.Message);
         }
         catch (Exception ex)
         {

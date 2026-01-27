@@ -319,13 +319,15 @@
     private async Task LoadTools()
     {
         try { tools = await InventoryService.GetToolsAsync() ?? new List<Tool>(); }
-        catch (Exception ex) { Console.WriteLine(ex.Message); tools = new List<Tool>(); }
+        catch (TauriValidationException ex) { NotificationService.ShowError(ex.Message); tools = new List<Tool>(); }
+        catch (Exception ex) { NotificationService.ShowError("Failed to load tools: " + ex.Message); tools = new List<Tool>(); }
     }
 
     private async Task LoadEmployees()
     {
         try { employees = await HrService.GetEmployeesAsync() ?? new List<Employee>(); }
-        catch (Exception ex) { Console.WriteLine(ex.Message); employees = new List<Employee>(); }
+        catch (TauriValidationException ex) { NotificationService.ShowError(ex.Message); employees = new List<Employee>(); }
+        catch (Exception ex) { NotificationService.ShowError("Failed to load employees: " + ex.Message); employees = new List<Employee>(); }
     }
 
     private string GetEmployeeName(int? id)
@@ -371,9 +373,12 @@
             showAddModal = false;
             await LoadTools();
         }
+        catch (TauriValidationException ex)
+        {
+            NotificationService.ShowError(ex.Message);
+        }
         catch (Exception ex) 
         { 
-            Console.WriteLine(ex.Message); 
             NotificationService.ShowError($"Failed to save tool: {ex.Message}");
         }
         finally
@@ -408,9 +413,12 @@
             NotificationService.ShowSuccess("Tool deleted successfully."); 
             showDeleteModal = false;
         }
+        catch (TauriValidationException ex)
+        {
+            NotificationService.ShowError(ex.Message);
+        }
         catch (Exception ex) 
         { 
-            Console.WriteLine(ex.Message); 
             NotificationService.ShowError($"Failed to delete tool: {ex.Message}");
         }
         finally
@@ -444,9 +452,12 @@
             await LoadTools();
             NotificationService.ShowSuccess("Tool assigned successfully.");
         }
+        catch (TauriValidationException ex)
+        {
+            NotificationService.ShowError(ex.Message);
+        }
         catch (Exception ex) 
         { 
-            Console.WriteLine(ex.Message); 
             NotificationService.ShowError($"Failed to assign tool: {ex.Message}");
         }
         finally
@@ -475,9 +486,12 @@
             await LoadTools();
             NotificationService.ShowSuccess("Tool returned successfully.");
         }
+        catch (TauriValidationException ex)
+        {
+            NotificationService.ShowError(ex.Message);
+        }
         catch (Exception ex) 
         { 
-            Console.WriteLine(ex.Message); 
             NotificationService.ShowError($"Failed to return tool: {ex.Message}");
         }
         finally
@@ -498,9 +512,14 @@
             {
                 toolHistory = await InventoryService.GetToolHistoryAsync(t.Id.Value) ?? new List<ToolAssignment>();
             }
+            catch (TauriValidationException ex)
+            {
+                NotificationService.ShowError(ex.Message);
+                toolHistory = new List<ToolAssignment>();
+            }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.Message);
+                NotificationService.ShowError($"Failed to load history: {ex.Message}");
                 toolHistory = new List<ToolAssignment>();
             }
         }

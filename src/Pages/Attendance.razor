@@ -276,8 +276,7 @@
         catch (TauriValidationException ex) { NotificationService.ShowError(ex.Message); }
         catch (Exception ex) 
         { 
-            Console.WriteLine($"ClockOut failed: {ex.Message}");
-            NotificationService.ShowError("Clock out failed. Please try again."); 
+            NotificationService.ShowError("Clock out failed: " + ex.Message); 
         }
     }
     

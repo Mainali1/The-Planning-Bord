@@ -129,9 +129,14 @@
         {
             complaints = await ComplaintService.GetComplaintsAsync() ?? new List<Complaint>();
         }
+        catch (TauriValidationException ex)
+        {
+            NotificationService.ShowError(ex.Message);
+            complaints = new List<Complaint>();
+        }
         catch (Exception ex)
         {
-            Console.WriteLine(ex.Message);
+            NotificationService.ShowError("Failed to load complaints: " + ex.Message);
             complaints = new List<Complaint>();
         }
     }
@@ -151,7 +156,8 @@
             await LoadComplaints();
             NotificationService.ShowSuccess("Complaint submitted successfully.");
         }
-        catch (Exception ex) { Console.WriteLine(ex.Message); }
+        catch (TauriValidationException ex) { NotificationService.ShowError(ex.Message); }
+        catch (Exception ex) { NotificationService.ShowError("Failed to submit complaint: " + ex.Message); }
     }
 
     private void OpenResolveModal(Complaint c)
@@ -173,7 +179,8 @@
             await LoadComplaints();
             NotificationService.ShowSuccess("Complaint resolved successfully.");
         }
-        catch (Exception ex) { Console.WriteLine(ex.Message); }
+        catch (TauriValidationException ex) { NotificationService.ShowError(ex.Message); }
+        catch (Exception ex) { NotificationService.ShowError("Failed to resolve complaint: " + ex.Message); }
     }
 
     private async Task DeleteComplaint(Complaint c)
@@ -195,6 +202,7 @@
             await LoadComplaints();
             NotificationService.ShowSuccess("Complaint deleted.");
         }
-        catch (Exception ex) { Console.WriteLine(ex.Message); }
+        catch (TauriValidationException ex) { NotificationService.ShowError(ex.Message); }
+        catch (Exception ex) { NotificationService.ShowError("Failed to delete complaint: " + ex.Message); }
     }
 }

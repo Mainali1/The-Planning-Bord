@@ -94,7 +94,6 @@ namespace ThePlanningBord.Services
                     if (!IsConnected)
                     {
                         IsConnected = true;
-                        Console.WriteLine("[TauriInterop] Connection restored.");
                     }
                     return result;
                 }
@@ -107,8 +106,6 @@ namespace ThePlanningBord.Services
                          throw new TauriValidationException(msg, ex);
                     }
 
-                    Console.WriteLine($"[TauriInterop] Command '{command}' failed (Attempt {i + 1}/{maxRetries}): {msg}");
-                    
                     if (i == maxRetries - 1)
                     {
                         await HandleErrorAsync(command, msg);
@@ -144,7 +141,6 @@ namespace ThePlanningBord.Services
                     if (!IsConnected)
                     {
                         IsConnected = true;
-                        Console.WriteLine("[TauriInterop] Connection restored.");
                     }
                     return;
                 }
@@ -156,8 +152,6 @@ namespace ThePlanningBord.Services
                     {
                          throw new TauriValidationException(msg, ex);
                     }
-
-                    Console.WriteLine($"[TauriInterop] Command '{command}' failed (Attempt {i + 1}/{maxRetries}): {msg}");
 
                     if (i == maxRetries - 1)
                     {

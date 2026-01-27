@@ -5,6 +5,7 @@
 @inject MicrosoftGraphService GraphService
 @inject NavigationManager Navigation
 @inject Microsoft.AspNetCore.Components.Authorization.AuthenticationStateProvider AuthStateProvider
+@inject NotificationService NotificationService
 @using ThePlanningBord.Services
 @using ThePlanningBord.Auth
 
@@ -426,7 +427,7 @@
             // In a real web app we might use an IP service, but for this desktop app we'll just use a placeholder or local
             await SystemService.UpdateClientInfoAsync("127.0.0.1", ua);
         }
-        catch (Exception ex) { await JS.InvokeVoidAsync("notify", "Failed to update client info: " + ex.Message); }
+        catch (Exception ex) { NotificationService.ShowWarning("Failed to update client info: " + ex.Message); }
     }
 
     private string GetTabClass(string tab)
@@ -447,7 +448,7 @@
         await JS.InvokeVoidAsync("setSetting", "notifications_enabled", notificationsEnabled.ToString());
         await JS.InvokeVoidAsync("setSetting", "dark_mode_enabled", darkModeEnabled.ToString());
         await JS.InvokeVoidAsync("applyTheme", darkModeEnabled ? "dark" : "light");
-        await JS.InvokeVoidAsync("notify", "Settings saved successfully!");
+        NotificationService.ShowSuccess("Settings saved successfully!");
     }
     
     private void ToggleDarkMode() => darkModeEnabled = !darkModeEnabled;
@@ -464,7 +465,7 @@
         {
             await GraphService.LoginAsync("client_id_placeholder");
             isM365Connected = true;
-            await JS.InvokeVoidAsync("notify", "Connected to Microsoft 365 (Demo Mode)");
+            NotificationService.ShowSuccess("Connected to Microsoft 365 (Demo Mode)");
         }
     }
 
@@ -477,7 +478,7 @@
         }
         catch (Exception ex)
         {
-            await JS.InvokeVoidAsync("notify", "Failed to load roles: " + ex.Message);
+            NotificationService.ShowError("Failed to load roles: " + ex.Message);
             roles = new List<Role>();
         }
     }
@@ -490,7 +491,7 @@
         }
         catch (Exception ex)
         {
-            await JS.InvokeVoidAsync("notify", "Failed to load permissions: " + ex.Message);
+            NotificationService.ShowError("Failed to load permissions: " + ex.Message);
             permissions = new List<Permission>();
         }
     }
@@ -508,7 +509,7 @@
             }
             catch (Exception ex)
             {
-                await JS.InvokeVoidAsync("notify", "Failed to load role permissions: " + ex.Message);
+                NotificationService.ShowError("Failed to load role permissions: " + ex.Message);
             }
         }
     }
@@ -567,7 +568,7 @@
         }
         catch (Exception ex)
         {
-            await JS.InvokeVoidAsync("notify", "Failed to load feature toggles: " + ex.Message);
+            NotificationService.ShowError("Failed to load feature toggles: " + ex.Message);
             featureToggles = new List<FeatureToggle>();
         }
     }
@@ -582,7 +583,7 @@
         }
         catch (Exception ex)
         {
-            await JS.InvokeVoidAsync("notify", "Failed to toggle feature: " + ex.Message);
+            NotificationService.ShowError("Failed to toggle feature: " + ex.Message);
         }
     }
 

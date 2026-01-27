@@ -177,7 +177,7 @@
         }
         catch (Exception ex)
         {
-            Console.WriteLine("Failed to load suppliers: " + ex.Message);
+            NotificationService.ShowError("Failed to load suppliers: " + ex.Message);
         }
     }
 

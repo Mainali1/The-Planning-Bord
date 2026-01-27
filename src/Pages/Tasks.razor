@@ -143,8 +143,7 @@
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Failed to load user: {ex.Message}");
-            NotificationService.ShowError("Failed to load user profile.");
+            NotificationService.ShowError("Failed to load user profile: " + ex.Message);
         }
 
         if (CanManageTasks)
@@ -154,12 +153,10 @@
             } 
             catch (TauriValidationException ex)
             {
-                Console.WriteLine($"Validation error loading employees: {ex.Message}");
                 NotificationService.ShowError(ex.Message);
             }
             catch (Exception ex) {
-                Console.WriteLine($"Error loading employees: {ex.Message}");
-                NotificationService.ShowError("Failed to load employees.");
+                NotificationService.ShowError("Error loading employees: " + ex.Message);
             }
         }
         await LoadTasks();
@@ -173,14 +170,12 @@
         }
         catch (TauriValidationException ex)
         {
-            Console.WriteLine($"Validation error loading tasks: {ex.Message}");
             NotificationService.ShowError(ex.Message);
             tasks = new List<TaskModel>();
         }
         catch (Exception ex)
         {
-            Console.WriteLine(ex.Message);
-            NotificationService.ShowError("Failed to load tasks.");
+            NotificationService.ShowError("Failed to load tasks: " + ex.Message);
             tasks = new List<TaskModel>();
         }
     }
@@ -205,20 +200,26 @@
 
     private void EditTask(TaskModel task)
     {
-        newTask = task; // In a real app, clone this object to avoid modifying the list item directly before save
-        // Cloning for safety
-        newTask = new TaskModel {
-            Id = task.Id,
-            EmployeeId = task.EmployeeId,
-            Title = task.Title,
-            Description = task.Description,
-            DueDate = task.DueDate,
-            Status = task.Status,
-            Priority = task.Priority,
-            AssignedDate = task.AssignedDate,
-            CompletedDate = task.CompletedDate
-        };
-        showAddModal = true;
+        try
+        {
+            // Cloning for safety to avoid modifying the list item directly before save
+            newTask = new TaskModel {
+                Id = task.Id,
+                EmployeeId = task.EmployeeId,
+                Title = task.Title,
+                Description = task.Description,
+                DueDate = task.DueDate,
+                Status = task.Status,
+                Priority = task.Priority,
+                AssignedDate = task.AssignedDate,
+                CompletedDate = task.CompletedDate
+            };
+            showAddModal = true;
+        }
+        catch (Exception ex)
+        {
+            NotificationService.ShowError($"Failed to edit task: {ex.Message}");
+        }
     }
 
     private async Task SaveTask()
@@ -243,29 +244,29 @@
         }
         catch (Exception ex)
         {
-            Console.WriteLine(ex.Message);
             NotificationService.ShowError("Failed to save task: " + ex.Message);
         }
     }
 
     private async Task DeleteTask(int id)
     {
-        if (await JSRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to delete this task?"))
+        try
         {
-            try 
+            bool confirmed = await JSRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to delete this task?");
+            if (confirmed)
             {
                 await TaskService.DeleteTaskAsync(id);
                 await LoadTasks();
                 NotificationService.ShowSuccess("Task deleted successfully.");
             }
-            catch (TauriValidationException ex)
-            {
-                NotificationService.ShowError(ex.Message);
-            }
-            catch (Exception ex)
-            {
-                NotificationService.ShowError("Failed to delete task: " + ex.Message);
-            }
+        }
+        catch (TauriValidationException ex)
+        {
+            NotificationService.ShowError(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            NotificationService.ShowError("Failed to delete task: " + ex.Message);
         }
     }
 }

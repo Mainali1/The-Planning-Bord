@@ -276,21 +276,21 @@
     {
         try { payments = await FinanceService.GetPaymentsAsync() ?? new List<Payment>(); }
         catch (TauriValidationException ex) { NotificationService.ShowError(ex.Message); payments = new List<Payment>(); }
-        catch (Exception ex) { Console.WriteLine(ex.Message); payments = new List<Payment>(); }
+        catch (Exception ex) { NotificationService.ShowError("Failed to load payments: " + ex.Message); payments = new List<Payment>(); }
     }
     
     private async Task LoadInvoices()
     {
         try { invoices = await FinanceService.GetInvoicesAsync() ?? new List<Invoice>(); }
         catch (TauriValidationException ex) { NotificationService.ShowError(ex.Message); invoices = new List<Invoice>(); }
-        catch (Exception ex) { Console.WriteLine(ex.Message); invoices = new List<Invoice>(); }
+        catch (Exception ex) { NotificationService.ShowError("Failed to load invoices: " + ex.Message); invoices = new List<Invoice>(); }
     }
     
     private async Task LoadAccounts()
     {
         try { accounts = await FinanceService.GetAccountsAsync() ?? new List<Account>(); }
         catch (TauriValidationException ex) { NotificationService.ShowError(ex.Message); accounts = new List<Account>(); }
-        catch (Exception ex) { Console.WriteLine(ex.Message); accounts = new List<Account>(); }
+        catch (Exception ex) { NotificationService.ShowError("Failed to load accounts: " + ex.Message); accounts = new List<Account>(); }
     }
 
     private void OpenAddModal()
@@ -319,8 +319,18 @@
             else await FinanceService.AddPaymentAsync(newPayment);
             showAddModal = false;
             await LoadPayments();
-        catch (Exception ex) { Console.WriteLine(ex.Message); }
-    }ClWLi(e
+            NotificationService.ShowSuccess("Payment saved successfully.");
+        }
+        catch (TauriValidationException ex)
+        {
+            NotificationService.ShowError(ex.Message);
+        }
+        catch (Exception ex) 
+        { 
+            NotificationService.ShowError("Failed to save payment: " + ex.Message); 
+        }
+    }
+
     private async Task SaveInvoice()
     {
         try
@@ -337,7 +347,6 @@
         }
         catch (Exception ex)
         {
-            Console.WriteLine(ex.Message);
             NotificationService.ShowError("Failed to save invoice: " + ex.Message);
         }
     }
@@ -369,23 +378,34 @@
             await FinanceService.AddAccountAsync(newAccount);
             showAddAccountModal = false;
             await LoadAccounts();
+            NotificationService.ShowSuccess("Account saved successfully.");
         }
-        catch (Exception ex) { Console.WriteLine(ex.Message); }
+        catch (TauriValidationException ex)
+        {
+            NotificationService.ShowError(ex.Message);
+        }
+        catch (Exception ex) 
+        { 
+            NotificationService.ShowError("Failed to save account: " + ex.Message); 
+        }
     }
 
     private async Task DeletePayment(int id)
     {
         if (id == 0) return;
-        try { await FinanceService.DeletePaymentAsync(id); await LoadPayments(); }
-        catch (Exception ex) { Console.WriteLine(ex.Message); }
+        try 
+        { 
+            await FinanceService.DeletePaymentAsync(id); 
+            await LoadPayments();
+            NotificationService.ShowSuccess("Payment deleted successfully.");
+        }
+        catch (TauriValidationException ex)
+        {
+            NotificationService.ShowError(ex.Message);
+        }
+        catch (Exception ex) 
+        { 
+            NotificationService.ShowError("Failed to delete payment: " + ex.Message); 
+        }
     }
 }
-    NotificationService.ShowSuccess("Account saved successfully.");
-        TauriValidationNtificatioService.ShowError(ex.Mesage); }
-        catch (Exception ex) { NotificatinServicShowErro($"Faled o sav accout: {}" 
-        
-            
-           ts();
-            NotificaionService.ShowSucces"Payment deleted successfully."
-       TauriValidationNotificatiService.ShowError(ex.Mesage); }
-        catch (Exception ex) { NotificatinServicShowErro($"Faled to delee paymt: {}"

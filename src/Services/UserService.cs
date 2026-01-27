@@ -33,27 +33,19 @@ namespace ThePlanningBord.Services
 
         public async Task<User?> LoginAsync(string username, string password)
         {
-            try
+            // Call Rust backend
+            var response = await _tauriInterop.InvokeAsync<LoginResponse>("login", new { username = username, passwordPlain = password });
+            
+            if (response != null && response.User != null)
             {
-                // Call Rust backend
-                var response = await _tauriInterop.InvokeAsync<LoginResponse>("login", new { username = username, passwordPlain = password });
-                
-                if (response != null && response.User != null)
-                {
-                    _currentUser = response.User;
-                    _token = response.Token;
-                    await _jsRuntime.InvokeVoidAsync("sessionStorage.setItem", "currentUser", System.Text.Json.JsonSerializer.Serialize(_currentUser));
-                    await _jsRuntime.InvokeVoidAsync("sessionStorage.setItem", "authToken", _token);
-                    return _currentUser;
-                }
-                
-                return null;
+                _currentUser = response.User;
+                _token = response.Token;
+                await _jsRuntime.InvokeVoidAsync("sessionStorage.setItem", "currentUser", System.Text.Json.JsonSerializer.Serialize(_currentUser));
+                await _jsRuntime.InvokeVoidAsync("sessionStorage.setItem", "authToken", _token);
+                return _currentUser;
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Login error: {ex.Message}");
-                return null;
-            }
+            
+            return null;
         }
 
         public async Task LogoutAsync()
@@ -110,38 +102,22 @@ namespace ThePlanningBord.Services
 
         public async Task<InviteClaims?> CheckInviteTokenAsync(string inviteToken)
         {
-            try
-            {
-                return await _tauriInterop.InvokeAsync<InviteClaims>("check_invite_token", new { inviteToken });
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Token check error: {ex.Message}");
-                throw;
-            }
+            return await _tauriInterop.InvokeAsync<InviteClaims>("check_invite_token", new { inviteToken });
         }
 
         public async Task<User?> AcceptInviteAsync(string token, string password, string username, string fullName)
         {
-            try
+            var response = await _tauriInterop.InvokeAsync<LoginResponse>("accept_invite", new { inviteToken = token, passwordPlain = password, username = username, fullName = fullName });
+            
+            if (response != null && response.User != null)
             {
-                var response = await _tauriInterop.InvokeAsync<LoginResponse>("accept_invite", new { inviteToken = token, passwordPlain = password, username = username, fullName = fullName });
-                
-                if (response != null && response.User != null)
-                {
-                    _currentUser = response.User;
-                    _token = response.Token;
-                    await _jsRuntime.InvokeVoidAsync("sessionStorage.setItem", "currentUser", System.Text.Json.JsonSerializer.Serialize(_currentUser));
-                    await _jsRuntime.InvokeVoidAsync("sessionStorage.setItem", "authToken", _token);
-                    return _currentUser;
-                }
-                return null;
+                _currentUser = response.User;
+                _token = response.Token;
+                await _jsRuntime.InvokeVoidAsync("sessionStorage.setItem", "currentUser", System.Text.Json.JsonSerializer.Serialize(_currentUser));
+                await _jsRuntime.InvokeVoidAsync("sessionStorage.setItem", "authToken", _token);
+                return _currentUser;
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Accept invite error: {ex.Message}");
-                throw;
-            }
+            return null;
         }
 
         public async Task<List<Invite>> GetInvitesAsync()

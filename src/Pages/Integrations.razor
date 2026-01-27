@@ -3,6 +3,7 @@
 @using ThePlanningBord.Models
 @using ThePlanningBord.Services
 @inject IIntegrationService IntegrationService
+@inject NotificationService NotificationService
 
 <PageTitle>Integrations - The Planning Bord</PageTitle>
 
@@ -134,7 +135,7 @@
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error loading integrations: {ex.Message}");
+            NotificationService.ShowError("Error loading integrations: " + ex.Message);
         }
     }
 
@@ -170,7 +171,7 @@
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error toggling integration: {ex.Message}");
+            NotificationService.ShowError($"Error toggling integration: {ex.Message}");
             // Reload to ensure UI matches DB state
             await LoadIntegrations(); 
         }
@@ -214,9 +215,13 @@
                 
                 CloseModal();
             }
+            catch (TauriValidationException ex)
+            {
+                NotificationService.ShowError(ex.Message);
+            }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error saving configuration: {ex.Message}");
+                NotificationService.ShowError("Error saving configuration: " + ex.Message);
             }
         }
     }

@@ -90,16 +90,16 @@
                 var ua = await JS.InvokeAsync<string>("getUserAgent");
                 await SystemService.UpdateClientInfoAsync("127.0.0.1", ua);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                 Console.WriteLine($"Client info update failed: {ex.Message}");
+                 // Ignore client info update failures
             }
 
             // Auth check is now handled by App.razor and AuthorizeRouteView
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Setup check failed: {ex.Message}");
+            NotificationService.ShowError($"Setup check failed: {ex.Message}");
         }
 
         BackgroundService.Start();
