@@ -4,6 +4,8 @@
 @using ThePlanningBord.Services
 @inject IIntegrationService IntegrationService
 @inject NotificationService NotificationService
+@inject MicrosoftGraphService GraphService
+@inject ISlackService SlackService
 
 <PageTitle>Integrations - The Planning Bord</PageTitle>
 
@@ -78,11 +80,14 @@
                         </div>
                     </div>
                 </div>
-                <div class="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense">
-                    <button type="button" @onclick="SaveConfiguration" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:col-start-2 sm:text-sm">
+                <div class="mt-5 sm:mt-6 flex flex-col sm:flex-row-reverse gap-2">
+                    <button type="button" @onclick="SaveConfiguration" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:text-sm">
                         Save & Connect
                     </button>
-                    <button type="button" @onclick="CloseModal" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:col-start-1 sm:text-sm">
+                    <button type="button" @onclick="TestConnection" class="w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-yellow-50 text-base font-medium text-yellow-700 hover:bg-yellow-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 sm:text-sm">
+                        Test
+                    </button>
+                    <button type="button" @onclick="CloseModal" class="w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:text-sm">
                         Cancel
                     </button>
                 </div>
@@ -108,30 +113,6 @@
         try
         {
             integrations = await IntegrationService.GetIntegrationsAsync() ?? new List<Integration>();
-            
-            // Seed default integrations if missing (Client-side seeding for UI demo)
-            var defaults = new List<Integration>
-            {
-                new Integration { Name = "QuickBooks", Icon = "📗", Description = "Sync invoices and expenses automatically.", Provider = "intuit" },
-                new Integration { Name = "Xero", Icon = "📘", Description = "Beautiful accounting software for small business.", Provider = "xero" },
-                new Integration { Name = "Salesforce", Icon = "☁️", Description = "Connect your CRM data with project planning.", Provider = "salesforce" },
-                new Integration { Name = "HubSpot", Icon = "🟧", Description = "Inbound marketing, sales, and service software.", Provider = "hubspot" },
-                new Integration { Name = "Slack", Icon = "💬", Description = "Get notifications and updates in your channels.", Provider = "slack" },
-                new Integration { Name = "Microsoft Teams", Icon = "👥", Description = "Collaborate with your team directly.", Provider = "microsoft" },
-                new Integration { Name = "Google Calendar", Icon = "📅", Description = "Sync project milestones and tasks.", Provider = "google" },
-                new Integration { Name = "Outlook Calendar", Icon = "📆", Description = "Stay organized with Outlook integration.", Provider = "microsoft" }
-            };
-
-            foreach (var def in defaults)
-            {
-                if (!integrations.Any(i => i.Name == def.Name))
-                {
-                    // In a real app, we might save this to DB here, or just show it as 'available'
-                    // For now, we just display it as disconnected
-                    def.IsConnected = false;
-                    integrations.Add(def);
-                }
-            }
         }
         catch (Exception ex)
         {
@@ -189,40 +170,59 @@
     {
         showConfigModal = false;
         selectedIntegration = null;
-        configApiKey = "";
-        configJson = "";
     }
 
     private async Task SaveConfiguration()
     {
         if (selectedIntegration != null && selectedIntegration.Id.HasValue)
         {
-            try 
+            selectedIntegration.ApiKey = configApiKey;
+            selectedIntegration.ConfigJson = configJson;
+            
+            await IntegrationService.ConfigureIntegrationAsync(selectedIntegration.Id.Value, configApiKey, configJson);
+            
+            // Auto-connect if saving config
+            selectedIntegration.IsConnected = true;
+            await IntegrationService.ToggleIntegrationAsync(selectedIntegration.Id.Value, true);
+            
+            NotificationService.ShowSuccess($"Configuration saved for {selectedIntegration.Name}");
+            CloseModal();
+        }
+    }
+
+    private async Task TestConnection()
+    {
+        if (selectedIntegration == null || !selectedIntegration.Id.HasValue) return;
+
+        // Save first so services can pick it up
+        selectedIntegration.ApiKey = configApiKey;
+        selectedIntegration.ConfigJson = configJson;
+        await IntegrationService.ConfigureIntegrationAsync(selectedIntegration.Id.Value, configApiKey, configJson);
+        await IntegrationService.ToggleIntegrationAsync(selectedIntegration.Id.Value, true);
+        selectedIntegration.IsConnected = true;
+
+        bool success = false;
+        try
+        {
+            if (selectedIntegration.Name == "Slack")
             {
-                // Update local model
-                selectedIntegration.ApiKey = configApiKey;
-                selectedIntegration.ConfigJson = configJson;
-                
-                // Save to backend
-                await IntegrationService.ConfigureIntegrationAsync(selectedIntegration.Id.Value, configApiKey, configJson);
-                
-                // If we are saving config, we probably want to connect too
-                if (!selectedIntegration.IsConnected)
-                {
-                    selectedIntegration.IsConnected = true;
-                    await IntegrationService.ToggleIntegrationAsync(selectedIntegration.Id.Value, true);
-                }
-                
-                CloseModal();
+                success = await SlackService.SendNotificationAsync("Test notification from Planning Bord Integration Settings.");
+                if (success) NotificationService.ShowSuccess("Slack notification sent successfully!");
             }
-            catch (TauriValidationException ex)
+            else if (selectedIntegration.Name == "Outlook Calendar" || selectedIntegration.Name == "Microsoft Teams")
             {
-                NotificationService.ShowError(ex.Message);
+                success = await GraphService.IsConnected();
+                if (success) NotificationService.ShowSuccess("Microsoft 365 token is valid.");
+                else NotificationService.ShowError("Microsoft 365 token is invalid or missing.");
             }
-            catch (Exception ex)
+            else
             {
-                NotificationService.ShowError("Error saving configuration: " + ex.Message);
+                NotificationService.ShowInfo($"Test logic not implemented for {selectedIntegration.Name} yet, but configuration is saved.");
             }
+        }
+        catch (Exception ex)
+        {
+            NotificationService.ShowError($"Test failed: {ex.Message}");
         }
     }
 }

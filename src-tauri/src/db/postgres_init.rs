@@ -445,6 +445,8 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
         ("Microsoft Teams", false),
         ("Google Calendar", false),
         ("Outlook Calendar", false),
+        ("SurveyMonkey", false),
+        ("Typeform", false),
     ];
     for (name, connected) in integrations {
         client.execute("INSERT INTO integrations (name, is_connected) VALUES ($1, $2) ON CONFLICT (name) DO NOTHING", &[&name, &connected])?;

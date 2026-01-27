@@ -27,6 +27,7 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IProjectService, ProjectService>();
 builder.Services.AddScoped<IIntegrationService, IntegrationService>();
 builder.Services.AddScoped<MicrosoftGraphService>();
+builder.Services.AddScoped<ISlackService, SlackService>();
 builder.Services.AddScoped<NotificationService>();
 builder.Services.AddScoped<ITauriInterop, TauriInterop>();
 builder.Services.AddScoped<BackgroundJobService>();
