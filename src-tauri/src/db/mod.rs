@@ -44,6 +44,7 @@ pub trait Database: Send + Sync {
     async fn add_product(&self, product: Product) -> Result<i64, String>;
     async fn update_product(&self, product: Product) -> Result<(), String>;
     async fn delete_product(&self, id: i32) -> Result<(), String>;
+    async fn record_sale(&self, sale: Sale) -> Result<i64, String>;
 
     // Employees
     async fn get_employees(&self) -> Result<Vec<Employee>, String>;

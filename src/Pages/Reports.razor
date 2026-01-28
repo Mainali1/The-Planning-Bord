@@ -79,6 +79,10 @@
                 <span class="font-medium">@summary.ActiveEmployees</span>
             </li>
             <li class="py-3 flex justify-between">
+                <span class="text-gray-600">Total Sales Count</span>
+                <span class="font-medium">@summary.TotalSalesCount</span>
+            </li>
+            <li class="py-3 flex justify-between">
                 <span class="text-gray-600">Pending Tasks</span>
                 <span class="font-medium">@summary.PendingTasks</span>
             </li>
@@ -165,6 +169,9 @@
                                 table.Cell().Element(CellStyle).Text("Net Profit");
                                 table.Cell().Element(CellStyle).Text(summary.NetProfit.ToString("C"));
                                 
+                                table.Cell().Element(CellStyle).Text("Total Sales Count");
+                                table.Cell().Element(CellStyle).Text(summary.TotalSalesCount.ToString());
+
                                 table.Cell().Element(CellStyle).Text("Inventory Value");
                                 table.Cell().Element(CellStyle).Text(summary.InventoryValue.ToString("C"));
                                 

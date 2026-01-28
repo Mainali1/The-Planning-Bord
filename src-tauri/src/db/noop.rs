@@ -11,6 +11,7 @@ impl Database for NoOpDatabase {
     async fn add_product(&self, _product: Product) -> Result<i64, String> { Err("DB not configured".into()) }
     async fn update_product(&self, _product: Product) -> Result<(), String> { Err("DB not configured".into()) }
     async fn delete_product(&self, _id: i32) -> Result<(), String> { Err("DB not configured".into()) }
+    async fn record_sale(&self, _sale: Sale) -> Result<i64, String> { Err("DB not configured".into()) }
 
     // Employees
     async fn get_employees(&self) -> Result<Vec<Employee>, String> { Err("DB not configured".into()) }

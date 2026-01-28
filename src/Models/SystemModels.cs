@@ -54,12 +54,20 @@ namespace ThePlanningBord.Models
 
         [JsonPropertyName("total_revenue")]
         public double TotalRevenue { get; set; }
-    }
+
+        [JsonPropertyName("total_sales")]
+    public int TotalSales { get; set; }
+    [JsonPropertyName("net_profit")]
+    public double NetProfit { get; set; }
+}
 
     public class ReportSummary
     {
         [JsonPropertyName("total_revenue")]
         public double TotalRevenue { get; set; }
+
+        [JsonPropertyName("total_sales_count")]
+        public int TotalSalesCount { get; set; }
 
         [JsonPropertyName("total_expenses")]
         public double TotalExpenses { get; set; }

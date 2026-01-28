@@ -11,6 +11,7 @@ namespace ThePlanningBord.Services
         Task<long> AddProductAsync(Product product);
         Task UpdateProductAsync(Product product);
         Task DeleteProductAsync(int id);
+        Task<long> RecordSaleAsync(Sale sale);
         
         // Tools
         Task<List<Tool>> GetToolsAsync();
@@ -77,6 +78,12 @@ namespace ThePlanningBord.Services
         {
             var token = await _userService.GetTokenAsync();
             await _tauri.InvokeVoidAsync("delete_product", new { id, token });
+        }
+
+        public async Task<long> RecordSaleAsync(Sale sale)
+        {
+            var token = await _userService.GetTokenAsync();
+            return await _tauri.InvokeAsync<long>("record_sale", new { sale, token });
         }
 
         public async Task<List<Tool>> GetToolsAsync()

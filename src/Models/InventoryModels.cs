@@ -199,4 +199,31 @@ namespace ThePlanningBord.Models
         [JsonPropertyName("recommended_reorder_qty")]
         public double RecommendedReorderQty { get; set; }
     }
+
+    public class Sale
+    {
+        [JsonPropertyName("id")]
+        public int? Id { get; set; }
+
+        [JsonPropertyName("product_id")]
+        public int ProductId { get; set; }
+
+        [JsonPropertyName("quantity")]
+        public int Quantity { get; set; }
+
+        [JsonPropertyName("total_price")]
+        public double TotalPrice { get; set; }
+
+        [JsonPropertyName("sale_date")]
+        public string? SaleDate { get; set; }
+
+        [JsonPropertyName("notes")]
+        public string? Notes { get; set; }
+
+        [JsonPropertyName("user_id")]
+        public int? UserId { get; set; }
+
+        [JsonPropertyName("product_name")]
+        public string? ProductName { get; set; }
+    }
 }

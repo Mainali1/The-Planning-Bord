@@ -424,6 +424,49 @@ impl Database for PostgresDatabase {
         Ok(())
     }
 
+    async fn record_sale(&self, sale: Sale) -> Result<i64, String> {
+        let mut client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
+        let tx = client.transaction().await.map_err(|e| format!("Failed to start transaction: {}", e))?;
+
+        // 1. Check stock
+        let row = tx.query_opt("SELECT current_quantity, unit_price FROM products WHERE id = $1", &[&sale.product_id])
+            .await.map_err(|e| format!("Failed to fetch product: {}", e))?;
+
+        if let Some(r) = row {
+            let current_qty: i32 = r.get(0);
+            let unit_price: f64 = r.get(1);
+
+            if current_qty < sale.quantity {
+                return Err(format!("Insufficient stock. Available: {}, Requested: {}", current_qty, sale.quantity));
+            }
+
+            // 2. Deduct stock
+            tx.execute("UPDATE products SET current_quantity = current_quantity - $1 WHERE id = $2", &[&sale.quantity, &sale.product_id])
+                .await.map_err(|e| format!("Failed to update stock: {}", e))?;
+
+            // 3. Record Sale
+            // Calculate total price if not provided or just trust frontend?
+            // User said "put down the number of slabs of that product and then minus the sales number feom the product"
+            // And "profit". Profit = (Price - Cost) * Qty. But we don't have cost yet, just unit_price (selling price?).
+            // Let's assume unit_price is selling price.
+            // For now, insert into sales table.
+            
+            let total_price = if sale.total_price > 0.0 { sale.total_price } else { unit_price * sale.quantity as f64 };
+            let sale_date = parse_timestamp(sale.sale_date).unwrap_or(chrono::Local::now().naive_local());
+
+            let sale_row = tx.query_one(
+                "INSERT INTO sales (product_id, quantity, total_price, sale_date, notes, user_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
+                &[&sale.product_id, &sale.quantity, &total_price, &sale_date, &sale.notes, &sale.user_id]
+            ).await.map_err(|e| format!("Failed to insert sale: {}", e))?;
+
+            tx.commit().await.map_err(|e| format!("Failed to commit transaction: {}", e))?;
+            
+            Ok(sale_row.get::<_, i32>(0) as i64)
+        } else {
+            Err("Product not found".to_string())
+        }
+    }
+
     // --- Employee Commands ---
     async fn get_employees(&self) -> Result<Vec<Employee>, String> {
         let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
@@ -599,12 +642,16 @@ impl Database for PostgresDatabase {
         let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
         let payment_date = parse_timestamp(payment.payment_date);
         let due_date = parse_timestamp(payment.due_date);
+        
+        // Ensure date is set (required by DB schema if not nullable, and good for consistency)
+        let date = payment_date.unwrap_or_else(|| chrono::Local::now().naive_local());
+
         let row = client.query_one(
-            "INSERT INTO payments (payment_type, amount, currency, description, status, payment_method, payment_date, due_date, reference_number, employee_id, supplier_name)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id",
+            "INSERT INTO payments (payment_type, amount, currency, description, status, payment_method, payment_date, due_date, reference_number, employee_id, supplier_name, date)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id",
             &[
                 &payment.payment_type, &payment.amount, &payment.currency, &payment.description, &payment.status,
-                &payment.payment_method, &payment_date, &due_date, &payment.reference_number, &payment.employee_id, &payment.supplier_name
+                &payment.payment_method, &payment_date, &due_date, &payment.reference_number, &payment.employee_id, &payment.supplier_name, &date
             ]
         ).await.map_err(|e| format!("Failed to add payment: {}", e))?;
         let id: i32 = row.get(0);
@@ -776,13 +823,29 @@ impl Database for PostgresDatabase {
             .await.map_err(|e| format!("Failed to fetch total employees: {}", e))?.get(0);
         let total_payments_pending: i64 = client.query_one("SELECT COUNT(*) FROM payments WHERE status = 'pending'", &[])
             .await.map_err(|e| format!("Failed to fetch pending payments: {}", e))?.get(0);
-        let total_revenue: f64 = 0.0;
+            
+        let sales_revenue: f64 = client.query_one("SELECT COALESCE(SUM(total_price), 0.0) FROM sales", &[])
+            .await.map_err(|e| format!("Failed to fetch sales revenue: {}", e))?.get(0);
+
+        let total_sales: i64 = client.query_one("SELECT COUNT(*) FROM sales", &[])
+            .await.map_err(|e| format!("Failed to fetch total sales: {}", e))?.get(0);
+
+        let income_payments: f64 = client.query_one("SELECT COALESCE(SUM(amount), 0.0) FROM payments WHERE payment_type = 'income' AND status = 'completed'", &[])
+            .await.map_err(|e| format!("Failed to fetch income payments: {}", e))?.get(0);
+            
+        let total_revenue = sales_revenue + income_payments;
+
+        let total_expenses: f64 = client.query_one("SELECT COALESCE(SUM(amount), 0.0) FROM payments WHERE payment_type = 'expense' AND status = 'completed'", &[])
+            .await.map_err(|e| format!("Failed to fetch total expenses: {}", e))?.get(0);
+        
         Ok(DashboardStats { 
             total_products: total_products as i32, 
             low_stock_items: low_stock_items as i32, 
             total_employees: total_employees as i32, 
             total_payments_pending: total_payments_pending as i32, 
-            total_revenue 
+            total_revenue,
+            total_sales: total_sales as i32,
+            net_profit: total_revenue - total_expenses
         })
     }
 
@@ -792,8 +855,16 @@ impl Database for PostgresDatabase {
         let inventory_value: f64 = client.query_one("SELECT COALESCE(SUM(current_quantity * unit_price), 0.0) FROM products", &[])
             .await.map_err(|e| format!("Failed to fetch inventory value: {}", e))?.get(0);
             
-        let total_revenue: f64 = client.query_one("SELECT COALESCE(SUM(amount), 0.0) FROM payments WHERE payment_type = 'income' AND status = 'completed'", &[])
-            .await.map_err(|e| format!("Failed to fetch total revenue: {}", e))?.get(0);
+        let income_payments: f64 = client.query_one("SELECT COALESCE(SUM(amount), 0.0) FROM payments WHERE payment_type = 'income' AND status = 'completed'", &[])
+            .await.map_err(|e| format!("Failed to fetch income payments: {}", e))?.get(0);
+            
+        let sales_revenue: f64 = client.query_one("SELECT COALESCE(SUM(total_price), 0.0) FROM sales", &[])
+            .await.map_err(|e| format!("Failed to fetch sales revenue: {}", e))?.get(0);
+
+        let total_sales_count: i64 = client.query_one("SELECT COUNT(*) FROM sales", &[])
+            .await.map_err(|e| format!("Failed to fetch total sales count: {}", e))?.get(0);
+            
+        let total_revenue = income_payments + sales_revenue;
             
         let total_expenses: f64 = client.query_one("SELECT COALESCE(SUM(amount), 0.0) FROM payments WHERE payment_type = 'expense' AND status = 'completed'", &[])
             .await.map_err(|e| format!("Failed to fetch total expenses: {}", e))?.get(0);
@@ -811,18 +882,32 @@ impl Database for PostgresDatabase {
             net_profit: total_revenue - total_expenses,
             pending_tasks: pending_tasks as i32,
             active_employees: active_employees as i32,
+            total_sales_count: total_sales_count as i32
         })
     }
 
     async fn get_monthly_cashflow(&self) -> Result<Vec<ChartDataPoint>, String> {
-        // Mock data for now
-        Ok(vec![
-            ChartDataPoint { label: "Jan".to_string(), value: 12000.0 },
-            ChartDataPoint { label: "Feb".to_string(), value: 15000.0 },
-            ChartDataPoint { label: "Mar".to_string(), value: 18000.0 },
-            ChartDataPoint { label: "Apr".to_string(), value: 11000.0 },
-            ChartDataPoint { label: "May".to_string(), value: 20000.0 },
-        ])
+        let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
+        
+        let rows = client.query("
+            SELECT TO_CHAR(d, 'Mon') as month, SUM(amount) as total, MIN(d) as sort_date
+            FROM (
+                SELECT sale_date as d, total_price as amount FROM sales WHERE sale_date >= NOW() - INTERVAL '6 months'
+                UNION ALL
+                SELECT payment_date as d, amount FROM payments WHERE payment_type = 'income' AND status = 'completed' AND payment_date >= NOW() - INTERVAL '6 months'
+            ) as combined
+            GROUP BY 1
+            ORDER BY 3
+        ", &[]).await.map_err(|e| format!("Failed to fetch monthly cashflow: {}", e))?;
+
+        let mut points = Vec::new();
+        for row in rows {
+            points.push(ChartDataPoint {
+                label: row.get(0),
+                value: row.get(1),
+            });
+        }
+        Ok(points)
     }
 
     // --- Complaints ---
@@ -1474,7 +1559,7 @@ impl Database for PostgresDatabase {
     // --- Accounts & Invoices ---
     async fn get_accounts(&self) -> Result<Vec<Account>, String> {
         let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
-        let rows = client.query("SELECT id, code, name, type, currency, is_active FROM accounts", &[]).await.map_err(|_| "Table not found".to_string())?;
+        let rows = client.query("SELECT id, code, name, account_type, currency, is_active FROM accounts", &[]).await.map_err(|e| format!("Failed to fetch accounts: {}", e))?;
         let mut accounts = Vec::new();
         for row in rows {
             accounts.push(Account {
@@ -1492,7 +1577,7 @@ impl Database for PostgresDatabase {
     async fn add_account(&self, account: Account) -> Result<i64, String> {
         let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
         let row = client.query_one(
-            "INSERT INTO accounts (code, name, type, currency, is_active) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+            "INSERT INTO accounts (code, name, account_type, currency, is_active) VALUES ($1, $2, $3, $4, $5) RETURNING id",
             &[&account.code, &account.name, &account.type_name, &account.currency, &account.is_active]
         ).await.map_err(|e| e.to_string())?;
         Ok(row.get::<_, i32>(0) as i64)

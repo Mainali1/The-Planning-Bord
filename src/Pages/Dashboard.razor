@@ -60,6 +60,20 @@
             @if(editMode) { <button @onclick='() => ToggleWidget("revenue")' class="absolute top-2 right-2 text-red-500">Hide</button> }
         </div>
         }
+        @if (ShowWidget("profit")) {
+        <div class="w-full px-4 py-5 bg-white rounded-lg shadow relative group">
+            <div class="text-sm font-medium text-gray-500 truncate">Net Profit</div>
+            <div class="mt-1 text-3xl font-semibold text-green-600">@stats.NetProfit.ToString("C")</div>
+            @if(editMode) { <button @onclick='() => ToggleWidget("profit")' class="absolute top-2 right-2 text-red-500">Hide</button> }
+        </div>
+        }
+        @if (ShowWidget("sales")) {
+        <div class="w-full px-4 py-5 bg-white rounded-lg shadow relative group">
+            <div class="text-sm font-medium text-gray-500 truncate">Total Sales Count</div>
+            <div class="mt-1 text-3xl font-semibold text-purple-600">@stats.TotalSales</div>
+            @if(editMode) { <button @onclick='() => ToggleWidget("sales")' class="absolute top-2 right-2 text-red-500">Hide</button> }
+        </div>
+        }
         @if (ShowWidget("turnover")) {
         <div class="w-full px-4 py-5 bg-white rounded-lg shadow relative group">
             <div class="text-sm font-medium text-gray-500 truncate">Inventory Turnover</div>

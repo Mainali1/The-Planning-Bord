@@ -98,6 +98,10 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
 
     // Patch payments
     let _ = client.execute("ALTER TABLE payments ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'USD'", &[]);
+    let _ = client.execute("ALTER TABLE payments ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'pending'", &[]);
+    let _ = client.execute("ALTER TABLE payments ADD COLUMN IF NOT EXISTS payment_type TEXT DEFAULT 'expense'", &[]);
+    let _ = client.execute("ALTER TABLE payments ADD COLUMN IF NOT EXISTS payment_date TIMESTAMP", &[]);
+    let _ = client.execute("ALTER TABLE payments ALTER COLUMN date DROP NOT NULL", &[]);
 
     client.execute(
         "CREATE TABLE IF NOT EXISTS sessions (
@@ -162,6 +166,20 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             new_quantity INTEGER,
             notes TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )",
+        &[],
+    )?;
+
+    // 2.1 Sales (New)
+    client.execute(
+        "CREATE TABLE IF NOT EXISTS sales (
+            id SERIAL PRIMARY KEY,
+            product_id INTEGER REFERENCES products(id),
+            quantity INTEGER NOT NULL,
+            total_price DOUBLE PRECISION NOT NULL,
+            sale_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            notes TEXT,
+            user_id INTEGER REFERENCES users(id)
         )",
         &[],
     )?;

@@ -53,6 +53,19 @@ pub struct Product {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Sale {
+    pub id: Option<i32>,
+    pub product_id: i32,
+    pub quantity: i32,
+    pub total_price: f64,
+    pub sale_date: Option<String>,
+    pub notes: Option<String>,
+    pub user_id: Option<i32>,
+    // Optional: Include product name for display purposes if needed
+    pub product_name: Option<String>, 
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Employee {
     pub id: Option<i32>,
     pub employee_id: Option<String>,
@@ -89,7 +102,9 @@ pub struct DashboardStats {
     pub low_stock_items: i32,
     pub total_employees: i32,
     pub total_payments_pending: i32,
-    pub total_revenue: f64, // Mock revenue or derived
+    pub total_revenue: f64,
+    pub total_sales: i32,
+    pub net_profit: f64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -119,6 +134,7 @@ pub struct Attendance {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ReportSummary {
     pub total_revenue: f64,
+    pub total_sales_count: i32,
     pub total_expenses: f64,
     pub net_profit: f64,
     pub inventory_value: f64,

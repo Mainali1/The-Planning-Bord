@@ -5,7 +5,7 @@ pub mod setup;
 use tauri::{State, Manager};
 use tokio::sync::RwLock;
 use std::collections::HashMap;
-use models::{Product, Employee, Payment, DashboardStats, Task, Attendance, ReportSummary, ChartDataPoint, Complaint, Tool, Role, Permission, FeatureToggle, ToolAssignment, AuditLog, DashboardConfig, Project, ProjectTask, ProjectAssignment, Account, Invoice, Integration, User, LoginResponse, Invite, BomHeader, BomLine, InventoryBatch, VelocityReport, BomData, Supplier, SupplierOrder};
+use models::{Product, Employee, Payment, DashboardStats, Task, Attendance, ReportSummary, ChartDataPoint, Complaint, Tool, Role, Permission, FeatureToggle, ToolAssignment, AuditLog, DashboardConfig, Project, ProjectTask, ProjectAssignment, Account, Invoice, Integration, User, LoginResponse, Invite, BomHeader, BomLine, InventoryBatch, VelocityReport, BomData, Supplier, SupplierOrder, Sale};
 use db::{Database, DbConfig, PostgresDatabase};
 use argon2::{
     password_hash::{
@@ -354,6 +354,15 @@ async fn delete_product(state: State<'_, AppState>, id: i32, token: String) -> R
     db.delete_product(id).await?;
     let _ = db.log_activity(user.id, "delete".to_string(), "Inventory".to_string(), Some("Product".to_string()), Some(id), Some("Deleted product".to_string()), None, None).await;
     Ok(())
+}
+
+#[tauri::command]
+async fn record_sale(state: State<'_, AppState>, sale: Sale, token: String) -> Result<i64, String> {
+    let user = check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    let db = state.db.read().await;
+    let id = db.record_sale(sale.clone()).await?;
+    let _ = db.log_activity(user.id, "create".to_string(), "Inventory".to_string(), Some("Sale".to_string()), Some(id as i32), Some(format!("Recorded sale of {} units for product {}", sale.quantity, sale.product_id)), None, None).await;
+    Ok(id)
 }
 
 // --- Supply Chain Commands ---
@@ -1361,7 +1370,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             greet, ping, login, logout, register_user, verify_connection, generate_invite_token, check_invite_token, accept_invite, get_all_invites, toggle_invite_status,
-            get_products, add_product, update_product, delete_product,
+            get_products, add_product, update_product, delete_product, record_sale,
             get_product_bom, save_bom, get_batches, add_batch, update_batch, get_velocity_report,
             get_suppliers, add_supplier, update_supplier, delete_supplier,
             get_supplier_orders, add_supplier_order, update_supplier_order, delete_supplier_order,

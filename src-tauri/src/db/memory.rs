@@ -30,6 +30,7 @@ pub struct InMemoryDatabase {
     invites: RwLock<Vec<Invite>>,
     suppliers: RwLock<Vec<Supplier>>,
     supplier_orders: RwLock<Vec<SupplierOrder>>,
+    sales: RwLock<Vec<Sale>>,
 }
 
 impl InMemoryDatabase {
@@ -88,6 +89,7 @@ impl InMemoryDatabase {
             integrations: RwLock::new(Vec::new()),
             suppliers: RwLock::new(Vec::new()),
             supplier_orders: RwLock::new(Vec::new()),
+            sales: RwLock::new(Vec::new()),
         }
     }
 }
@@ -280,6 +282,31 @@ impl Database for InMemoryDatabase {
         products.retain(|x| x.id != Some(id));
         Ok(())
     }
+    async fn record_sale(&self, mut sale: Sale) -> Result<i64, String> {
+        // 1. Update product stock
+        let mut products = self.products.write().map_err(|_| "Failed to acquire lock".to_string())?;
+        let product_idx = products.iter().position(|p| p.id == Some(sale.product_id))
+            .ok_or("Product not found")?;
+        
+        if products[product_idx].current_quantity < sale.quantity {
+            return Err("Insufficient stock".to_string());
+        }
+
+        products[product_idx].current_quantity -= sale.quantity;
+
+        // 2. Record sale
+        let mut sales = self.sales.write().map_err(|_| "Failed to acquire lock".to_string())?;
+        let id = (sales.iter().map(|x| x.id.unwrap_or(0)).max().unwrap_or(0) + 1) as i32;
+        sale.id = Some(id);
+        
+        // Ensure sale date is set if missing
+        if sale.sale_date.is_none() {
+            sale.sale_date = Some(chrono::Local::now().to_string());
+        }
+
+        sales.push(sale);
+        Ok(id as i64)
+    }
 
     async fn get_employees(&self) -> Result<Vec<Employee>, String> {
         Ok(self.employees.read().map_err(|_| "Failed to acquire lock".to_string())?.clone())
@@ -379,22 +406,64 @@ impl Database for InMemoryDatabase {
     }
 
     async fn get_dashboard_stats(&self) -> Result<DashboardStats, String> {
+        let products = self.products.read().map_err(|_| "Failed to acquire lock".to_string())?;
+        let employees = self.employees.read().map_err(|_| "Failed to acquire lock".to_string())?;
+        let payments = self.payments.read().map_err(|_| "Failed to acquire lock".to_string())?;
+        let sales = self.sales.read().map_err(|_| "Failed to acquire lock".to_string())?;
+
+        let low_stock_items = products.iter().filter(|p| p.current_quantity <= p.minimum_quantity).count() as i32;
+        let total_payments_pending = payments.iter().filter(|p| p.status == "pending").count() as i32;
+
+        let sales_revenue: f64 = sales.iter().map(|s| s.total_price).sum();
+        let income_payments: f64 = payments.iter()
+            .filter(|p| p.payment_type == "income" && p.status == "completed")
+            .map(|p| p.amount).sum();
+        
+        let total_revenue = sales_revenue + income_payments;
+        
+        let total_expenses: f64 = payments.iter()
+            .filter(|p| p.payment_type == "expense" && p.status == "completed")
+            .map(|p| p.amount).sum();
+
         Ok(DashboardStats {
-            total_products: self.products.read().map_err(|_| "Failed to acquire lock".to_string())?.len() as i32,
-            low_stock_items: 0,
-            total_employees: self.employees.read().map_err(|_| "Failed to acquire lock".to_string())?.len() as i32,
-            total_payments_pending: 0,
-            total_revenue: 0.0,
+            total_products: products.len() as i32,
+            low_stock_items,
+            total_employees: employees.len() as i32,
+            total_payments_pending,
+            total_revenue,
+            total_sales: sales.len() as i32,
+            net_profit: total_revenue - total_expenses,
         })
     }
     async fn get_report_summary(&self) -> Result<ReportSummary, String> {
+        let products = self.products.read().map_err(|_| "Failed to acquire lock".to_string())?;
+        let employees = self.employees.read().map_err(|_| "Failed to acquire lock".to_string())?;
+        let payments = self.payments.read().map_err(|_| "Failed to acquire lock".to_string())?;
+        let sales = self.sales.read().map_err(|_| "Failed to acquire lock".to_string())?;
+        let tasks = self.tasks.read().map_err(|_| "Failed to acquire lock".to_string())?;
+
+        let sales_revenue: f64 = sales.iter().map(|s| s.total_price).sum();
+        let income_payments: f64 = payments.iter()
+            .filter(|p| p.payment_type == "income" && p.status == "completed")
+            .map(|p| p.amount).sum();
+        
+        let total_revenue = sales_revenue + income_payments;
+        
+        let total_expenses: f64 = payments.iter()
+            .filter(|p| p.payment_type == "expense" && p.status == "completed")
+            .map(|p| p.amount).sum();
+
+        let inventory_value: f64 = products.iter().map(|p| p.current_quantity as f64 * p.unit_price).sum();
+        let pending_tasks = tasks.iter().filter(|t| t.status != "completed").count() as i32;
+
         Ok(ReportSummary {
-            total_revenue: 0.0,
-            total_expenses: 0.0,
-            net_profit: 0.0,
-            inventory_value: 0.0,
-            pending_tasks: 0,
-            active_employees: self.employees.read().map_err(|_| "Failed to acquire lock".to_string())?.len() as i32,
+            total_revenue,
+            total_sales_count: sales.len() as i32,
+            total_expenses,
+            net_profit: total_revenue - total_expenses,
+            inventory_value,
+            pending_tasks,
+            active_employees: employees.len() as i32,
         })
     }
     async fn get_monthly_cashflow(&self) -> Result<Vec<ChartDataPoint>, String> { Ok(Vec::new()) }

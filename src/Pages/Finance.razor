@@ -335,8 +335,15 @@
     {
         try
         {
-            if (newInvoice.Id.HasValue) await FinanceService.UpdateInvoiceAsync(newInvoice);
-            else await FinanceService.AddInvoiceAsync(newInvoice);
+            if (newInvoice.Id.HasValue) 
+            {
+                NotificationService.ShowInfo("Updating invoices is not yet implemented.");
+                // await FinanceService.UpdateInvoiceAsync(newInvoice);
+            }
+            else 
+            {
+                await FinanceService.CreateInvoiceAsync(newInvoice);
+            }
             showAddInvoiceModal = false;
             await LoadInvoices();
             NotificationService.ShowSuccess("Invoice saved successfully.");
