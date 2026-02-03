@@ -59,14 +59,35 @@ namespace ThePlanningBord.Services
 
         public async Task<long> ClockInAsync(AttendanceModel attendance)
         {
+            Console.WriteLine($"HrService.ClockInAsync: Clocking in employee {attendance.EmployeeId} at {attendance.CheckIn}");
             var token = await _userService.GetTokenAsync();
-            return await _tauri.InvokeAsync<long>("clock_in", new { attendance, token });
+            try
+            {
+                var result = await _tauri.InvokeAsync<long>("clock_in", new { attendance, token });
+                Console.WriteLine($"HrService.ClockInAsync: Successfully clocked in with ID {result}");
+                return result;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"HrService.ClockInAsync: Error clocking in - {ex.Message}");
+                throw;
+            }
         }
 
         public async Task ClockOutAsync(AttendanceModel attendance)
         {
+            Console.WriteLine($"HrService.ClockOutAsync: Clocking out attendance record {attendance.Id} at {attendance.CheckOut}");
             var token = await _userService.GetTokenAsync();
-            await _tauri.InvokeVoidAsync("clock_out", new { attendance, token });
+            try
+            {
+                await _tauri.InvokeVoidAsync("clock_out", new { attendance, token });
+                Console.WriteLine($"HrService.ClockOutAsync: Successfully clocked out");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"HrService.ClockOutAsync: Error clocking out - {ex.Message}");
+                throw;
+            }
         }
     }
 }

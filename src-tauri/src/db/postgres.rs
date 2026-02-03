@@ -86,13 +86,29 @@ fn format_timestamp(ts: Option<NaiveDateTime>) -> Option<String> {
 // Helper to parse Option<String> to Option<NaiveDateTime>
 fn parse_timestamp(ts: Option<String>) -> Option<NaiveDateTime> {
     if let Some(s) = ts {
-        if s.trim().is_empty() { return None; }
-        if let Ok(dt) = NaiveDateTime::parse_from_str(&s, "%Y-%m-%d %H:%M:%S") {
+        if s.trim().is_empty() { 
+            println!("parse_timestamp: Empty string provided");
+            return None; 
+        }
+        println!("parse_timestamp: Attempting to parse timestamp: '{}'", s);
+        // Try ISO format first (with 'T')
+        if let Ok(dt) = NaiveDateTime::parse_from_str(&s, "%Y-%m-%dT%H:%M:%S") {
+            println!("parse_timestamp: Successfully parsed as ISO format: {:?}", dt);
             return Some(dt);
         }
+        // Try space format
+        if let Ok(dt) = NaiveDateTime::parse_from_str(&s, "%Y-%m-%d %H:%M:%S") {
+            println!("parse_timestamp: Successfully parsed as space format: {:?}", dt);
+            return Some(dt);
+        }
+        // Try just date
         if let Ok(d) = NaiveDate::parse_from_str(&s, "%Y-%m-%d") {
+            println!("parse_timestamp: Successfully parsed as date only: {:?}", d);
             return d.and_hms_opt(0, 0, 0);
         }
+        println!("parse_timestamp: Failed to parse timestamp: '{}'", s);
+    } else {
+        println!("parse_timestamp: None value provided");
     }
     None
 }
@@ -325,7 +341,30 @@ impl Database for PostgresDatabase {
     }
 
     async fn add_product(&self, product: Product) -> Result<i64, String> {
-        let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
+        println!("postgres.add_product: Attempting to add product '{:?}' with SKU '{:?}'", product.name, product.sku);
+        let client = self.pool.get().await.map_err(|e| {
+            println!("postgres.add_product: Failed to get db connection - {}", e);
+            format!("Failed to get db connection: {}", e)
+        })?;
+        
+        println!("postgres.add_product: Product data - name: '{:?}', sku: '{:?}', category: '{:?}', current_quantity: {:?}, minimum_quantity: {:?}, unit_price: {:?}", 
+                 product.name, product.sku, product.category, product.current_quantity, product.minimum_quantity, product.unit_price);
+        
+        // Check if SKU already exists (if SKU is provided)
+        if let Some(ref sku) = product.sku {
+            let existing_count: i64 = client.query_one(
+                "SELECT COUNT(*) FROM products WHERE sku = $1",
+                &[&sku]
+            ).await.map_err(|e| {
+                println!("postgres.add_product: Error checking existing SKU - {}", e);
+                format!("Failed to check existing SKU: {}", e)
+            })?.get(0);
+            
+            if existing_count > 0 {
+                println!("postgres.add_product: SKU '{}' already exists", sku);
+                return Err(format!("Product with SKU '{}' already exists. Please use a different SKU or update the existing product.", sku));
+            }
+        }
         
         let row = client.query_one(
             "INSERT INTO products (name, description, category, sku, current_quantity, minimum_quantity, reorder_quantity, unit_price, supplier_name, is_active)
@@ -342,9 +381,13 @@ impl Database for PostgresDatabase {
                 &product.supplier_name,
                 &product.is_active,
             ],
-        ).await.map_err(|e| format!("Failed to add product: {}", e))?;
+        ).await.map_err(|e| {
+            println!("postgres.add_product: Database insert error - {}", e);
+            format!("Failed to add product: {}", e)
+        })?;
 
         let id: i32 = row.get(0);
+        println!("postgres.add_product: Successfully added product with ID: {}", id);
         Ok(id as i64)
     }
 
@@ -352,6 +395,19 @@ impl Database for PostgresDatabase {
         let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
         
         if let Some(id) = product.id {
+            // Check if SKU already exists for a different product (if SKU is provided)
+            if let Some(ref sku) = product.sku {
+                let existing_id: Option<i32> = client.query_one(
+                    "SELECT id FROM products WHERE sku = $1 AND id != $2",
+                    &[&sku, &id]
+                ).await.ok().map(|row| row.get(0));
+                
+                if let Some(existing_id) = existing_id {
+                    println!("postgres.update_product: SKU '{}' already exists for product ID {}", sku, existing_id);
+                    return Err(format!("Product with SKU '{}' already exists for a different product. Please use a different SKU.", sku));
+                }
+            }
+            
             client.execute(
                 "UPDATE products SET name = $1, description = $2, category = $3, sku = $4, current_quantity = $5, minimum_quantity = $6, reorder_quantity = $7, unit_price = $8, supplier_name = $9, is_active = $10 WHERE id = $11",
                 &[
@@ -725,35 +781,67 @@ impl Database for PostgresDatabase {
     }
 
     async fn add_task(&self, task: Task) -> Result<i64, String> {
-        let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
+        println!("postgres.add_task: Attempting to add task '{}' with priority '{}' and status '{}'", task.title, task.priority, task.status);
+        let client = self.pool.get().await.map_err(|e| {
+            let err = format!("Failed to get db connection: {}", e);
+            println!("postgres.add_task: Connection error - {}", err);
+            err
+        })?;
         let due_date = parse_timestamp(task.due_date);
         let assigned_date = parse_timestamp(task.assigned_date);
         let completed_date = parse_timestamp(task.completed_date);
+        println!("postgres.add_task: Parsed dates - due: {:?}, assigned: {:?}, completed: {:?}", due_date, assigned_date, completed_date);
+        
         let row = client.query_one(
             "INSERT INTO tasks (employee_id, title, description, due_date, status, priority, assigned_date, completed_date) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
             &[
                 &task.employee_id, &task.title, &task.description, &due_date,
                 &task.status, &task.priority, &assigned_date, &completed_date,
             ],
-        ).await.map_err(|e| format!("Failed to add task: {}", e))?;
-        Ok(row.get::<_, i32>(0) as i64)
+        ).await.map_err(|e| {
+            let err = format!("Failed to add task: {}", e);
+            println!("postgres.add_task: Database insert error - {}", err);
+            println!("postgres.add_task: Task data - employee_id: {:?}, title: '{:?}', description: '{:?}', status: '{:?}', priority: '{:?}'", 
+                     task.employee_id, task.title, task.description, task.status, task.priority);
+            err
+        })?;
+        
+        let task_id = row.get::<_, i32>(0) as i64;
+        println!("postgres.add_task: Successfully added task with ID: {}", task_id);
+        Ok(task_id)
     }
 
     async fn update_task(&self, task: Task) -> Result<(), String> {
-        let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
+        println!("postgres.update_task: Attempting to update task '{}' (ID: {:?})", task.title, task.id);
+        let client = self.pool.get().await.map_err(|e| {
+            let err = format!("Failed to get db connection: {}", e);
+            println!("postgres.update_task: Connection error - {}", err);
+            err
+        })?;
         let due_date = parse_timestamp(task.due_date);
         let assigned_date = parse_timestamp(task.assigned_date);
         let completed_date = parse_timestamp(task.completed_date);
+        println!("postgres.update_task: Parsed dates - due: {:?}, assigned: {:?}, completed: {:?}", due_date, assigned_date, completed_date);
+        
         if let Some(id) = task.id {
+            println!("postgres.update_task: Updating task with ID: {}", id);
             client.execute(
                 "UPDATE tasks SET employee_id = $1, title = $2, description = $3, due_date = $4, status = $5, priority = $6, assigned_date = $7, completed_date = $8 WHERE id = $9",
                 &[
                     &task.employee_id, &task.title, &task.description, &due_date,
                     &task.status, &task.priority, &assigned_date, &completed_date, &id
                 ],
-            ).await.map_err(|e| format!("Failed to update task: {}", e))?;
+            ).await.map_err(|e| {
+                let err = format!("Failed to update task: {}", e);
+                println!("postgres.update_task: Database update error - {}", err);
+                println!("postgres.update_task: Task data - employee_id: {:?}, title: '{:?}', description: '{:?}', status: '{:?}', priority: '{:?}', id: {}", 
+                         task.employee_id, task.title, task.description, task.status, task.priority, id);
+                err
+            })?;
+            println!("postgres.update_task: Successfully updated task {}", id);
             Ok(())
         } else {
+            println!("postgres.update_task: Error - Task ID is required for update");
             Err("Task ID is required for update".to_string())
         }
     }
@@ -785,29 +873,51 @@ impl Database for PostgresDatabase {
     }
 
     async fn clock_in(&self, attendance: Attendance) -> Result<i64, String> {
-        let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
+        println!("postgres.clock_in: Starting clock in for employee {:?}", attendance.employee_id);
+        let client = self.pool.get().await.map_err(|e| {
+            println!("postgres.clock_in: Failed to get db connection - {}", e);
+            format!("Failed to get db connection: {}", e)
+        })?;
         let check_in = parse_timestamp(Some(attendance.check_in)).unwrap_or(chrono::Local::now().naive_local());
+        println!("postgres.clock_in: Parsed check-in time: {:?}", check_in);
         let row = client.query_one(
             "INSERT INTO attendance (employee_id, check_in, status, notes, location) VALUES ($1, $2, $3, $4, $5) RETURNING id",
             &[&attendance.employee_id, &check_in, &attendance.status, &attendance.notes, &attendance.location],
-        ).await.map_err(|e| format!("Failed to clock in: {}", e))?;
-        Ok(row.get::<_, i32>(0) as i64)
+        ).await.map_err(|e| {
+            println!("postgres.clock_in: Database error - {}", e);
+            format!("Failed to clock in: {}", e)
+        })?;
+        let id = row.get::<_, i32>(0) as i64;
+        println!("postgres.clock_in: Successfully clocked in with ID: {}", id);
+        Ok(id)
     }
 
     async fn clock_out(&self, attendance: Attendance) -> Result<(), String> {
-        let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
+        println!("postgres.clock_out: Starting clock out for attendance ID {:?} and employee {:?}", attendance.id, attendance.employee_id);
+        let client = self.pool.get().await.map_err(|e| {
+            println!("postgres.clock_out: Failed to get db connection - {}", e);
+            format!("Failed to get db connection: {}", e)
+        })?;
         let check_out = parse_timestamp(attendance.check_out).unwrap_or(chrono::Local::now().naive_local());
+        println!("postgres.clock_out: Parsed check-out time: {:?}", check_out);
         if let Some(id) = attendance.id {
+            println!("postgres.clock_out: Attempting to update attendance record ID: {}", id);
             let result = client.execute(
                 "UPDATE attendance SET check_out = $1, status = $2, notes = $3 WHERE id = $4 AND employee_id = $5",
                 &[&check_out, &attendance.status, &attendance.notes, &id, &attendance.employee_id],
-            ).await.map_err(|e| format!("Failed to clock out: {}", e))?;
+            ).await.map_err(|e| {
+                println!("postgres.clock_out: Database error - {}", e);
+                format!("Failed to clock out: {}", e)
+            })?;
             
             if result == 0 {
+                println!("postgres.clock_out: Error - Attendance record not found or permission denied");
                 return Err("Attendance record not found or permission denied".to_string());
             }
+            println!("postgres.clock_out: Successfully clocked out");
             Ok(())
         } else {
+            println!("postgres.clock_out: Error - Attendance ID is required for clock out");
             Err("Attendance ID is required for clock out".to_string())
         }
     }
@@ -913,19 +1023,22 @@ impl Database for PostgresDatabase {
     // --- Complaints ---
     async fn get_complaints(&self) -> Result<Vec<Complaint>, String> {
         let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
-        let rows = client.query("SELECT id, content, created_at, status, admin_notes, resolution, resolved_at, resolved_by FROM complaints", &[])
+        let rows = client.query("SELECT id, title, description, submitted_by_employee_id, status, submitted_at, resolved_at, resolution, resolved_by_user_id, admin_notes, is_anonymous FROM complaints", &[])
             .await.map_err(|e| format!("Failed to fetch complaints: {}", e))?;
         let mut complaints = Vec::new();
         for row in rows {
             complaints.push(Complaint {
                 id: Some(row.get(0)),
-                content: row.get(1),
-                created_at: format_timestamp(row.get(2)),
-                status: row.get(3),
-                admin_notes: row.get(4),
-                resolution: row.get(5),
+                title: row.get(1),
+                description: row.get(2),
+                submitted_by_employee_id: row.get(3),
+                status: row.get(4),
+                submitted_at: format_timestamp(row.get(5)),
                 resolved_at: format_timestamp(row.get(6)),
-                resolved_by: row.get(7),
+                resolution: row.get(7),
+                resolved_by_user_id: row.get(8),
+                admin_notes: row.get(9),
+                is_anonymous: row.get(10),
             });
         }
         Ok(complaints)
@@ -933,17 +1046,27 @@ impl Database for PostgresDatabase {
 
     async fn submit_complaint(&self, complaint: Complaint) -> Result<i64, String> {
         let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
-        let row = client.query_one("INSERT INTO complaints (content) VALUES ($1) RETURNING id", &[&complaint.content])
+        let submitted_at = parse_timestamp(complaint.submitted_at).unwrap_or_else(|| chrono::Local::now().naive_local());
+        let row = client.query_one(
+            "INSERT INTO complaints (title, description, submitted_by_employee_id, status, submitted_at, is_anonymous) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
+            &[&complaint.title, &complaint.description, &complaint.submitted_by_employee_id, &complaint.status, &submitted_at, &complaint.is_anonymous]
+        )
             .await.map_err(|e| format!("Failed to submit complaint: {}", e))?;
         Ok(row.get::<_, i32>(0) as i64)
     }
 
     async fn resolve_complaint(&self, id: i32, status: String, resolution: String, resolved_by: String, admin_notes: Option<String>) -> Result<(), String> {
         let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
+        
+        // Look up user ID from username
+        let user_row = client.query_opt("SELECT id FROM users WHERE username = $1", &[&resolved_by])
+            .await.map_err(|e| format!("Failed to look up user: {}", e))?;
+        let resolved_by_user_id: Option<i32> = user_row.map(|r| r.get(0));
+
         let resolved_at = chrono::Local::now().naive_local();
         client.execute(
-            "UPDATE complaints SET status = $1, resolution = $2, resolved_by = $3, admin_notes = $4, resolved_at = $5 WHERE id = $6",
-            &[&status, &resolution, &resolved_by, &admin_notes, &resolved_at, &id]
+            "UPDATE complaints SET status = $1, resolution = $2, resolved_by_user_id = $3, admin_notes = $4, resolved_at = $5 WHERE id = $6",
+            &[&status, &resolution, &resolved_by_user_id, &admin_notes, &resolved_at, &id]
         ).await.map_err(|e| format!("Failed to resolve complaint: {}", e))?;
         Ok(())
     }
@@ -957,12 +1080,22 @@ impl Database for PostgresDatabase {
 
     // --- Tools ---
     async fn get_tools(&self) -> Result<Vec<Tool>, String> {
-        let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
+        println!("postgres.get_tools: Fetching all tools from database");
+        let client = self.pool.get().await.map_err(|e| {
+            let err = format!("Failed to get db connection: {}", e);
+            println!("postgres.get_tools: Connection error - {}", err);
+            err
+        })?;
         let rows = client.query("SELECT id, name, type_name, status, assigned_to_employee_id, purchase_date, condition FROM tools", &[])
-            .await.map_err(|e| format!("Failed to fetch tools: {}", e))?;
+            .await.map_err(|e| {
+                let err = format!("Failed to fetch tools: {}", e);
+                println!("postgres.get_tools: Query error - {}", err);
+                err
+            })?;
+        println!("postgres.get_tools: Found {} tool rows", rows.len());
         let mut tools = Vec::new();
         for row in rows {
-            tools.push(Tool {
+            let tool = Tool {
                 id: Some(row.get(0)),
                 name: row.get(1),
                 type_name: row.get(2),
@@ -970,19 +1103,39 @@ impl Database for PostgresDatabase {
                 assigned_to_employee_id: row.get(4),
                 purchase_date: format_timestamp(row.get(5)),
                 condition: row.get(6),
-            });
+            };
+            println!("postgres.get_tools: Found tool - ID: {:?}, Name: '{}', Type: '{}', Status: '{}'", 
+                     tool.id, tool.name, tool.type_name, tool.status);
+            tools.push(tool);
         }
+        println!("postgres.get_tools: Returning {} tools", tools.len());
         Ok(tools)
     }
 
     async fn add_tool(&self, tool: Tool) -> Result<i64, String> {
-        let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
+        println!("postgres.add_tool: Attempting to add tool '{}' of type '{}'", tool.name, tool.type_name);
+        let client = self.pool.get().await.map_err(|e| {
+            let err = format!("Failed to get db connection: {}", e);
+            println!("postgres.add_tool: Connection error - {}", err);
+            err
+        })?;
         let purchase_date = parse_timestamp(tool.purchase_date);
+        println!("postgres.add_tool: Parsed purchase_date: {:?}", purchase_date);
+        
         let row = client.query_one(
             "INSERT INTO tools (name, type_name, status, assigned_to_employee_id, purchase_date, condition) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
             &[&tool.name, &tool.type_name, &tool.status, &tool.assigned_to_employee_id, &purchase_date, &tool.condition]
-        ).await.map_err(|e| format!("Failed to add tool: {}", e))?;
-        Ok(row.get::<_, i32>(0) as i64)
+        ).await.map_err(|e| {
+            let err = format!("Failed to add tool: {}", e);
+            println!("postgres.add_tool: Database insert error - {}", err);
+            println!("postgres.add_tool: Tool data - name: '{}', type_name: '{}', status: '{}', assigned_to_employee_id: {:?}, purchase_date: {:?}, condition: {:?}", 
+                     tool.name, tool.type_name, tool.status, tool.assigned_to_employee_id, purchase_date, tool.condition);
+            err
+        })?;
+        
+        let tool_id = row.get::<_, i32>(0) as i64;
+        println!("postgres.add_tool: Successfully added tool with ID: {}", tool_id);
+        Ok(tool_id)
     }
 
     async fn update_tool(&self, tool: Tool) -> Result<(), String> {
@@ -1036,39 +1189,240 @@ impl Database for PostgresDatabase {
     }
 
     async fn assign_tool(&self, assignment: ToolAssignment) -> Result<i64, String> {
-        let mut client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
-        let tx = client.transaction().await.map_err(|e| format!("Failed to start transaction: {}", e))?;
+        println!("postgres.assign_tool: Attempting to assign tool {:?} to employee {:?}", assignment.tool_id, assignment.employee_id);
+        let mut client = self.pool.get().await.map_err(|e| {
+            let err = format!("Failed to get db connection: {}", e);
+            println!("postgres.assign_tool: Connection error - {}", err);
+            err
+        })?;
+        let tx = client.transaction().await.map_err(|e| {
+            let err = format!("Failed to start transaction: {}", e);
+            println!("postgres.assign_tool: Transaction error - {}", err);
+            err
+        })?;
         
+        println!("postgres.assign_tool: Updating tool status to assigned...");
         tx.execute("UPDATE tools SET assigned_to_employee_id = $1, status = 'assigned' WHERE id = $2", &[&assignment.employee_id, &assignment.tool_id])
-            .await.map_err(|e| format!("Failed to update tool status: {}", e))?;
+            .await.map_err(|e| {
+                let err = format!("Failed to update tool status: {}", e);
+                println!("postgres.assign_tool: Tool update error - {}", err);
+                err
+            })?;
         
+        println!("postgres.assign_tool: Creating tool assignment record...");
         let row = tx.query_one(
             "INSERT INTO tool_assignments (tool_id, employee_id, condition_on_assignment) VALUES ($1, $2, $3) RETURNING id", 
             &[&assignment.tool_id, &assignment.employee_id, &assignment.condition_on_assignment]
-        ).await.map_err(|e| format!("Failed to create tool assignment: {}", e))?;
+        ).await.map_err(|e| {
+            let err = format!("Failed to create tool assignment: {}", e);
+            println!("postgres.assign_tool: Assignment insert error - {}", err);
+            err
+        })?;
         
-        tx.commit().await.map_err(|e| format!("Failed to commit transaction: {}", e))?;
-        Ok(row.get::<_, i32>(0) as i64)
+        let assignment_id = row.get::<_, i32>(0) as i64;
+        println!("postgres.assign_tool: Committing transaction...");
+        tx.commit().await.map_err(|e| {
+            let err = format!("Failed to commit transaction: {}", e);
+            println!("postgres.assign_tool: Commit error - {}", err);
+            err
+        })?;
+        println!("postgres.assign_tool: Successfully assigned tool with assignment ID: {}", assignment_id);
+        Ok(assignment_id)
     }
 
-    async fn return_tool(&self, tool_id: i32, condition: String) -> Result<(), String> {
-        let mut client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
-        let tx = client.transaction().await.map_err(|e| format!("Failed to start transaction: {}", e))?;
-        tx.execute("UPDATE tools SET assigned_to_employee_id = NULL, status = 'available', condition = COALESCE($1, condition) WHERE id = $2", &[&condition, &tool_id])
-            .await.map_err(|e| format!("Failed to update tool status: {}", e))?;
-        tx.execute("UPDATE tool_assignments SET returned_at = CURRENT_TIMESTAMP, condition_on_return = $1 WHERE tool_id = $2 AND returned_at IS NULL", &[&condition, &tool_id])
-            .await.map_err(|e| format!("Failed to update tool assignment: {}", e))?;
-        tx.commit().await.map_err(|e| format!("Failed to commit transaction: {}", e))?;
-        Ok(())
+    async fn return_tool(&self, tool_id: i32, user_id: i32, condition: String) -> Result<(), String> {
+        println!("postgres.return_tool: Attempting to return tool {} with condition: '{}'", tool_id, condition);
+        
+        // Validate input parameters
+        if tool_id <= 0 {
+            return Err("Invalid tool ID".to_string());
+        }
+        
+        let mut client = self.pool.get().await.map_err(|e| {
+            let err = format!("Database connection error: Cannot connect to database pool - {}", e);
+            println!("postgres.return_tool: Connection error - {}", err);
+            err
+        })?;
+        let tx = client.transaction().await.map_err(|e| {
+            let err = format!("Database transaction error: Failed to start transaction - {}", e);
+            println!("postgres.return_tool: Transaction error - {}", err);
+            err
+        })?;
+        
+        // First check if the tool exists and is assigned
+        println!("postgres.return_tool: Checking tool status...");
+        let tool_check = tx.query_opt("SELECT assigned_to_employee_id, status FROM tools WHERE id = $1", &[&tool_id])
+            .await.map_err(|e| {
+                let err = format!("Database query error: Failed to check tool status - {}", e);
+                println!("postgres.return_tool: Tool check error - {}", err);
+                err
+            })?;
+            
+        match tool_check {
+            Some(row) => {
+                let assigned_to: Option<i32> = row.get(0);
+                let status: String = row.get(1);
+                println!("postgres.return_tool: Tool {} - Status: '{}', Assigned to: {:?}", tool_id, status, assigned_to);
+                
+                // Validate that the tool is actually assigned
+                if assigned_to.is_none() || status != "assigned" {
+                    println!("postgres.return_tool: Tool {} is not assigned (status: {}, assigned_to: {:?})", tool_id, status, assigned_to);
+                    return Err(format!("Cannot return tool {}: Tool is not currently assigned (status: {}). Tools can only be returned if they are in 'assigned' status.", tool_id, status));
+                }
+                
+                // Check if the current user is the assigned employee
+                if let Some(assigned_employee_id) = assigned_to {
+                    if assigned_employee_id != user_id {
+                        println!("postgres.return_tool: Permission denied - Tool {} is assigned to employee {}, but user {} is trying to return it", tool_id, assigned_employee_id, user_id);
+                        return Err(format!("Permission denied: Tool {} is assigned to employee {} (you are employee {}). Only the assigned employee can return this tool.", tool_id, assigned_employee_id, user_id));
+                    }
+                }
+            }
+            None => {
+                println!("postgres.return_tool: Tool {} not found", tool_id);
+                return Err(format!("Cannot return tool {}: Tool does not exist in the database", tool_id));
+            }
+        }
+        
+        println!("postgres.return_tool: Updating tool status to available...");
+        let tool_update_result = tx.execute("UPDATE tools SET assigned_to_employee_id = NULL, status = 'available', condition = COALESCE($1, condition) WHERE id = $2", &[&condition, &tool_id])
+            .await;
+            
+        match tool_update_result {
+            Ok(rows) => {
+                println!("postgres.return_tool: Tool update affected {} rows", rows);
+                if rows == 0 {
+                    println!("postgres.return_tool: WARNING - No tool rows were updated!");
+                }
+            }
+            Err(e) => {
+                println!("postgres.return_tool: === TOOL UPDATE ERROR DETAILS ===");
+                println!("postgres.return_tool: Tool update error: {}", e);
+                
+                if let Some(db_error) = e.as_db_error() {
+                    println!("postgres.return_tool: Tool DB Error - Code: {:?}", db_error.code());
+                    println!("postgres.return_tool: Tool DB Error - Message: {:?}", db_error.message());
+                    println!("postgres.return_tool: Tool DB Error - Detail: {:?}", db_error.detail());
+                    println!("postgres.return_tool: Tool DB Error - Constraint: {:?}", db_error.constraint());
+                }
+                println!("postgres.return_tool: Tool SQL State: {:?}", e.code());
+                println!("postgres.return_tool: === END TOOL ERROR DETAILS ===");
+                
+                let err = format!("Database system error while updating tool status: {}", e);
+                
+                // Try to rollback the transaction
+                if let Err(rollback_err) = tx.rollback().await {
+                    println!("postgres.return_tool: Failed to rollback transaction: {}", rollback_err);
+                }
+                return Err(err);
+            }
+        }
+            
+        println!("postgres.return_tool: Checking for active assignment...");
+        println!("postgres.return_tool: Query: SELECT id FROM tool_assignments WHERE tool_id = {} AND returned_at IS NULL", tool_id);
+        let assignment_rows = tx.query("SELECT id FROM tool_assignments WHERE tool_id = $1 AND returned_at IS NULL", &[&tool_id])
+            .await.map_err(|e| {
+                let err = format!("Database query error: Failed to check for active assignment - {}", e);
+                println!("postgres.return_tool: Assignment check error - {}", err);
+                println!("postgres.return_tool: Assignment check error type: {}", std::any::type_name_of_val(&e));
+                if let Some(db_error) = e.as_db_error() {
+                    println!("postgres.return_tool: Assignment check DB Error - Code: {:?}", db_error.code());
+                    println!("postgres.return_tool: Assignment check DB Error - Message: {:?}", db_error.message());
+                    println!("postgres.return_tool: Assignment check DB Error - Detail: {:?}", db_error.detail());
+                }
+                err
+            })?;
+        
+        if assignment_rows.is_empty() {
+            println!("postgres.return_tool: No active assignment found for tool {}", tool_id);
+            return Err(format!("Cannot return tool {}: No active assignment found. This tool may have already been returned or the assignment record is missing.", tool_id));
+        }
+        
+        println!("postgres.return_tool: Found {} active assignment(s), updating...", assignment_rows.len());
+        
+        // Handle empty condition by using a default value
+        let condition_value = if condition.trim().is_empty() {
+            "good".to_string()
+        } else {
+            condition.clone()
+        };
+        
+        let update_result = tx.execute(
+            "UPDATE tool_assignments SET returned_at = CURRENT_TIMESTAMP, condition_on_return = $1 WHERE tool_id = $2 AND returned_at IS NULL", 
+            &[&condition_value, &tool_id]
+        ).await;
+        
+        match update_result {
+            Ok(rows) => {
+                println!("postgres.return_tool: Assignment update affected {} rows", rows);
+                if rows == 0 {
+                    println!("postgres.return_tool: WARNING - No assignment rows were updated!");
+                    return Err(format!("Cannot return tool {}: Database update failed - no assignment records were updated. This may indicate a concurrent operation or data inconsistency.", tool_id));
+                }
+            }
+            Err(e) => {
+                // Capture comprehensive error details
+                println!("postgres.return_tool: === DATABASE ERROR DETAILS ===");
+                println!("postgres.return_tool: Error type: {}", std::any::type_name_of_val(&e));
+                println!("postgres.return_tool: Error message: {}", e);
+                
+                // Check if it's a tokio-postgres error and extract details
+                if let Some(db_error) = e.as_db_error() {
+                    println!("postgres.return_tool: DB Error - Severity: {:?}", db_error.severity());
+                    println!("postgres.return_tool: DB Error - Code: {:?}", db_error.code());
+                    println!("postgres.return_tool: DB Error - Message: {:?}", db_error.message());
+                    println!("postgres.return_tool: DB Error - Detail: {:?}", db_error.detail());
+                    println!("postgres.return_tool: DB Error - Hint: {:?}", db_error.hint());
+                    println!("postgres.return_tool: DB Error - Schema: {:?}", db_error.schema());
+                    println!("postgres.return_tool: DB Error - Table: {:?}", db_error.table());
+                    println!("postgres.return_tool: DB Error - Column: {:?}", db_error.column());
+                    println!("postgres.return_tool: DB Error - Constraint: {:?}", db_error.constraint());
+                }
+                
+                println!("postgres.return_tool: SQL State: {:?}", e.code());
+                println!("postgres.return_tool: === END ERROR DETAILS ===");
+                
+                let err = format!("Database system error while updating tool assignment: {}", e);
+                
+                // Try to rollback the transaction
+                if let Err(rollback_err) = tx.rollback().await {
+                    println!("postgres.return_tool: Failed to rollback transaction: {}", rollback_err);
+                }
+                return Err(err);
+            }
+        }
+            
+        println!("postgres.return_tool: Committing transaction...");
+        match tx.commit().await {
+            Ok(_) => {
+                println!("postgres.return_tool: Successfully returned tool {}", tool_id);
+                Ok(())
+            }
+            Err(e) => {
+                let err = format!("Database system error: Failed to commit transaction - {}", e);
+                println!("postgres.return_tool: Commit error - {}", err);
+                Err(err)
+            }
+        }
     }
 
     async fn get_tool_history(&self, tool_id: i32) -> Result<Vec<ToolAssignment>, String> {
-        let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
+        println!("postgres.get_tool_history: Fetching history for tool {}", tool_id);
+        let client = self.pool.get().await.map_err(|e| {
+            let err = format!("Failed to get db connection: {}", e);
+            println!("postgres.get_tool_history: Connection error - {}", err);
+            err
+        })?;
         let rows = client.query("SELECT id, tool_id, employee_id, assigned_at, returned_at, condition_on_assignment, condition_on_return, notes FROM tool_assignments WHERE tool_id = $1 ORDER BY assigned_at DESC", &[&tool_id])
-            .await.map_err(|e| format!("Failed to fetch tool history: {}", e))?;
+            .await.map_err(|e| {
+                let err = format!("Failed to fetch tool history: {}", e);
+                println!("postgres.get_tool_history: Query error - {}", err);
+                err
+            })?;
+        println!("postgres.get_tool_history: Found {} history rows", rows.len());
         let mut history = Vec::new();
         for row in rows {
-            history.push(ToolAssignment {
+            let assignment = ToolAssignment {
                 id: Some(row.get(0)),
                 tool_id: row.get(1),
                 employee_id: row.get(2),
@@ -1077,8 +1431,12 @@ impl Database for PostgresDatabase {
                 condition_on_assignment: row.get(5),
                 condition_on_return: row.get(6),
                 notes: row.get(7),
-            });
+            };
+            println!("postgres.get_tool_history: Found assignment - ID: {:?}, Tool ID: {:?}, Employee ID: {:?}, Assigned: {:?}, Returned: {:?}", 
+                     assignment.id, assignment.tool_id, assignment.employee_id, assignment.assigned_at, assignment.returned_at);
+            history.push(assignment);
         }
+        println!("postgres.get_tool_history: Returning {} history entries", history.len());
         Ok(history)
     }
 
@@ -1225,7 +1583,25 @@ impl Database for PostgresDatabase {
         
         let admin_user_id: i32 = row.get(0);
 
-        // 2. Setup config
+        // 2. Create CEO Employee Record
+        // Parse admin_name to separate first and last name
+        let name_parts: Vec<&str> = admin_name.trim().splitn(2, ' ').collect();
+        let first_name = name_parts.get(0).map(|s| *s).unwrap_or(&admin_name.as_str()).to_string();
+        let last_name = name_parts.get(1).map(|s| *s).unwrap_or("CEO").to_string();
+        
+        // Generate employee ID based on company name and CEO role
+        let employee_id = format!("CEO-{}", chrono::Local::now().format("%Y%m%d%H%M%S"));
+        
+        client.execute(
+            "INSERT INTO employees (employee_id, first_name, last_name, email, role, position, hire_date, status, created_at, updated_at) 
+             VALUES ($1, $2, $3, $4, 'CEO', 'Chief Executive Officer', $5, 'active', $6, $6)
+             ON CONFLICT (email) DO UPDATE SET 
+             first_name = $2, last_name = $3, role = 'CEO', position = 'Chief Executive Officer', 
+             updated_at = $6",
+            &[&employee_id, &first_name, &last_name, &admin_email, &setup_completed_at, &setup_completed_at]
+        ).await.map_err(|e| format!("Failed to create CEO employee record: {}", e))?;
+
+        // 3. Setup config
         // Use a placeholder or generated license key, don't store password as license key
         let license_key = "FREE-LICENSE-KEY"; 
         
@@ -1416,27 +1792,59 @@ impl Database for PostgresDatabase {
     }
 
     async fn add_project(&self, project: Project) -> Result<i64, String> {
-        let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
+        println!("postgres.add_project: Attempting to add project '{:?}' with status '{:?}'", project.name, project.status);
+        let client = self.pool.get().await.map_err(|e| {
+            let err = format!("Failed to get db connection: {}", e);
+            println!("postgres.add_project: Connection error - {}", err);
+            err
+        })?;
         let start_date = parse_timestamp(project.start_date);
         let end_date = parse_timestamp(project.end_date);
+        println!("postgres.add_project: Parsed dates - start: {:?}, end: {:?}", start_date, end_date);
+        
         let row = client.query_one(
             "INSERT INTO projects (name, description, start_date, end_date, status, manager_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
             &[&project.name, &project.description, &start_date, &end_date, &project.status, &project.manager_id]
-        ).await.map_err(|e| e.to_string())?;
-        Ok(row.get::<_, i32>(0) as i64)
+        ).await.map_err(|e| {
+            let err = format!("Failed to add project: {}", e);
+            println!("postgres.add_project: Database insert error - {}", err);
+            println!("postgres.add_project: Project data - name: '{:?}', description: '{:?}', status: '{:?}', manager_id: {:?}", 
+                     project.name, project.description, project.status, project.manager_id);
+            err
+        })?;
+        
+        let project_id = row.get::<_, i32>(0) as i64;
+        println!("postgres.add_project: Successfully added project with ID: {}", project_id);
+        Ok(project_id)
     }
 
     async fn update_project(&self, project: Project) -> Result<(), String> {
-        let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
+        println!("postgres.update_project: Attempting to update project '{:?}' (ID: {:?})", project.name, project.id);
+        let client = self.pool.get().await.map_err(|e| {
+            let err = format!("Failed to get db connection: {}", e);
+            println!("postgres.update_project: Connection error - {}", err);
+            err
+        })?;
         let start_date = parse_timestamp(project.start_date);
         let end_date = parse_timestamp(project.end_date);
+        println!("postgres.update_project: Parsed dates - start: {:?}, end: {:?}", start_date, end_date);
+        
         if let Some(id) = project.id {
+            println!("postgres.update_project: Updating project with ID: {}", id);
             client.execute(
                 "UPDATE projects SET name = $1, description = $2, start_date = $3, end_date = $4, status = $5, manager_id = $6 WHERE id = $7",
                 &[&project.name, &project.description, &start_date, &end_date, &project.status, &project.manager_id, &id]
-            ).await.map_err(|e| e.to_string())?;
+            ).await.map_err(|e| {
+                let err = format!("Failed to update project: {}", e);
+                println!("postgres.update_project: Database update error - {}", err);
+                println!("postgres.update_project: Project data - name: '{:?}', description: '{:?}', status: '{:?}', manager_id: {:?}, id: {}", 
+                         project.name, project.description, project.status, project.manager_id, id);
+                err
+            })?;
+            println!("postgres.update_project: Successfully updated project {}", id);
             Ok(())
         } else {
+            println!("postgres.update_project: Error - Project ID is required for update");
             Err("Project ID is required for update".to_string())
         }
     }
@@ -1457,7 +1865,7 @@ impl Database for PostgresDatabase {
 
     async fn get_project_tasks(&self, project_id: i32) -> Result<Vec<ProjectTask>, String> {
         let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
-        let rows = client.query("SELECT id, project_id, name, description, assigned_to, status, priority, start_date, due_date FROM project_tasks WHERE project_id = $1", &[&project_id]).await.map_err(|e| e.to_string())?;
+        let rows = client.query("SELECT id, project_id, name, description, assigned_to, status, priority, start_date, due_date, parent_task_id, dependencies_json FROM project_tasks WHERE project_id = $1", &[&project_id]).await.map_err(|e| e.to_string())?;
         let mut tasks = Vec::new();
         for row in rows {
             tasks.push(ProjectTask {
@@ -1470,8 +1878,8 @@ impl Database for PostgresDatabase {
                 priority: row.get(6),
                 start_date: format_timestamp(row.get(7)),
                 due_date: format_timestamp(row.get(8)),
-                parent_task_id: None,
-                dependencies_json: None,
+                parent_task_id: row.get(9),
+                dependencies_json: row.get(10),
             });
         }
         Ok(tasks)
@@ -1479,26 +1887,61 @@ impl Database for PostgresDatabase {
 
     async fn add_project_task(&self, task: ProjectTask) -> Result<i64, String> {
         let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
-        let start_date = parse_timestamp(task.start_date);
-        let due_date = parse_timestamp(task.due_date);
+        
+        let start_date = parse_timestamp(task.start_date.clone());
+        let due_date = parse_timestamp(task.due_date.clone());
+        
+        // Clean string values - remove extra quotes that might come from JSON parsing and trim whitespace
+        let clean_name = task.name.trim_matches('"').trim().to_string();
+        let clean_status = task.status.trim_matches('"').trim().to_string();
+        let clean_priority = task.priority.trim_matches('"').trim().to_string();
+        
+        // Validate required fields
+        if clean_name.is_empty() {
+            return Err("Task name cannot be empty".to_string());
+        }
+        if clean_status.is_empty() {
+            return Err("Task status cannot be empty".to_string());
+        }
+        if clean_priority.is_empty() {
+            return Err("Task priority cannot be empty".to_string());
+        }
+        
+        // Use hardcoded query that matches the updated schema
         let row = client.query_one(
-            "INSERT INTO project_tasks (project_id, name, description, assigned_to, status, priority, start_date, due_date) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
-            &[&task.project_id, &task.name, &task.description, &task.assigned_to, &task.status, &task.priority, &start_date, &due_date]
-        ).await.map_err(|e| e.to_string())?;
-        Ok(row.get::<_, i32>(0) as i64)
+            "INSERT INTO project_tasks (project_id, name, description, assigned_to, status, priority, start_date, due_date, parent_task_id, dependencies_json) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id",
+            &[&task.project_id, &clean_name, &task.description, &task.assigned_to, &clean_status, &clean_priority, &start_date, &due_date, &task.parent_task_id, &task.dependencies_json]
+        ).await.map_err(|e| format!("Failed to insert project task: {}", e))?;
+        
+        Ok(row.get(0))
     }
 
     async fn update_project_task(&self, task: ProjectTask) -> Result<(), String> {
-        let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
+        println!("postgres.update_project_task: Attempting to update project task '{:?}' (ID: {:?}) for project {:?}", task.name, task.id, task.project_id);
+        let client = self.pool.get().await.map_err(|e| {
+            println!("postgres.update_project_task: Failed to get db connection - {}", e);
+            format!("Failed to get db connection: {}", e)
+        })?;
         let start_date = parse_timestamp(task.start_date);
         let due_date = parse_timestamp(task.due_date);
+        println!("postgres.update_project_task: Parsed dates - start: {:?}, due: {:?}", start_date, due_date);
         if let Some(id) = task.id {
-            client.execute(
+            println!("postgres.update_project_task: Updating task with ID: {}", id);
+            let result = client.execute(
                 "UPDATE project_tasks SET project_id = $1, name = $2, description = $3, assigned_to = $4, status = $5, priority = $6, start_date = $7, due_date = $8 WHERE id = $9",
                 &[&task.project_id, &task.name, &task.description, &task.assigned_to, &task.status, &task.priority, &start_date, &due_date, &id]
-            ).await.map_err(|e| e.to_string())?;
+            ).await.map_err(|e| {
+                println!("postgres.update_project_task: Database update error - {}", e);
+                e.to_string()
+            })?;
+            if result == 0 {
+                println!("postgres.update_project_task: Error - Task not found or no changes made");
+                return Err("Task not found or no changes made".to_string());
+            }
+            println!("postgres.update_project_task: Successfully updated task {}", id);
             Ok(())
         } else {
+            println!("postgres.update_project_task: Error - Task ID required");
             Err("Task ID required".to_string())
         }
     }

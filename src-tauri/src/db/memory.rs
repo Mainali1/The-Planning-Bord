@@ -98,7 +98,37 @@ impl InMemoryDatabase {
 impl Database for InMemoryDatabase {
     async fn get_setup_status(&self) -> Result<bool, String> { Ok(false) }
     fn get_type(&self) -> String { "memory".to_string() }
-    async fn complete_setup(&self, _c: String, _n: String, _e: String, _p: String, _u: String) -> Result<(), String> { Ok(()) }
+    async fn complete_setup(&self, _company_name: String, admin_name: String, admin_email: String, _admin_password: String, _admin_username: String) -> Result<(), String> {
+        // Parse admin_name to separate first and last name
+        let name_parts: Vec<&str> = admin_name.trim().splitn(2, ' ').collect();
+        let first_name = name_parts.get(0).map(|s| *s).unwrap_or(&admin_name.as_str()).to_string();
+        let last_name = name_parts.get(1).map(|s| *s).unwrap_or("CEO").to_string();
+        
+        // Generate employee ID based on CEO role
+        let employee_id = format!("CEO-{}", chrono::Local::now().format("%Y%m%d%H%M%S"));
+        
+        let mut employees = self.employees.write().map_err(|_| "Failed to acquire lock".to_string())?;
+        
+        // Check if CEO employee already exists
+        if !employees.iter().any(|e| e.email == Some(admin_email.clone())) {
+            let ceo_employee = Employee {
+                id: Some(employees.len() as i32 + 1),
+                employee_id: Some(employee_id),
+                first_name,
+                last_name,
+                email: Some(admin_email),
+                phone: None,
+                role: "CEO".to_string(),
+                department: None,
+                position: Some("Chief Executive Officer".to_string()),
+                salary: None,
+                status: "active".to_string(),
+            };
+            employees.push(ceo_employee);
+        }
+        
+        Ok(())
+    }
     async fn set_company_name(&self, _n: String) -> Result<(), String> { Ok(()) }
     async fn get_company_name(&self) -> Result<Option<String>, String> { Ok(Some("The Planning Bord".to_string())) }
 
@@ -481,7 +511,7 @@ impl Database for InMemoryDatabase {
         if let Some(c) = complaints.iter_mut().find(|x| x.id == Some(id)) {
             c.status = status;
             c.resolution = Some(resolution);
-            c.resolved_by = Some(resolved_by);
+            c.resolved_by_user_id = Some(resolved_by.parse().unwrap_or(0));
             c.admin_notes = admin_notes;
             Ok(())
         } else {
@@ -533,12 +563,23 @@ impl Database for InMemoryDatabase {
         }
         Ok(id as i64)
     }
-    async fn return_tool(&self, id: i32, return_condition: String) -> Result<(), String> {
+    async fn return_tool(&self, tool_id: i32, user_id: i32, return_condition: String) -> Result<(), String> {
         let mut tools = self.tools.write().map_err(|_| "Failed to acquire lock".to_string())?;
-        if let Some(t) = tools.iter_mut().find(|x| x.id == Some(id)) {
+        if let Some(t) = tools.iter_mut().find(|x| x.id == Some(tool_id)) {
+            // Check if the user is the assigned employee
+            if let Some(assigned_employee_id) = t.assigned_to_employee_id {
+                if assigned_employee_id != user_id {
+                    return Err("Permission denied: You can only return tools assigned to you".to_string());
+                }
+            } else {
+                return Err("Tool is not assigned to any employee".to_string());
+            }
+            
             t.status = "available".to_string();
             t.assigned_to_employee_id = None;
             t.condition = Some(return_condition);
+        } else {
+            return Err("Tool not found".to_string());
         }
         Ok(())
     }

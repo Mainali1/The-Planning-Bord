@@ -227,24 +227,30 @@
     {
         try
         {
+            Console.WriteLine($"Tasks.SaveTask: Saving task '{newTask.Title}' (ID: {newTask.Id})");
             if (newTask.Id.HasValue)
             {
+                Console.WriteLine($"Tasks.SaveTask: Updating existing task");
                 await TaskService.UpdateTaskAsync(newTask);
             }
             else
             {
+                Console.WriteLine($"Tasks.SaveTask: Adding new task");
                 await TaskService.AddTaskAsync(newTask);
             }
             showAddModal = false;
             await LoadTasks();
             NotificationService.ShowSuccess("Task saved successfully.");
+            Console.WriteLine($"Tasks.SaveTask: Task saved successfully");
         }
         catch (TauriValidationException ex)
         {
+            Console.WriteLine($"Tasks.SaveTask: Tauri validation error - {ex.Message}");
             NotificationService.ShowError(ex.Message);
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"Tasks.SaveTask: Error saving task - {ex.Message}");
             NotificationService.ShowError("Failed to save task: " + ex.Message);
         }
     }

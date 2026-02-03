@@ -88,7 +88,7 @@ pub trait Database: Send + Sync {
     async fn update_tool(&self, tool: Tool) -> Result<(), String>;
     async fn delete_tool(&self, id: i32) -> Result<(), String>;
     async fn assign_tool(&self, assignment: ToolAssignment) -> Result<i64, String>;
-    async fn return_tool(&self, id: i32, return_condition: String) -> Result<(), String>;
+    async fn return_tool(&self, tool_id: i32, user_id: i32, return_condition: String) -> Result<(), String>;
 
     // Roles & Permissions
     async fn get_roles(&self) -> Result<Vec<Role>, String>;

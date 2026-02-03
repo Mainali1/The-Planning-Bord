@@ -37,16 +37,54 @@ namespace ThePlanningBord.Models
         [JsonPropertyName("id")]
         public int? Id { get; set; }
 
-        [JsonPropertyName("content")]
-        public string Content { get; set; } = string.Empty;
+        [JsonPropertyName("title")]
+        public string Title { get; set; } = string.Empty;
 
-        [JsonPropertyName("created_at")]
-        public string CreatedAt { get; set; } = string.Empty;
+        [JsonPropertyName("description")]
+        public string Description { get; set; } = string.Empty;
+
+        [JsonPropertyName("submitted_by_employee_id")]
+        public int? SubmittedByEmployeeId { get; set; }
 
         [JsonPropertyName("status")]
-        public string Status { get; set; } = "pending";
+        public string Status { get; set; } = "open";
+
+        [JsonPropertyName("submitted_at")]
+        public string SubmittedAt { get; set; } = string.Empty;
+
+        [JsonPropertyName("resolved_at")]
+        public string? ResolvedAt { get; set; }
+
+        [JsonPropertyName("resolution")]
+        public string? Resolution { get; set; }
+
+        [JsonPropertyName("resolved_by_user_id")]
+        public int? ResolvedByUserId { get; set; }
 
         [JsonPropertyName("admin_notes")]
         public string? AdminNotes { get; set; }
+
+        [JsonPropertyName("is_anonymous")]
+        public bool IsAnonymous { get; set; }
+
+        // Legacy property for compatibility
+        [JsonPropertyName("content")]
+        public string Content 
+        { 
+            get => Title + "\n" + Description; 
+            set 
+            { 
+                var lines = value.Split('\n');
+                Title = lines.Length > 0 ? lines[0] : "Untitled Complaint";
+                Description = lines.Length > 1 ? string.Join("\n", lines.Skip(1)) : "";
+            }
+        }
+
+        [JsonPropertyName("created_at")]
+        public string CreatedAt 
+        { 
+            get => SubmittedAt; 
+            set => SubmittedAt = value; 
+        }
     }
 }

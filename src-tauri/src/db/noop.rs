@@ -55,7 +55,7 @@ impl Database for NoOpDatabase {
     async fn update_tool(&self, _tool: Tool) -> Result<(), String> { Err("DB not configured".into()) }
     async fn delete_tool(&self, _id: i32) -> Result<(), String> { Err("DB not configured".into()) }
     async fn assign_tool(&self, _assignment: ToolAssignment) -> Result<i64, String> { Err("DB not configured".into()) }
-    async fn return_tool(&self, _id: i32, _return_condition: String) -> Result<(), String> { Err("DB not configured".into()) }
+    async fn return_tool(&self, _tool_id: i32, _user_id: i32, _return_condition: String) -> Result<(), String> { Err("DB not configured".into()) }
 
     // Roles & Permissions
     async fn get_roles(&self) -> Result<Vec<Role>, String> { Err("DB not configured".into()) }

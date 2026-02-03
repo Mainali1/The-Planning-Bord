@@ -318,9 +318,22 @@
 
     private async Task LoadTools()
     {
-        try { tools = await InventoryService.GetToolsAsync() ?? new List<Tool>(); }
-        catch (TauriValidationException ex) { NotificationService.ShowError(ex.Message); tools = new List<Tool>(); }
-        catch (Exception ex) { NotificationService.ShowError("Failed to load tools: " + ex.Message); tools = new List<Tool>(); }
+        try { 
+            Console.WriteLine("Tools.LoadTools: Loading tools...");
+            tools = await InventoryService.GetToolsAsync() ?? new List<Tool>(); 
+            Console.WriteLine($"Tools.LoadTools: Loaded {tools.Count} tools");
+        }
+        catch (TauriValidationException ex) { 
+            Console.WriteLine($"Tools.LoadTools TauriValidationException: {ex.Message}");
+            NotificationService.ShowError(ex.Message); 
+            tools = new List<Tool>(); 
+        }
+        catch (Exception ex) { 
+            Console.WriteLine($"Tools.LoadTools Exception: {ex.Message}");
+            Console.WriteLine($"Tools.LoadTools Exception StackTrace: {ex.StackTrace}");
+            NotificationService.ShowError("Failed to load tools: " + ex.Message); 
+            tools = new List<Tool>(); 
+        }
     }
 
     private async Task LoadEmployees()
@@ -379,6 +392,8 @@
         }
         catch (Exception ex) 
         { 
+            Console.WriteLine($"Tools.SaveTool Error: {ex.Message}");
+            Console.WriteLine($"Tools.SaveTool Error StackTrace: {ex.StackTrace}");
             NotificationService.ShowError($"Failed to save tool: {ex.Message}");
         }
         finally
@@ -503,6 +518,7 @@
     // History
     private async Task OpenHistoryModal(Tool t)
     {
+        Console.WriteLine($"Tools.OpenHistoryModal: Opening history modal for tool {t.Name} (ID: {t.Id})");
         selectedTool = t;
         toolHistory = null;
         showHistoryModal = true;
@@ -510,15 +526,19 @@
         {
             try
             {
+                Console.WriteLine($"Tools.OpenHistoryModal: Fetching history for tool ID {t.Id.Value}");
                 toolHistory = await InventoryService.GetToolHistoryAsync(t.Id.Value) ?? new List<ToolAssignment>();
+                Console.WriteLine($"Tools.OpenHistoryModal: Successfully loaded {toolHistory.Count} history entries");
             }
             catch (TauriValidationException ex)
             {
+                Console.WriteLine($"Tools.OpenHistoryModal: Tauri validation error - {ex.Message}");
                 NotificationService.ShowError(ex.Message);
                 toolHistory = new List<ToolAssignment>();
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"Tools.OpenHistoryModal: Error loading history - {ex.Message}");
                 NotificationService.ShowError($"Failed to load history: {ex.Message}");
                 toolHistory = new List<ToolAssignment>();
             }

@@ -100,6 +100,22 @@ namespace ThePlanningBord.Services
                 catch (Exception ex)
                 {
                     string msg = ex.Message;
+                    
+                    // Log detailed error information for debugging
+                    Console.WriteLine($"TauriInterop.InvokeAsync Error - Command: {command}, Attempt: {i + 1}, Message: {msg}");
+                    if (args != null)
+                    {
+                        try
+                        {
+                            var argsJson = JsonSerializer.Serialize(args);
+                            Console.WriteLine($"TauriInterop.InvokeAsync Error - Args: {argsJson}");
+                        }
+                        catch (Exception jsonEx)
+                        {
+                            Console.WriteLine($"TauriInterop.InvokeAsync Error - Failed to serialize args: {jsonEx.Message}");
+                        }
+                    }
+                    
                     // Check for non-retryable errors (Validation)
                     if (msg.Contains("Invalid") || msg.Contains("taken") || msg.Contains("used") || msg.Contains("not found") || msg.Contains("Incorrect"))
                     {
@@ -147,6 +163,22 @@ namespace ThePlanningBord.Services
                 catch (Exception ex)
                 {
                     string msg = ex.Message;
+                    
+                    // Log detailed error information for debugging
+                    Console.WriteLine($"TauriInterop.InvokeVoidAsync Error - Command: {command}, Attempt: {i + 1}, Message: {msg}");
+                    if (args != null)
+                    {
+                        try
+                        {
+                            var argsJson = JsonSerializer.Serialize(args);
+                            Console.WriteLine($"TauriInterop.InvokeVoidAsync Error - Args: {argsJson}");
+                        }
+                        catch (Exception jsonEx)
+                        {
+                            Console.WriteLine($"TauriInterop.InvokeVoidAsync Error - Failed to serialize args: {jsonEx.Message}");
+                        }
+                    }
+                    
                     // Check for non-retryable errors (Validation)
                     if (msg.Contains("Invalid") || msg.Contains("taken") || msg.Contains("used") || msg.Contains("not found") || msg.Contains("Incorrect"))
                     {

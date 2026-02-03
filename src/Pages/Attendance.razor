@@ -230,8 +230,10 @@
 
     private async Task ClockIn()
     {
+        Console.WriteLine("Attendance.ClockIn: Starting clock in process");
         if (currentUserId == null)
         {
+            Console.WriteLine("Attendance.ClockIn: Error - User not authenticated");
             NotificationService.ShowError("User not authenticated.");
             return;
         }
@@ -242,24 +244,32 @@
             CheckIn = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
             Status = "present"
         };
+        Console.WriteLine($"Attendance.ClockIn: Attempting to clock in employee {att.EmployeeId} at {att.CheckIn}");
         try 
         { 
             await HrService.ClockInAsync(att);
             isClockedIn = true;
             await LoadAttendances();
             NotificationService.ShowSuccess("Clocked in successfully.");
+            Console.WriteLine("Attendance.ClockIn: Successfully clocked in");
         }
-        catch (TauriValidationException ex) { NotificationService.ShowError(ex.Message); }
+        catch (TauriValidationException ex) { 
+            Console.WriteLine($"Attendance.ClockIn: Tauri validation error - {ex.Message}");
+            NotificationService.ShowError(ex.Message); 
+        }
         catch (Exception ex)
         {
+            Console.WriteLine($"Attendance.ClockIn: Error - {ex.Message}");
             NotificationService.ShowError("Failed to clock in: " + ex.Message);
         }
     }
 
     private async Task ClockOut()
     {
+         Console.WriteLine("Attendance.ClockOut: Starting clock out process");
          if (currentUserId == null)
          {
+             Console.WriteLine("Attendance.ClockOut: Error - User not authenticated");
              NotificationService.ShowError("User not authenticated.");
              return;
          }
@@ -270,6 +280,7 @@
             .FirstOrDefault();
          if (open?.Id == null) 
          { 
+             Console.WriteLine("Attendance.ClockOut: Error - No active clock-in found for today");
              NotificationService.ShowWarning("No active clock-in found for today."); 
              return; 
          }
@@ -279,16 +290,22 @@
             CheckOut = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
             Status = "present"
         };
+        Console.WriteLine($"Attendance.ClockOut: Attempting to clock out attendance record {att.Id} at {att.CheckOut}");
         
         try
         {
             await HrService.ClockOutAsync(att);
             NotificationService.ShowSuccess("Clocked out successfully");
             await LoadAttendances();
+            Console.WriteLine("Attendance.ClockOut: Successfully clocked out");
         }
-        catch (TauriValidationException ex) { NotificationService.ShowError(ex.Message); }
+        catch (TauriValidationException ex) { 
+            Console.WriteLine($"Attendance.ClockOut: Tauri validation error - {ex.Message}");
+            NotificationService.ShowError(ex.Message); 
+        }
         catch (Exception ex) 
         { 
+            Console.WriteLine($"Attendance.ClockOut: Error - {ex.Message}");
             NotificationService.ShowError("Clock out failed: " + ex.Message); 
         }
     }

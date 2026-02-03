@@ -739,38 +739,52 @@
 
     private async Task AddProject()
     {
+        Console.WriteLine($"Projects.AddProject: Starting project save operation");
+        Console.WriteLine($"Projects.AddProject: Project data - Name: '{newProject.Name}', Description: '{newProject.Description}', Status: '{newProject.Status}', ManagerId: {newProject.ManagerId}");
+        
         if (string.IsNullOrWhiteSpace(newProject.Name)) 
         {
+            Console.WriteLine("Projects.AddProject: Validation failed - Project Name is required");
             NotificationService.ShowError("Project Name is required.");
             return;
         }
+        
         isLoading = true;
         try
         {
             if (newProject.Id.HasValue)
             {
+                Console.WriteLine($"Projects.AddProject: Updating existing project with ID: {newProject.Id}");
                 await ProjectService.UpdateProjectAsync(newProject);
                 NotificationService.ShowSuccess("Project updated successfully.");
+                Console.WriteLine("Projects.AddProject: Project updated successfully");
             }
             else
             {
+                Console.WriteLine("Projects.AddProject: Creating new project");
                 await ProjectService.AddProjectAsync(newProject);
                 NotificationService.ShowSuccess("Project created successfully.");
+                Console.WriteLine("Projects.AddProject: Project created successfully");
             }
             showModal = false;
             await LoadProjects();
+            Console.WriteLine("Projects.AddProject: Project list reloaded successfully");
         }
         catch (TauriValidationException ex)
         {
+            Console.WriteLine($"Projects.AddProject: TauriValidationException - {ex.Message}");
             NotificationService.ShowError(ex.Message);
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"Projects.AddProject: Exception - {ex.Message}");
+            Console.WriteLine($"Projects.AddProject: Exception StackTrace - {ex.StackTrace}");
             NotificationService.ShowError($"Failed to save project: {ex.Message}");
         }
         finally
         {
             isLoading = false;
+            Console.WriteLine("Projects.AddProject: Operation completed");
         }
     }
     

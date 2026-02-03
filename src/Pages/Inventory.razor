@@ -575,43 +575,55 @@
 
     private async Task SaveItem()
     {
+        Console.WriteLine($"Inventory.SaveItem: Starting save operation for active tab: {activeTab}");
         try
         {
             if (activeTab == "products")
             {
                 if (newProduct.Id.HasValue) 
                 { 
+                    Console.WriteLine($"Inventory.SaveItem: Updating product {newProduct.Name} (ID: {newProduct.Id})");
                     await InventoryService.UpdateProductAsync(newProduct); 
                     NotificationService.ShowSuccess("Product updated."); 
+                    Console.WriteLine("Inventory.SaveItem: Product updated successfully");
                 }
                 else 
                 { 
+                    Console.WriteLine($"Inventory.SaveItem: Adding new product {newProduct.Name}");
                     await InventoryService.AddProductAsync(newProduct); 
                     NotificationService.ShowSuccess("Product added."); 
+                    Console.WriteLine("Inventory.SaveItem: Product added successfully");
                 }
             }
             else
             {
                 if (newTool.Id.HasValue)
                 {
+                    Console.WriteLine($"Inventory.SaveItem: Updating tool {newTool.Name} (ID: {newTool.Id})");
                     await InventoryService.UpdateToolAsync(newTool);
                     NotificationService.ShowSuccess("Tool updated.");
+                    Console.WriteLine("Inventory.SaveItem: Tool updated successfully");
                 }
                 else
                 {
+                    Console.WriteLine($"Inventory.SaveItem: Adding new tool {newTool.Name}");
                     await InventoryService.AddToolAsync(newTool);
                     NotificationService.ShowSuccess("Tool added.");
+                    Console.WriteLine("Inventory.SaveItem: Tool added successfully");
                 }
             }
             showAddModal = false;
             await LoadData();
+            Console.WriteLine("Inventory.SaveItem: Save operation completed successfully");
         }
         catch (TauriValidationException ex)
         {
+            Console.WriteLine($"Inventory.SaveItem: Tauri validation error - {ex.Message}");
             NotificationService.ShowError(ex.Message);
         }
         catch (Exception ex) 
         { 
+            Console.WriteLine($"Inventory.SaveItem: Error - {ex.Message}");
             NotificationService.ShowError("Failed to save: " + ex.Message); 
         }
     }

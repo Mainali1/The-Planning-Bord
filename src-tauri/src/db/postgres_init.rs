@@ -90,6 +90,7 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
 
     // Patch users
     let _ = client.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS username TEXT UNIQUE", &[]);
+    let _ = client.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS full_name TEXT", &[]);
     let _ = client.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'Employee'", &[]);
     let _ = client.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE", &[]);
 
@@ -304,11 +305,24 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             employee_id INTEGER REFERENCES employees(id),
             assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             returned_at TIMESTAMP,
-            return_condition TEXT,
+            condition_on_assignment TEXT,
+            condition_on_return TEXT,
             notes TEXT
         )",
         &[],
     )?;
+
+    // Migration for existing databases: rename return_condition to condition_on_return
+    client.execute(
+        "ALTER TABLE tool_assignments RENAME COLUMN IF EXISTS return_condition TO condition_on_return",
+        &[],
+    ).ok(); // Ignore error if column doesn't exist
+
+    // Add condition_on_assignment column if it doesn't exist
+    client.execute(
+        "ALTER TABLE tool_assignments ADD COLUMN IF NOT EXISTS condition_on_assignment TEXT",
+        &[],
+    ).ok();
 
     // 7. Project Management
     client.execute(
@@ -347,6 +361,15 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
         &[],
     )?;
 
+    // Add missing columns to project_tasks table to match the Rust model
+    let _ = client.execute("ALTER TABLE project_tasks ADD COLUMN IF NOT EXISTS priority TEXT DEFAULT 'medium'", &[]);
+    let _ = client.execute("ALTER TABLE project_tasks ADD COLUMN IF NOT EXISTS start_date TIMESTAMP", &[]);
+    let _ = client.execute("ALTER TABLE project_tasks ADD COLUMN IF NOT EXISTS parent_task_id INTEGER REFERENCES project_tasks(id)", &[]);
+    let _ = client.execute("ALTER TABLE project_tasks ADD COLUMN IF NOT EXISTS dependencies_json TEXT", &[]);
+    
+    // Rename assigned_to_employee_id to assigned_to to match Rust model
+    let _ = client.execute("ALTER TABLE project_tasks RENAME COLUMN assigned_to_employee_id TO assigned_to", &[]);
+
     client.execute(
         "CREATE TABLE IF NOT EXISTS project_assignments (
             id SERIAL PRIMARY KEY,
@@ -375,6 +398,16 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
         )",
         &[],
     )?;
+
+    // Patch complaints for legacy schema
+    let _ = client.execute("ALTER TABLE complaints ADD COLUMN IF NOT EXISTS title TEXT DEFAULT 'Complaint'", &[]);
+    let _ = client.execute("ALTER TABLE complaints RENAME COLUMN content TO description", &[]); // Ignore error if content doesn't exist
+    let _ = client.execute("ALTER TABLE complaints ADD COLUMN IF NOT EXISTS description TEXT", &[]); // Ensure description exists
+    let _ = client.execute("ALTER TABLE complaints ADD COLUMN IF NOT EXISTS submitted_by_employee_id INTEGER REFERENCES employees(id)", &[]);
+    let _ = client.execute("ALTER TABLE complaints RENAME COLUMN created_at TO submitted_at", &[]);
+    let _ = client.execute("ALTER TABLE complaints ADD COLUMN IF NOT EXISTS resolved_by_user_id INTEGER REFERENCES users(id)", &[]);
+    let _ = client.execute("ALTER TABLE complaints ADD COLUMN IF NOT EXISTS is_anonymous BOOLEAN DEFAULT FALSE", &[]);
+
 
     // 9. Attendance
     client.execute(

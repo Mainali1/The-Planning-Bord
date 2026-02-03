@@ -151,13 +151,16 @@ pub struct ChartDataPoint {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Complaint {
     pub id: Option<i32>,
-    pub content: String,
-    pub created_at: Option<String>,
+    pub title: String,
+    pub description: String,
+    pub submitted_by_employee_id: Option<i32>,
     pub status: String,
-    pub admin_notes: Option<String>,
-    pub resolution: Option<String>,
+    pub submitted_at: Option<String>,
     pub resolved_at: Option<String>,
-    pub resolved_by: Option<String>,
+    pub resolution: Option<String>,
+    pub resolved_by_user_id: Option<i32>,
+    pub admin_notes: Option<String>,
+    pub is_anonymous: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
