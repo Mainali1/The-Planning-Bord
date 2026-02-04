@@ -1,0 +1,497 @@
+@page "/quotes"
+@attribute [Authorize(Roles = "CEO,Manager")]
+@inject IQuoteService QuoteService
+@inject IClientService ClientService
+@inject IBusinessConfigurationService BusinessConfigurationService
+@inject NotificationService NotificationService
+@inject IJSRuntime JSRuntime
+@using ThePlanningBord.Models
+
+<PageTitle>Quotes - Planning Bord</PageTitle>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+        <div class="px-4 py-5 sm:px-6 flex justify-between items-center">
+            <div>
+                <h3 class="text-lg leading-6 font-medium text-gray-900">Quote Management</h3>
+                <p class="mt-1 max-w-2xl text-sm text-gray-500">Manage quotes and estimates for your clients.</p>
+            </div>
+            <button @onclick="ShowAddModal" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium">
+                Add Quote
+            </button>
+        </div>
+
+        @if (isLoading)
+        {
+            <div class="px-4 py-5 sm:px-6">
+                <div class="flex justify-center items-center">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                    <span class="ml-2 text-gray-600">Loading quotes...</span>
+                </div>
+            </div>
+        }
+        else if (quotes.Count == 0)
+        {
+            <div class="px-4 py-5 sm:px-6 text-center">
+                <p class="text-gray-500">No quotes found. Create your first quote to get started.</p>
+            </div>
+        }
+        else
+        {
+            <div class="border-t border-gray-200">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quote #</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Valid Until</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Amount</th>
+                            <th scope="col" class="relative px-6 py-3"></th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        @foreach (var quote in quotes)
+                        {
+                            var clientName = clients.FirstOrDefault(c => c.Id == quote.ClientId)?.CompanyName ?? "Unknown";
+                            <tr>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm font-medium text-gray-900">@quote.QuoteNumber</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm text-gray-500">@clientName</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    @if (quote.Status == "accepted")
+                                    {
+                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Accepted</span>
+                                    }
+                                    else if (quote.Status == "draft")
+                                    {
+                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">Draft</span>
+                                    }
+                                    else if (quote.Status == "rejected")
+                                    {
+                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Rejected</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">@quote.Status</span>
+                                    }
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm text-gray-500">@quote.ValidUntil.ToShortDateString()</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm text-gray-500">@quote.TotalAmount.ToString("C")</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                    <button @onclick="() => EditQuote(quote)" class="text-blue-600 hover:text-blue-900 mr-3">Edit</button>
+                                    <button @onclick="() => DeleteQuote(quote)" class="text-red-600 hover:text-red-900">Delete</button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Add/Edit Modal -->
+@if (showModal)
+{
+    <div class="fixed z-10 inset-0 overflow-y-auto">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 transition-opacity" @onclick="CloseModal">
+                <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
+            </div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen"></span>&#8203;
+            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
+                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">@(isEditing ? "Edit Quote" : "Add Quote")</h3>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Quote Number</label>
+                                <input @bind="currentQuote.QuoteNumber" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Client</label>
+                                <select @bind="currentQuote.ClientId" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                    <option value="">Select a Client</option>
+                                    @foreach (var client in clients)
+                                    {
+                                        <option value="@client.Id">@client.CompanyName</option>
+                                    }
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Status</label>
+                                <select @bind="currentQuote.Status" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                    <option value="draft">Draft</option>
+                                    <option value="sent">Sent</option>
+                                    <option value="accepted">Accepted</option>
+                                    <option value="rejected">Rejected</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Valid Until</label>
+                                <input @bind="currentQuote.ValidUntil" type="date" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <div class="flex justify-between items-center mb-2">
+                            <h4 class="text-md font-medium text-gray-900">Line Items</h4>
+                            <button @onclick="AddQuoteItem" type="button" class="text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 py-1 px-3 rounded border border-gray-300">
+                                + Add Item
+                            </button>
+                        </div>
+                        
+                        <div class="border rounded-md overflow-hidden">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4">Service</th>
+                                        <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/3">Description</th>
+                                        <th scope="col" class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-20">Qty</th>
+                                        <th scope="col" class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-24">Price</th>
+                                        <th scope="col" class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-24">Total</th>
+                                        <th scope="col" class="px-4 py-2 w-24"></th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    @if (quoteItems.Count == 0)
+                                    {
+                                        <tr>
+                                            <td colspan="6" class="px-4 py-4 text-center text-sm text-gray-500">No items added.</td>
+                                        </tr>
+                                    }
+                                    @foreach (var item in quoteItems)
+                                    {
+                                        <tr>
+                                            <td class="px-2 py-2">
+                                                <select @bind="item.ServiceId" @bind:after="() => OnServiceChanged(item)" class="block w-full text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                                                    <option value="">Custom Service</option>
+                                                    @foreach (var service in services)
+                                                    {
+                                                        <option value="@service.Id">@service.Name</option>
+                                                    }
+                                                </select>
+                                            </td>
+                                            <td class="px-2 py-2">
+                                                <input @bind="item.Description" class="block w-full text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" placeholder="Description" />
+                                            </td>
+                                            <td class="px-2 py-2">
+                                                <input @bind="item.Quantity" @bind:after="CalculateTotals" type="number" step="0.01" class="block w-full text-sm text-right border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" />
+                                            </td>
+                                            <td class="px-2 py-2">
+                                                <input @bind="item.UnitPrice" @bind:after="CalculateTotals" type="number" step="0.01" class="block w-full text-sm text-right border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" />
+                                            </td>
+                                            <td class="px-4 py-2 text-right text-sm text-gray-900">
+                                                @((item.Quantity * item.UnitPrice).ToString("C"))
+                                            </td>
+                                            <td class="px-2 py-2 text-center whitespace-nowrap">
+                                                <button @onclick="() => MoveItemUp(item)" type="button" class="text-gray-500 hover:text-gray-700 mr-1" disabled="@(quoteItems.IndexOf(item) == 0)" title="Move Up">
+                                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path></svg>
+                                                </button>
+                                                <button @onclick="() => MoveItemDown(item)" type="button" class="text-gray-500 hover:text-gray-700 mr-1" disabled="@(quoteItems.IndexOf(item) == quoteItems.Count - 1)" title="Move Down">
+                                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                                </button>
+                                                <button @onclick="() => RemoveQuoteItem(item)" type="button" class="text-red-600 hover:text-red-900" title="Remove">
+                                                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div class="mt-4 flex justify-end space-y-1 flex-col items-end">
+                            <div class="flex justify-between w-64">
+                                <span class="text-sm font-medium text-gray-500">Subtotal:</span>
+                                <span class="text-sm font-bold text-gray-900">@currentQuote.Subtotal.ToString("C")</span>
+                            </div>
+                            <div class="flex justify-between w-64 items-center">
+                                <span class="text-sm font-medium text-gray-500">Tax Amount:</span>
+                                <input @bind="currentQuote.TaxAmount" @bind:after="CalculateFinalTotal" type="number" step="0.01" class="w-24 text-right text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 p-1" />
+                            </div>
+                            <div class="flex justify-between w-64 pt-2 border-t border-gray-200 mt-1">
+                                <span class="text-base font-bold text-gray-900">Total:</span>
+                                <span class="text-base font-bold text-blue-600">@currentQuote.TotalAmount.ToString("C")</span>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                    <button @onclick="SaveQuote" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm">
+                        Save Quote
+                    </button>
+                    <button @onclick="CloseModal" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<Quote> quotes = new();
+    private List<Client> clients = new();
+    private List<Service> services = new();
+    private List<QuoteItem> quoteItems = new();
+    private List<int> deletedItemIds = new();
+    private double taxRate = 0;
+    
+    private bool isLoading = true;
+    private bool showModal = false;
+    private bool isEditing = false;
+    private Quote currentQuote = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        try
+        {
+            var configTask = BusinessConfigurationService.GetBusinessConfigurationAsync();
+            var tasks = new List<Task>
+            {
+                Task.Run(async () => quotes = await QuoteService.GetQuotesAsync()),
+                Task.Run(async () => clients = await ClientService.GetClientsAsync()),
+                Task.Run(async () => services = await BusinessConfigurationService.GetServicesAsync()),
+                configTask
+            };
+            await Task.WhenAll(tasks);
+            
+            var config = await configTask;
+            if (config != null && config.TaxRate.HasValue)
+            {
+                taxRate = config.TaxRate.Value;
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificationService.ShowError($"Failed to load data: {ex.Message}", "Error");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ShowAddModal()
+    {
+        currentQuote = new Quote 
+        { 
+            Status = "draft",
+            ValidUntil = DateTime.Now.AddDays(30),
+            QuoteNumber = $"Q-{DateTime.Now.ToString("yyyyMMdd")}-{new Random().Next(100, 999)}"
+        };
+        quoteItems = new List<QuoteItem>();
+        deletedItemIds = new List<int>();
+        isEditing = false;
+        showModal = true;
+    }
+
+    private async Task EditQuote(Quote quote)
+    {
+        currentQuote = new Quote
+        {
+            Id = quote.Id,
+            QuoteNumber = quote.QuoteNumber,
+            ClientId = quote.ClientId,
+            Status = quote.Status,
+            ValidUntil = quote.ValidUntil,
+            TotalAmount = quote.TotalAmount,
+            Subtotal = quote.Subtotal,
+            TaxAmount = quote.TaxAmount
+        };
+        
+        // Load items
+        try 
+        {
+            quoteItems = await QuoteService.GetQuoteItemsAsync(quote.Id ?? 0);
+        }
+        catch
+        {
+            quoteItems = new List<QuoteItem>();
+        }
+        
+        deletedItemIds = new List<int>();
+        isEditing = true;
+        showModal = true;
+    }
+
+    private void AddQuoteItem()
+    {
+        quoteItems.Add(new QuoteItem 
+        { 
+            Quantity = 1, 
+            UnitPrice = 0,
+            Description = ""
+        });
+    }
+
+    private void RemoveQuoteItem(QuoteItem item)
+    {
+        if (item.Id.HasValue)
+        {
+            deletedItemIds.Add(item.Id.Value);
+        }
+        quoteItems.Remove(item);
+        CalculateTotals();
+    }
+
+    private void MoveItemUp(QuoteItem item)
+    {
+        int index = quoteItems.IndexOf(item);
+        if (index > 0)
+        {
+            quoteItems.RemoveAt(index);
+            quoteItems.Insert(index - 1, item);
+        }
+    }
+
+    private void MoveItemDown(QuoteItem item)
+    {
+        int index = quoteItems.IndexOf(item);
+        if (index < quoteItems.Count - 1)
+        {
+            quoteItems.RemoveAt(index);
+            quoteItems.Insert(index + 1, item);
+        }
+    }
+
+    private void OnServiceChanged(QuoteItem item)
+    {
+        if (item.ServiceId.HasValue)
+        {
+            var service = services.FirstOrDefault(s => s.Id == item.ServiceId.Value);
+            if (service != null)
+            {
+                item.Description = service.Name;
+                item.UnitPrice = service.UnitPrice;
+                CalculateTotals();
+            }
+        }
+    }
+
+    private void CalculateTotals()
+    {
+        double subtotal = 0;
+        foreach (var item in quoteItems)
+        {
+            item.TotalPrice = item.Quantity * item.UnitPrice;
+            subtotal += item.TotalPrice;
+        }
+        currentQuote.Subtotal = subtotal;
+        
+        // Auto-calculate tax if taxRate > 0 (assuming percentage)
+        if (taxRate > 0)
+        {
+            currentQuote.TaxAmount = currentQuote.Subtotal * (taxRate / 100.0);
+        }
+        
+        CalculateFinalTotal();
+    }
+
+    private void CalculateFinalTotal()
+    {
+        currentQuote.TotalAmount = currentQuote.Subtotal + currentQuote.TaxAmount;
+    }
+
+    private async Task SaveQuote()
+    {
+        try
+        {
+            // Ensure totals are correct before saving
+            CalculateTotals();
+            
+            long quoteId;
+            
+            if (isEditing)
+            {
+                await QuoteService.UpdateQuoteAsync(currentQuote);
+                quoteId = currentQuote.Id ?? 0;
+                NotificationService.ShowSuccess("Quote updated successfully", "Success");
+            }
+            else
+            {
+                quoteId = await QuoteService.AddQuoteAsync(currentQuote);
+                currentQuote.Id = (int)quoteId;
+                NotificationService.ShowSuccess("Quote added successfully", "Success");
+            }
+            
+            // Handle Items
+            
+            // 1. Delete removed items
+            foreach (var id in deletedItemIds)
+            {
+                await QuoteService.DeleteQuoteItemAsync(id);
+            }
+            
+            // 2. Add/Update items
+            int sortOrder = 0;
+            foreach (var item in quoteItems)
+            {
+                item.QuoteId = (int)quoteId;
+                item.SortOrder = sortOrder++;
+                
+                if (item.Id.HasValue)
+                {
+                    await QuoteService.UpdateQuoteItemAsync(item);
+                }
+                else
+                {
+                    await QuoteService.AddQuoteItemAsync(item);
+                }
+            }
+            
+            // Refresh quotes only
+            quotes = await QuoteService.GetQuotesAsync();
+            CloseModal();
+        }
+        catch (Exception ex)
+        {
+            NotificationService.ShowError($"Failed to save quote: {ex.Message}", "Error");
+        }
+    }
+
+    private async Task DeleteQuote(Quote quote)
+    {
+        if (await JSRuntime.InvokeAsync<bool>("confirm", $"Are you sure you want to delete quote '{quote.QuoteNumber}'?"))
+        {
+            try
+            {
+                await QuoteService.DeleteQuoteAsync(quote.Id ?? 0);
+                NotificationService.ShowSuccess("Quote deleted successfully", "Success");
+                quotes = await QuoteService.GetQuotesAsync();
+            }
+            catch (Exception ex)
+            {
+                NotificationService.ShowError($"Failed to delete quote: {ex.Message}", "Error");
+            }
+        }
+    }
+
+    private void CloseModal()
+    {
+        showModal = false;
+        currentQuote = new Quote();
+        quoteItems = new List<QuoteItem>();
+    }
+}

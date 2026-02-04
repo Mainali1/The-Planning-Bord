@@ -105,6 +105,13 @@ pub struct DashboardStats {
     pub total_revenue: f64,
     pub total_sales: i32,
     pub net_profit: f64,
+    pub total_services: i32,
+    pub total_clients: i32,
+    pub billable_hours: f64,
+    pub billable_utilization: f64,
+    pub average_project_margin: f64,
+    pub resource_availability_rate: f64,
+    pub contracts_expiring_soon: i32,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -417,4 +424,117 @@ pub struct Supplier {
     pub is_active: bool,
     pub created_at: Option<String>,
     pub updated_at: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct BusinessConfiguration {
+    pub id: Option<i32>,
+    pub business_type: String, // 'product-only', 'service-only', 'both'
+    pub company_name: Option<String>,
+    pub industry: Option<String>,
+    pub tax_rate: Option<f64>,
+    pub is_active: bool,
+    pub created_at: Option<String>,
+    pub updated_at: Option<String>,
+    pub created_by_user_id: Option<i32>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Service {
+    pub id: Option<i32>,
+    pub name: String,
+    pub description: Option<String>,
+    pub category: Option<String>,
+    pub unit_price: f64,
+    pub billing_type: String, // 'hourly', 'fixed', 'retainer', 'milestone'
+    pub estimated_hours: Option<f64>,
+    pub is_active: bool,
+    pub created_at: Option<String>,
+    pub updated_at: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Client {
+    pub id: Option<i32>,
+    pub company_name: String,
+    pub contact_name: String,
+    pub email: String,
+    pub phone: Option<String>,
+    pub address: Option<String>,
+    pub industry: Option<String>,
+    pub status: String, // 'lead', 'prospect', 'active', 'inactive'
+    pub payment_terms: Option<String>,
+    pub credit_limit: Option<f64>,
+    pub tax_id: Option<String>,
+    pub notes: Option<String>,
+    pub is_active: bool,
+    pub created_at: Option<String>,
+    pub updated_at: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct TimeEntry {
+    pub id: Option<i32>,
+    pub employee_id: Option<i32>,
+    pub client_id: Option<i32>,
+    pub project_id: Option<i32>,
+    pub service_id: Option<i32>,
+    pub product_id: Option<i32>,
+    pub description: String,
+    pub start_time: String,
+    pub end_time: Option<String>,
+    pub duration_hours: f64,
+    pub is_billable: bool,
+    pub hourly_rate: f64,
+    pub billable_amount: Option<f64>,
+    pub status: String, // 'draft', 'submitted', 'approved', 'invoiced', 'paid'
+    pub created_at: Option<String>,
+    pub updated_at: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ServiceContract {
+    pub id: Option<i32>,
+    pub client_id: i32,
+    pub contract_number: String,
+    pub title: String,
+    pub contract_type: String, // 'retainer', 'project', 'recurring', 'milestone'
+    pub start_date: String,
+    pub end_date: Option<String>,
+    pub total_value: f64,
+    pub billing_frequency: Option<String>, // 'weekly', 'monthly', 'quarterly', 'annually', 'milestone'
+    pub status: String, // 'draft', 'active', 'completed', 'cancelled', 'expired'
+    pub terms: Option<String>,
+    pub is_active: bool,
+    pub created_at: Option<String>,
+    pub updated_at: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Quote {
+    pub id: Option<i32>,
+    pub client_id: i32,
+    pub quote_number: String,
+    pub title: String,
+    pub subtotal: f64,
+    pub tax_amount: f64,
+    pub total_amount: f64,
+    pub valid_until: String,
+    pub status: String, // 'draft', 'sent', 'accepted', 'rejected', 'expired'
+    pub notes: Option<String>,
+    pub is_active: bool,
+    pub created_at: Option<String>,
+    pub updated_at: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct QuoteItem {
+    pub id: Option<i32>,
+    pub quote_id: i32,
+    pub service_id: Option<i32>,
+    pub description: String,
+    pub quantity: f64,
+    pub unit_price: f64,
+    pub total_price: f64,
+    pub sort_order: i32,
 }

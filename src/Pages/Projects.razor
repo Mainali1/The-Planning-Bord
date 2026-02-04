@@ -670,7 +670,7 @@
             NotificationService.ShowError(ex.Message);
             projects = new List<Project>();
         }
-        catch (Exception ex) 
+        catch
         {
             NotificationService.ShowError("Failed to load projects.");
             projects = new List<Project>();
@@ -704,7 +704,7 @@
             NotificationService.ShowError(ex.Message);
             projects = new List<Project>();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             NotificationService.ShowError("Failed to load projects.");
             projects = new List<Project>();
@@ -965,7 +965,7 @@
                 NotificationService.ShowError(ex.Message);
                 projectTasks = new List<ProjectTask>();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 NotificationService.ShowError("Failed to load tasks.");
                 projectTasks = new List<ProjectTask>();
@@ -1033,7 +1033,7 @@
                 NotificationService.ShowError(ex.Message);
                 projectAssignments = new List<ProjectAssignment>();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 NotificationService.ShowError("Failed to load assignments.");
                 projectAssignments = new List<ProjectAssignment>();
@@ -1595,7 +1595,7 @@
             NotificationService.ShowError(ex.Message);
             projectAssignmentsMap = new Dictionary<int, List<ProjectAssignment>>();
         }
-        catch (Exception ex)
+        catch
         {
             NotificationService.ShowError("Failed to load all assignments.");
             projectAssignmentsMap = new Dictionary<int, List<ProjectAssignment>>();

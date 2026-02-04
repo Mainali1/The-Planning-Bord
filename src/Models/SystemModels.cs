@@ -59,6 +59,27 @@ namespace ThePlanningBord.Models
     public int TotalSales { get; set; }
     [JsonPropertyName("net_profit")]
     public double NetProfit { get; set; }
+
+    [JsonPropertyName("total_services")]
+    public int TotalServices { get; set; }
+
+    [JsonPropertyName("total_clients")]
+    public int TotalClients { get; set; }
+
+    [JsonPropertyName("billable_hours")]
+    public double BillableHours { get; set; }
+
+    [JsonPropertyName("billable_utilization")]
+    public double BillableUtilization { get; set; }
+
+    [JsonPropertyName("average_project_margin")]
+    public double AverageProjectMargin { get; set; }
+
+    [JsonPropertyName("resource_availability_rate")]
+    public double ResourceAvailabilityRate { get; set; }
+
+    [JsonPropertyName("contracts_expiring_soon")]
+    public int ContractsExpiringSoon { get; set; }
 }
 
     public class ReportSummary

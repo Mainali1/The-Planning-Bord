@@ -162,4 +162,44 @@ pub trait Database: Send + Sync {
     async fn add_supplier_order(&self, order: SupplierOrder) -> Result<i64, String>;
     async fn update_supplier_order(&self, order: SupplierOrder) -> Result<(), String>;
     async fn delete_supplier_order(&self, id: i32) -> Result<(), String>;
+
+    // Business Configuration
+    async fn get_business_configuration(&self) -> Result<Option<BusinessConfiguration>, String>;
+    async fn save_business_configuration(&self, config: BusinessConfiguration) -> Result<i64, String>;
+    async fn update_business_configuration(&self, config: BusinessConfiguration) -> Result<(), String>;
+
+    // Services
+    async fn get_services(&self) -> Result<Vec<Service>, String>;
+    async fn add_service(&self, service: Service) -> Result<i64, String>;
+    async fn update_service(&self, service: Service) -> Result<(), String>;
+    async fn delete_service(&self, id: i32) -> Result<(), String>;
+
+    // Clients
+    async fn get_clients(&self) -> Result<Vec<Client>, String>;
+    async fn add_client(&self, client: Client) -> Result<i64, String>;
+    async fn update_client(&self, client: Client) -> Result<(), String>;
+    async fn delete_client(&self, id: i32) -> Result<(), String>;
+    async fn get_client_by_id(&self, id: i32) -> Result<Option<Client>, String>;
+
+    // Time Entries
+    async fn get_time_entries(&self, employee_id: Option<i32>, client_id: Option<i32>, project_id: Option<i32>) -> Result<Vec<TimeEntry>, String>;
+    async fn add_time_entry(&self, time_entry: TimeEntry) -> Result<i64, String>;
+    async fn update_time_entry(&self, time_entry: TimeEntry) -> Result<(), String>;
+    async fn delete_time_entry(&self, id: i32) -> Result<(), String>;
+
+    // Service Contracts
+    async fn get_service_contracts(&self, client_id: Option<i32>) -> Result<Vec<ServiceContract>, String>;
+    async fn add_service_contract(&self, contract: ServiceContract) -> Result<i64, String>;
+    async fn update_service_contract(&self, contract: ServiceContract) -> Result<(), String>;
+    async fn delete_service_contract(&self, id: i32) -> Result<(), String>;
+
+    // Quotes
+    async fn get_quotes(&self, client_id: Option<i32>) -> Result<Vec<Quote>, String>;
+    async fn add_quote(&self, quote: Quote) -> Result<i64, String>;
+    async fn update_quote(&self, quote: Quote) -> Result<(), String>;
+    async fn delete_quote(&self, id: i32) -> Result<(), String>;
+    async fn get_quote_items(&self, quote_id: i32) -> Result<Vec<QuoteItem>, String>;
+    async fn add_quote_item(&self, item: QuoteItem) -> Result<i64, String>;
+    async fn update_quote_item(&self, item: QuoteItem) -> Result<(), String>;
+    async fn delete_quote_item(&self, id: i32) -> Result<(), String>;
 }

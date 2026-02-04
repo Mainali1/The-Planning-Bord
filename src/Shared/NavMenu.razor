@@ -1,7 +1,8 @@
 @using Microsoft.AspNetCore.Components.Authorization
 @inject ThePlanningBord.Services.ISystemService SystemService
+@inject ThePlanningBord.Services.IBusinessConfigurationService BusinessConfigurationService
 
-<nav class="bg-gray-800 w-64 flex-shrink-0 flex flex-col justify-between">
+<nav class="bg-gray-800 w-full flex-shrink-0 flex flex-col justify-between min-h-full">
     <div class="mt-5">
         <div class="flex items-center justify-center mb-8">
             <span class="text-white text-2xl font-semibold">@companyName</span>
@@ -13,24 +14,70 @@
                 Dashboard
             </NavLink>
 
-            <NavLink href="inventory" class="group flex items-center px-2 py-2 text-base font-medium rounded-md text-gray-300 hover:bg-gray-700 hover:text-white" ActiveClass="bg-gray-900 text-white">
-                <span class="mr-3">📦</span>
-                Inventory
-            </NavLink>
-
-            <AuthorizeView Roles="CEO,Manager">
-                <NavLink href="suppliers" class="group flex items-center px-2 py-2 text-base font-medium rounded-md text-gray-300 hover:bg-gray-700 hover:text-white" ActiveClass="bg-gray-900 text-white">
-                    <span class="mr-3">🏭</span>
-                    Suppliers
+            @if (businessType == "product-only" || businessType == "both")
+            {
+                <NavLink href="inventory" class="group flex items-center px-2 py-2 text-base font-medium rounded-md text-gray-300 hover:bg-gray-700 hover:text-white" ActiveClass="bg-gray-900 text-white">
+                    <span class="mr-3">📦</span>
+                    Inventory
                 </NavLink>
-            </AuthorizeView>
 
-            <AuthorizeView Roles="CEO,Manager,Technical">
-                <NavLink href="tools" class="group flex items-center px-2 py-2 text-base font-medium rounded-md text-gray-300 hover:bg-gray-700 hover:text-white" ActiveClass="bg-gray-900 text-white">
-                    <span class="mr-3">🔧</span>
-                    Tools
+                <AuthorizeView Roles="CEO,Manager">
+                    <NavLink href="suppliers" class="group flex items-center px-2 py-2 text-base font-medium rounded-md text-gray-300 hover:bg-gray-700 hover:text-white" ActiveClass="bg-gray-900 text-white">
+                        <span class="mr-3">🏭</span>
+                        Suppliers
+                    </NavLink>
+                </AuthorizeView>
+            }
+
+            @if (businessType == "service-only" || businessType == "both")
+            {
+                <AuthorizeView Roles="CEO,Manager">
+                    <NavLink href="services" class="group flex items-center px-2 py-2 text-base font-medium rounded-md text-gray-300 hover:bg-gray-700 hover:text-white" ActiveClass="bg-gray-900 text-white">
+                        <span class="mr-3">🔧</span>
+                        Services
+                    </NavLink>
+                </AuthorizeView>
+
+                <AuthorizeView Roles="CEO,Manager">
+                    <NavLink href="clients" class="group flex items-center px-2 py-2 text-base font-medium rounded-md text-gray-300 hover:bg-gray-700 hover:text-white" ActiveClass="bg-gray-900 text-white">
+                        <span class="mr-3">👥</span>
+                        Clients
+                    </NavLink>
+                </AuthorizeView>
+
+                <AuthorizeView Roles="CEO,Manager">
+                    <NavLink href="contracts" class="group flex items-center px-2 py-2 text-base font-medium rounded-md text-gray-300 hover:bg-gray-700 hover:text-white" ActiveClass="bg-gray-900 text-white">
+                        <span class="mr-3">📜</span>
+                        Contracts
+                    </NavLink>
+                </AuthorizeView>
+
+                <AuthorizeView Roles="CEO,Manager">
+                    <NavLink href="quotes" class="group flex items-center px-2 py-2 text-base font-medium rounded-md text-gray-300 hover:bg-gray-700 hover:text-white" ActiveClass="bg-gray-900 text-white">
+                        <span class="mr-3">💬</span>
+                        Quotes
+                    </NavLink>
+                </AuthorizeView>
+
+                <AuthorizeView Roles="CEO,Manager">
+                    <NavLink href="resource-planning" class="group flex items-center px-2 py-2 text-base font-medium rounded-md text-gray-300 hover:bg-gray-700 hover:text-white" ActiveClass="bg-gray-900 text-white">
+                        <span class="mr-3">🗓️</span>
+                        Resource Planning
+                    </NavLink>
+                </AuthorizeView>
+
+                <NavLink href="time-tracking" class="group flex items-center px-2 py-2 text-base font-medium rounded-md text-gray-300 hover:bg-gray-700 hover:text-white" ActiveClass="bg-gray-900 text-white">
+                    <span class="mr-3">⏱️</span>
+                    Time Tracking
                 </NavLink>
-            </AuthorizeView>
+            }
+ 
+             <AuthorizeView Roles="CEO,Manager,Technical">
+                 <NavLink href="tools" class="group flex items-center px-2 py-2 text-base font-medium rounded-md text-gray-300 hover:bg-gray-700 hover:text-white" ActiveClass="bg-gray-900 text-white">
+                     <span class="mr-3">🔧</span>
+                     Tools
+                 </NavLink>
+             </AuthorizeView>
 
             <AuthorizeView Roles="CEO,Manager">
                 <NavLink href="employees" class="group flex items-center px-2 py-2 text-base font-medium rounded-md text-gray-300 hover:bg-gray-700 hover:text-white" ActiveClass="bg-gray-900 text-white">
@@ -101,6 +148,7 @@
 
 @code {
     private string companyName = "Planning Bord";
+    private string businessType = "product-only"; // Default to product-based
 
     protected override async Task OnInitializedAsync()
     {
@@ -111,10 +159,17 @@
             {
                 companyName = name;
             }
+            
+            // Get business configuration
+            var config = await BusinessConfigurationService.GetBusinessConfigurationAsync();
+            if (config != null)
+            {
+                businessType = config.BusinessType?.ToLower() ?? "product-only";
+            }
         }
         catch
         {
-            // Ignore and keep default
+            // Ignore and keep defaults
         }
     }
 }

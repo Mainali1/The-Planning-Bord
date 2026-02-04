@@ -154,4 +154,44 @@ impl Database for NoOpDatabase {
     async fn add_supplier_order(&self, _order: SupplierOrder) -> Result<i64, String> { Err("DB not configured".into()) }
     async fn update_supplier_order(&self, _order: SupplierOrder) -> Result<(), String> { Err("DB not configured".into()) }
     async fn delete_supplier_order(&self, _id: i32) -> Result<(), String> { Err("DB not configured".into()) }
+
+    // Business Config
+    async fn get_business_configuration(&self) -> Result<Option<BusinessConfiguration>, String> { Err("DB not configured".into()) }
+    async fn save_business_configuration(&self, _config: BusinessConfiguration) -> Result<i64, String> { Err("DB not configured".into()) }
+    async fn update_business_configuration(&self, _config: BusinessConfiguration) -> Result<(), String> { Err("DB not configured".into()) }
+
+    // Services
+    async fn get_services(&self) -> Result<Vec<Service>, String> { Err("DB not configured".into()) }
+    async fn add_service(&self, _service: Service) -> Result<i64, String> { Err("DB not configured".into()) }
+    async fn update_service(&self, _service: Service) -> Result<(), String> { Err("DB not configured".into()) }
+    async fn delete_service(&self, _id: i32) -> Result<(), String> { Err("DB not configured".into()) }
+
+    // Clients
+    async fn get_clients(&self) -> Result<Vec<Client>, String> { Err("DB not configured".into()) }
+    async fn get_client_by_id(&self, _id: i32) -> Result<Option<Client>, String> { Err("DB not configured".into()) }
+    async fn add_client(&self, _client: Client) -> Result<i64, String> { Err("DB not configured".into()) }
+    async fn update_client(&self, _client: Client) -> Result<(), String> { Err("DB not configured".into()) }
+    async fn delete_client(&self, _id: i32) -> Result<(), String> { Err("DB not configured".into()) }
+
+    // Time Entries
+    async fn get_time_entries(&self, _employee_id: Option<i32>, _client_id: Option<i32>, _project_id: Option<i32>) -> Result<Vec<TimeEntry>, String> { Err("DB not configured".into()) }
+    async fn add_time_entry(&self, _time_entry: TimeEntry) -> Result<i64, String> { Err("DB not configured".into()) }
+    async fn update_time_entry(&self, _time_entry: TimeEntry) -> Result<(), String> { Err("DB not configured".into()) }
+    async fn delete_time_entry(&self, _id: i32) -> Result<(), String> { Err("DB not configured".into()) }
+
+    // Service Contracts
+    async fn get_service_contracts(&self, _client_id: Option<i32>) -> Result<Vec<ServiceContract>, String> { Err("DB not configured".into()) }
+    async fn add_service_contract(&self, _contract: ServiceContract) -> Result<i64, String> { Err("DB not configured".into()) }
+    async fn update_service_contract(&self, _contract: ServiceContract) -> Result<(), String> { Err("DB not configured".into()) }
+    async fn delete_service_contract(&self, _id: i32) -> Result<(), String> { Err("DB not configured".into()) }
+
+    // Quotes
+    async fn get_quotes(&self, _client_id: Option<i32>) -> Result<Vec<Quote>, String> { Err("DB not configured".into()) }
+    async fn add_quote(&self, _quote: Quote) -> Result<i64, String> { Err("DB not configured".into()) }
+    async fn update_quote(&self, _quote: Quote) -> Result<(), String> { Err("DB not configured".into()) }
+    async fn delete_quote(&self, _id: i32) -> Result<(), String> { Err("DB not configured".into()) }
+    async fn get_quote_items(&self, _quote_id: i32) -> Result<Vec<QuoteItem>, String> { Err("DB not configured".into()) }
+    async fn add_quote_item(&self, _item: QuoteItem) -> Result<i64, String> { Err("DB not configured".into()) }
+    async fn update_quote_item(&self, _item: QuoteItem) -> Result<(), String> { Err("DB not configured".into()) }
+    async fn delete_quote_item(&self, _id: i32) -> Result<(), String> { Err("DB not configured".into()) }
 }

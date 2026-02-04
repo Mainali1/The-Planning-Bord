@@ -68,7 +68,7 @@ namespace ThePlanningBord.Services
                     }
                 }
             }
-            catch (Exception ex)
+            catch
             {
                 // Background job errors should not crash the app, but maybe notify admin?
                 // For now, suppress or log to notification if critical

@@ -450,7 +450,7 @@
             if (activeTab == "products") products = new List<Product>();
             else tools = new List<Tool>();
         }
-        catch (Exception ex)
+        catch
         {
             NotificationService.ShowError($"Failed to load {activeTab}.");
             if (activeTab == "products") products = new List<Product>();

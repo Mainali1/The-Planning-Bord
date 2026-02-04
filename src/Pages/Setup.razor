@@ -2,6 +2,7 @@
 @layout EmptyLayout
 @attribute [Microsoft.AspNetCore.Authorization.AllowAnonymous]
 @inject ISystemService SystemService
+@inject IBusinessConfigurationService BusinessConfigurationService
 @inject IUserService UserService
 @inject NavigationManager Navigation
 @inject NotificationService NotificationService
@@ -127,10 +128,50 @@
                     </div>
                 </div>
             }
-            else if (step == 2) // Business Type (CEO only)
+            else if (step == 2) // Business Configuration Type (CEO only)
             {
                 <div>
-                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Step 2: Business Profile</h3>
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Step 2: Business Type</h3>
+                    <p class="text-sm text-gray-600 mb-4">What type of business operations do you plan to manage?</p>
+                    
+                    <div class="space-y-4">
+                        <button @onclick="@(() => SelectBusinessConfigurationType("product-only"))" class="w-full flex items-center justify-between px-4 py-4 border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 @(businessConfigurationType == "product-only" ? "border-blue-500 ring-1 ring-blue-500" : "")">
+                            <div>
+                                <p class="text-sm font-medium text-gray-900">Product-Based Only</p>
+                                <p class="text-xs text-gray-500">Sell physical products, manage inventory, and handle supply chain.</p>
+                            </div>
+                        </button>
+
+                        <button @onclick="@(() => SelectBusinessConfigurationType("service-only"))" class="w-full flex items-center justify-between px-4 py-4 border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 @(businessConfigurationType == "service-only" ? "border-blue-500 ring-1 ring-blue-500" : "")">
+                            <div>
+                                <p class="text-sm font-medium text-gray-900">Service-Based Only</p>
+                                <p class="text-xs text-gray-500">Provide services, track time, and manage clients.</p>
+                            </div>
+                        </button>
+
+                        <button @onclick="@(() => SelectBusinessConfigurationType("both"))" class="w-full flex items-center justify-between px-4 py-4 border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 @(businessConfigurationType == "both" ? "border-blue-500 ring-1 ring-blue-500" : "")">
+                            <div>
+                                <p class="text-sm font-medium text-gray-900">Both Product & Service</p>
+                                <p class="text-xs text-gray-500">Manage both physical products and service offerings.</p>
+                            </div>
+                        </button>
+                        
+                        <div class="pt-4">
+                             <button @onclick="NextStep" disabled="@(!IsBusinessConfigurationValid())" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50">
+                                Continue
+                            </button>
+                            @if (!IsBusinessConfigurationValid())
+                            {
+                                <p class="mt-2 text-sm text-red-600">Please select a business type to continue.</p>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+            else if (step == 3) // Business Size (CEO only)
+            {
+                <div>
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Step 3: Business Profile</h3>
                     <div class="space-y-4">
                         <button @onclick="@(() => SelectBusinessType("Single"))" class="w-full flex items-center justify-between px-4 py-4 border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 @(businessType == "Single" ? "border-blue-500 ring-1 ring-blue-500" : "")">
                             <div>
@@ -147,9 +188,13 @@
                         </button>
                         
                         <div class="pt-4">
-                             <button @onclick="NextStep" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">
+                             <button @onclick="NextStep" disabled="@(!IsBusinessSizeValid())" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50">
                                 Continue
                             </button>
+                            @if (!IsBusinessSizeValid())
+                            {
+                                <p class="mt-2 text-sm text-red-600">Please select a business size to continue.</p>
+                            }
                         </div>
                     </div>
                 </div>
@@ -281,6 +326,7 @@
     private int step = 0;
     private string selectedRole = "";
     private string businessType = "Single";
+    private string businessConfigurationType = "";
     
     private DbConfig dbConfig = new DbConfig { DbType = DbType.Local, ConnectionString = "postgres://postgres:password@localhost:5432/planningbord" };
     private bool embeddedAvailable = false;
@@ -382,10 +428,27 @@
         businessType = type;
         await SaveState();
     }
+
+    private async Task SelectBusinessConfigurationType(string type)
+    {
+        businessConfigurationType = type;
+        await SaveState();
+    }
+
+    private bool IsBusinessConfigurationValid()
+    {
+        return !string.IsNullOrWhiteSpace(businessConfigurationType);
+    }
+
+    private bool IsBusinessSizeValid()
+    {
+        return !string.IsNullOrWhiteSpace(businessType);
+    }
     
     private async Task NextStep()
     {
-        if (step == 2) step = 20;
+        if (step == 2) step = 3;
+        else if (step == 3) step = 20;
         await SaveState();
     }
     
@@ -684,6 +747,29 @@
                     {
                         customAuth.NotifyUserLogin(user);
                     }
+                    
+                    // Save business configuration if selected
+                    if (!string.IsNullOrEmpty(businessConfigurationType))
+                    {
+                        try
+                        {
+                            var config = new BusinessConfiguration
+                            {
+                                BusinessType = businessConfigurationType,
+                                CompanyName = companyName,
+                                Industry = "General", // Default industry, can be updated later
+                                IsActive = true,
+                                CreatedByUserId = user.Id
+                            };
+                            await BusinessConfigurationService.SaveBusinessConfigurationAsync(config);
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Failed to save business configuration: {ex.Message}");
+                            // Don't fail the setup if business config saving fails
+                        }
+                    }
+                    
                     await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "setup_state");
                     Navigation.NavigateTo("/");
                 }
@@ -713,6 +799,7 @@
         public int Step { get; set; }
         public string SelectedRole { get; set; } = "";
         public string BusinessType { get; set; } = "";
+        public string BusinessConfigurationType { get; set; } = "";
         public DbConfig? DbConfig { get; set; }
         public string EmployeeConnectionString { get; set; } = "";
         public string EmployeeToken { get; set; } = "";
@@ -729,6 +816,7 @@
             Step = step,
             SelectedRole = selectedRole,
             BusinessType = businessType,
+            BusinessConfigurationType = businessConfigurationType,
             DbConfig = dbConfig ?? new DbConfig { DbType = DbType.Local, ConnectionString = "postgres://postgres:password@localhost:5432/planningbord" },
             EmployeeConnectionString = employeeConnectionString,
             EmployeeToken = employeeToken,
@@ -753,6 +841,7 @@
                     step = state.Step;
                     selectedRole = state.SelectedRole;
                     businessType = state.BusinessType;
+                    businessConfigurationType = state.BusinessConfigurationType;
                     dbConfig = state.DbConfig ?? new DbConfig { DbType = DbType.Local, ConnectionString = "postgres://postgres:password@localhost:5432/planningbord" };
                     employeeConnectionString = state.EmployeeConnectionString;
                     employeeToken = state.EmployeeToken;

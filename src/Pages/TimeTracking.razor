@@ -1,0 +1,314 @@
+@page "/time-tracking"
+@attribute [Authorize]
+@inject IBusinessConfigurationService BusinessConfigurationService
+@inject IClientService ClientService
+@inject ITimeTrackingService TimeTrackingService
+@inject NotificationService NotificationService
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Time Tracking - Planning Bord</PageTitle>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+        <div class="px-4 py-5 sm:px-6 flex justify-between items-center">
+            <div>
+                <h3 class="text-lg leading-6 font-medium text-gray-900">Time Tracking</h3>
+                <p class="mt-1 max-w-2xl text-sm text-gray-500">Track time spent on client projects and services.</p>
+            </div>
+            <button @onclick="ShowAddModal" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium">
+                Add Time Entry
+            </button>
+        </div>
+
+        @if (isLoading)
+        {
+            <div class="px-4 py-5 sm:px-6">
+                <div class="flex justify-center items-center">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                    <span class="ml-2 text-gray-600">Loading time entries...</span>
+                </div>
+            </div>
+        }
+        else if (timeEntries.Count == 0)
+        {
+            <div class="px-4 py-5 sm:px-6 text-center">
+                <p class="text-gray-500">No time entries found. Add your first time entry to get started.</p>
+            </div>
+        }
+        else
+        {
+            <div class="border-t border-gray-200">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hours</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rate</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notes</th>
+                            <th scope="col" class="relative px-6 py-3"></th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        @foreach (var entry in timeEntries)
+                        {
+                            <tr>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm text-gray-900">@entry.StartTime.ToString("MM/dd/yyyy")</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm text-gray-900">@GetClientName(entry.ClientId)</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm text-gray-900">@GetServiceName(entry.ServiceId)</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm text-gray-900">@entry.DurationHours.ToString("F2")</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm text-gray-900">$@entry.HourlyRate.ToString("F2")</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm font-medium text-gray-900">$@(entry.DurationHours * entry.HourlyRate).ToString("F2")</div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <div class="text-sm text-gray-500">@entry.Description</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                    <button @onclick="() => EditTimeEntry(entry)" class="text-blue-600 hover:text-blue-900 mr-3">Edit</button>
+                                    <button @onclick="() => DeleteTimeEntry(entry)" class="text-red-600 hover:text-red-900">Delete</button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+                
+                @if (timeEntries.Count > 0)
+                {
+                    <div class="px-6 py-4 bg-gray-50 border-t">
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm font-medium text-gray-700">Total Hours: @timeEntries.Sum(e => e.DurationHours).ToString("F2")</span>
+                            <span class="text-sm font-medium text-gray-700">Total Amount: $@timeEntries.Sum(e => e.DurationHours * e.HourlyRate).ToString("F2")</span>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Add/Edit Modal -->
+@if (showModal)
+{
+    <div class="fixed z-10 inset-0 overflow-y-auto">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 transition-opacity" @onclick="CloseModal">
+                <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
+            </div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen"></span>&#8203;
+            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">@(isEditing ? "Edit Time Entry" : "Add Time Entry")</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Start Time</label>
+                            <input @bind="currentTimeEntry.StartTime" type="datetime-local" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">End Time</label>
+                            <input @bind="currentTimeEntry.EndTime" type="datetime-local" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Client</label>
+                            <select @bind="currentTimeEntry.ClientId" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                <option value="0">Select a client</option>
+                                @foreach (var client in clients)
+                                {
+                                    <option value="@client.Id">@client.ContactName</option>
+                                }
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Service</label>
+                            <select @bind="currentTimeEntry.ServiceId" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                <option value="0">Select a service</option>
+                                @foreach (var service in services)
+                                {
+                                    <option value="@service.Id">@service.Name</option>
+                                }
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Duration (Hours)</label>
+                            <input @bind="currentTimeEntry.DurationHours" type="number" step="0.25" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Hourly Rate ($)</label>
+                            <input @bind="currentTimeEntry.HourlyRate" type="number" step="0.01" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">
+                                <input @bind="currentTimeEntry.IsBillable" type="checkbox" class="mr-2" />
+                                Billable
+                            </label>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Notes</label>
+                            <textarea @bind="currentTimeEntry.Description" rows="3" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                    <button @onclick="SaveTimeEntry" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm">
+                        Save
+                    </button>
+                    <button @onclick="CloseModal" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<TimeEntry> timeEntries = new();
+    private List<Client> clients = new();
+    private List<Service> services = new();
+    private bool isLoading = true;
+    private bool showModal = false;
+    private bool isEditing = false;
+    private TimeEntry currentTimeEntry = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        try
+        {
+            var task1 = TimeTrackingService.GetTimeEntriesAsync();
+            var task2 = ClientService.GetClientsAsync();
+            var task3 = BusinessConfigurationService.GetServicesAsync();
+            
+            await Task.WhenAll(task1, task2, task3);
+            
+            timeEntries = await task1;
+            clients = await task2;
+            services = await task3;
+        }
+        catch (Exception ex)
+        {
+            NotificationService.ShowError($"Failed to load data: {ex.Message}", "Error");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private string GetClientName(int? clientId)
+    {
+        return clients.FirstOrDefault(c => c.Id == clientId)?.ContactName ?? "Unknown";
+    }
+
+    private string GetServiceName(int? serviceId)
+    {
+        return services.FirstOrDefault(s => s.Id == serviceId)?.Name ?? "Unknown";
+    }
+
+    private void ShowAddModal()
+    {
+        currentTimeEntry = new TimeEntry 
+        { 
+            StartTime = DateTime.Now,
+            DurationHours = 1.0,
+            HourlyRate = services.FirstOrDefault()?.UnitPrice ?? 50.0,
+            IsBillable = true
+        };
+        isEditing = false;
+        showModal = true;
+    }
+
+    private void EditTimeEntry(TimeEntry entry)
+    {
+        currentTimeEntry = new TimeEntry
+        {
+            Id = entry.Id,
+            ClientId = entry.ClientId,
+            ServiceId = entry.ServiceId,
+            StartTime = entry.StartTime,
+            EndTime = entry.EndTime,
+            DurationHours = entry.DurationHours,
+            HourlyRate = entry.HourlyRate,
+            Description = entry.Description,
+            IsBillable = entry.IsBillable
+        };
+        isEditing = true;
+        showModal = true;
+    }
+
+    private async Task SaveTimeEntry()
+    {
+        try
+        {
+            if (currentTimeEntry.ClientId == 0 || currentTimeEntry.ServiceId == 0)
+            {
+                NotificationService.ShowError("Please select both client and service", "Validation Error");
+                return;
+            }
+
+            if (currentTimeEntry.DurationHours <= 0)
+            {
+                NotificationService.ShowError("Duration must be greater than 0", "Validation Error");
+                return;
+            }
+
+            if (isEditing)
+            {
+                await TimeTrackingService.UpdateTimeEntryAsync(currentTimeEntry);
+                NotificationService.ShowSuccess("Time entry updated successfully", "Success");
+            }
+            else
+            {
+                await TimeTrackingService.AddTimeEntryAsync(currentTimeEntry);
+                NotificationService.ShowSuccess("Time entry added successfully", "Success");
+            }
+            
+            await LoadData();
+            CloseModal();
+        }
+        catch (Exception ex)
+        {
+            NotificationService.ShowError($"Failed to save time entry: {ex.Message}", "Error");
+        }
+    }
+
+    private async Task DeleteTimeEntry(TimeEntry entry)
+    {
+        if (await JSRuntime.InvokeAsync<bool>("confirm", new[] { $"Are you sure you want to delete this time entry?" }))
+        {
+            try
+            {
+                await TimeTrackingService.DeleteTimeEntryAsync(entry.Id ?? 0);
+                NotificationService.ShowSuccess("Time entry deleted successfully", "Success");
+                await LoadData();
+            }
+            catch (Exception ex)
+            {
+                NotificationService.ShowError($"Failed to delete time entry: {ex.Message}", "Error");
+            }
+        }
+    }
+
+    private void CloseModal()
+    {
+        showModal = false;
+        currentTimeEntry = new TimeEntry();
+    }
+}

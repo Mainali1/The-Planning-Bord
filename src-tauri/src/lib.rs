@@ -5,7 +5,7 @@ pub mod setup;
 use tauri::{State, Manager};
 use tokio::sync::RwLock;
 use std::collections::HashMap;
-use models::{Product, Employee, Payment, DashboardStats, Task, Attendance, ReportSummary, ChartDataPoint, Complaint, Tool, Role, Permission, FeatureToggle, ToolAssignment, AuditLog, DashboardConfig, Project, ProjectTask, ProjectAssignment, Account, Invoice, Integration, User, LoginResponse, Invite, BomHeader, BomLine, InventoryBatch, VelocityReport, BomData, Supplier, SupplierOrder, Sale};
+use models::{Product, Employee, Payment, DashboardStats, Task, Attendance, ReportSummary, ChartDataPoint, Complaint, Tool, Role, Permission, FeatureToggle, ToolAssignment, AuditLog, DashboardConfig, Project, ProjectTask, ProjectAssignment, Account, Invoice, Integration, User, LoginResponse, Invite, BomHeader, BomLine, InventoryBatch, VelocityReport, BomData, Supplier, SupplierOrder, Sale, BusinessConfiguration, Service, Client, TimeEntry, ServiceContract, Quote, QuoteItem};
 use db::{Database, DbConfig, PostgresDatabase};
 use argon2::{
     password_hash::{
@@ -959,6 +959,240 @@ async fn get_active_db_type(state: State<'_, AppState>) -> Result<String, String
     Ok(state.db.read().await.get_type())
 }
 
+// --- Business Configuration Commands ---
+
+#[tauri::command]
+async fn get_business_configuration(state: State<'_, AppState>, token: String) -> Result<Option<BusinessConfiguration>, String> {
+    check_auth(&state, &token, vec![]).await?; // Any authenticated user can read
+    state.db.read().await.get_business_configuration().await
+}
+
+#[tauri::command]
+async fn save_business_configuration(state: State<'_, AppState>, config: BusinessConfiguration, token: String) -> Result<i64, String> {
+    let user = check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    let db = state.db.read().await;
+    let id = db.save_business_configuration(config.clone()).await?;
+    let _ = db.log_activity(user.id, "create".to_string(), "BusinessConfig".to_string(), Some("BusinessConfiguration".to_string()), Some(id as i32), Some(format!("Saved business configuration: {} - {}", config.business_type, config.company_name.clone().unwrap_or_default())), None, None).await;
+    Ok(id)
+}
+
+#[tauri::command]
+async fn update_business_configuration(state: State<'_, AppState>, config: BusinessConfiguration, token: String) -> Result<(), String> {
+    let user = check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    let db = state.db.read().await;
+    db.update_business_configuration(config.clone()).await?;
+    let _ = db.log_activity(user.id, "update".to_string(), "BusinessConfig".to_string(), Some("BusinessConfiguration".to_string()), config.id, Some(format!("Updated business configuration: {} - {}", config.business_type, config.company_name.clone().unwrap_or_default())), None, None).await;
+    Ok(())
+}
+
+// --- Service Management Commands ---
+
+#[tauri::command]
+async fn get_services(state: State<'_, AppState>, token: String) -> Result<Vec<Service>, String> {
+    check_auth(&state, &token, vec![]).await?;
+    state.db.read().await.get_services().await
+}
+
+#[tauri::command]
+async fn add_service(state: State<'_, AppState>, service: Service, token: String) -> Result<i64, String> {
+    let user = check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    let db = state.db.read().await;
+    let id = db.add_service(service.clone()).await?;
+    let _ = db.log_activity(user.id, "create".to_string(), "Services".to_string(), Some("Service".to_string()), Some(id as i32), Some(format!("Added service: {}", service.name)), None, None).await;
+    Ok(id)
+}
+
+#[tauri::command]
+async fn update_service(state: State<'_, AppState>, service: Service, token: String) -> Result<(), String> {
+    let user = check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    let db = state.db.read().await;
+    db.update_service(service.clone()).await?;
+    let _ = db.log_activity(user.id, "update".to_string(), "Services".to_string(), Some("Service".to_string()), service.id, Some(format!("Updated service: {}", service.name)), None, None).await;
+    Ok(())
+}
+
+#[tauri::command]
+async fn delete_service(state: State<'_, AppState>, id: i32, token: String) -> Result<(), String> {
+    let user = check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    let db = state.db.read().await;
+    db.delete_service(id).await?;
+    let _ = db.log_activity(user.id, "delete".to_string(), "Services".to_string(), Some("Service".to_string()), Some(id), Some("Deleted service".to_string()), None, None).await;
+    Ok(())
+}
+
+// --- Client Management Commands ---
+
+#[tauri::command]
+async fn get_clients(state: State<'_, AppState>, token: String) -> Result<Vec<Client>, String> {
+    check_auth(&state, &token, vec![]).await?;
+    state.db.read().await.get_clients().await
+}
+
+#[tauri::command]
+async fn add_client(state: State<'_, AppState>, client: Client, token: String) -> Result<i64, String> {
+    let user = check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    let db = state.db.read().await;
+    let id = db.add_client(client.clone()).await?;
+    let _ = db.log_activity(user.id, "create".to_string(), "Clients".to_string(), Some("Client".to_string()), Some(id as i32), Some(format!("Added client: {}", client.company_name)), None, None).await;
+    Ok(id)
+}
+
+#[tauri::command]
+async fn update_client(state: State<'_, AppState>, client: Client, token: String) -> Result<(), String> {
+    let user = check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    let db = state.db.read().await;
+    db.update_client(client.clone()).await?;
+    let _ = db.log_activity(user.id, "update".to_string(), "Clients".to_string(), Some("Client".to_string()), client.id, Some(format!("Updated client: {}", client.company_name)), None, None).await;
+    Ok(())
+}
+
+#[tauri::command]
+async fn delete_client(state: State<'_, AppState>, id: i32, token: String) -> Result<(), String> {
+    let user = check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    let db = state.db.read().await;
+    db.delete_client(id).await?;
+    let _ = db.log_activity(user.id, "delete".to_string(), "Clients".to_string(), Some("Client".to_string()), Some(id), Some("Deleted client".to_string()), None, None).await;
+    Ok(())
+}
+
+// --- Time Tracking Commands ---
+
+#[tauri::command]
+async fn get_time_entries(state: State<'_, AppState>, employee_id: Option<i32>, client_id: Option<i32>, project_id: Option<i32>, token: String) -> Result<Vec<TimeEntry>, String> {
+    check_auth(&state, &token, vec![]).await?;
+    state.db.read().await.get_time_entries(employee_id, client_id, project_id).await
+}
+
+#[tauri::command]
+async fn add_time_entry(state: State<'_, AppState>, entry: TimeEntry, token: String) -> Result<i64, String> {
+    let user = check_auth(&state, &token, vec![]).await?;
+    let db = state.db.read().await;
+    let id = db.add_time_entry(entry.clone()).await?;
+    let _ = db.log_activity(user.id, "create".to_string(), "TimeTracking".to_string(), Some("TimeEntry".to_string()), Some(id as i32), Some(format!("Added time entry for client {:?} on {}", entry.client_id, entry.start_time)), None, None).await;
+    Ok(id)
+}
+
+#[tauri::command]
+async fn update_time_entry(state: State<'_, AppState>, entry: TimeEntry, token: String) -> Result<(), String> {
+    let user = check_auth(&state, &token, vec![]).await?;
+    let db = state.db.read().await;
+    db.update_time_entry(entry.clone()).await?;
+    let _ = db.log_activity(user.id, "update".to_string(), "TimeTracking".to_string(), Some("TimeEntry".to_string()), entry.id, Some("Updated time entry".to_string()), None, None).await;
+    Ok(())
+}
+
+#[tauri::command]
+async fn delete_time_entry(state: State<'_, AppState>, id: i32, token: String) -> Result<(), String> {
+    let user = check_auth(&state, &token, vec![]).await?;
+    let db = state.db.read().await;
+    db.delete_time_entry(id).await?;
+    let _ = db.log_activity(user.id, "delete".to_string(), "TimeTracking".to_string(), Some("TimeEntry".to_string()), Some(id), Some("Deleted time entry".to_string()), None, None).await;
+    Ok(())
+}
+
+// --- Service Contract Commands ---
+
+#[tauri::command]
+async fn get_service_contracts(state: State<'_, AppState>, client_id: Option<i32>, token: String) -> Result<Vec<ServiceContract>, String> {
+    check_auth(&state, &token, vec![]).await?;
+    state.db.read().await.get_service_contracts(client_id).await
+}
+
+#[tauri::command]
+async fn add_service_contract(state: State<'_, AppState>, contract: ServiceContract, token: String) -> Result<i64, String> {
+    let user = check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    let db = state.db.read().await;
+    let id = db.add_service_contract(contract.clone()).await?;
+    let _ = db.log_activity(user.id, "create".to_string(), "ServiceContracts".to_string(), Some("ServiceContract".to_string()), Some(id as i32), Some(format!("Added contract: {}", contract.title)), None, None).await;
+    Ok(id)
+}
+
+#[tauri::command]
+async fn update_service_contract(state: State<'_, AppState>, contract: ServiceContract, token: String) -> Result<(), String> {
+    let user = check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    let db = state.db.read().await;
+    db.update_service_contract(contract.clone()).await?;
+    let _ = db.log_activity(user.id, "update".to_string(), "ServiceContracts".to_string(), Some("ServiceContract".to_string()), contract.id, Some(format!("Updated contract: {}", contract.title)), None, None).await;
+    Ok(())
+}
+
+#[tauri::command]
+async fn delete_service_contract(state: State<'_, AppState>, id: i32, token: String) -> Result<(), String> {
+    let user = check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    let db = state.db.read().await;
+    db.delete_service_contract(id).await?;
+    let _ = db.log_activity(user.id, "delete".to_string(), "ServiceContracts".to_string(), Some("ServiceContract".to_string()), Some(id), Some("Deleted contract".to_string()), None, None).await;
+    Ok(())
+}
+
+// --- Quote Commands ---
+
+#[tauri::command]
+async fn get_quotes(state: State<'_, AppState>, client_id: Option<i32>, token: String) -> Result<Vec<Quote>, String> {
+    check_auth(&state, &token, vec![]).await?;
+    state.db.read().await.get_quotes(client_id).await
+}
+
+#[tauri::command]
+async fn add_quote(state: State<'_, AppState>, quote: Quote, token: String) -> Result<i64, String> {
+    let user = check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    let db = state.db.read().await;
+    let id = db.add_quote(quote.clone()).await?;
+    let _ = db.log_activity(user.id, "create".to_string(), "Quotes".to_string(), Some("Quote".to_string()), Some(id as i32), Some(format!("Added quote: {}", quote.quote_number)), None, None).await;
+    Ok(id)
+}
+
+#[tauri::command]
+async fn update_quote(state: State<'_, AppState>, quote: Quote, token: String) -> Result<(), String> {
+    let user = check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    let db = state.db.read().await;
+    db.update_quote(quote.clone()).await?;
+    let _ = db.log_activity(user.id, "update".to_string(), "Quotes".to_string(), Some("Quote".to_string()), quote.id, Some(format!("Updated quote: {}", quote.quote_number)), None, None).await;
+    Ok(())
+}
+
+#[tauri::command]
+async fn delete_quote(state: State<'_, AppState>, id: i32, token: String) -> Result<(), String> {
+    let user = check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    let db = state.db.read().await;
+    db.delete_quote(id).await?;
+    let _ = db.log_activity(user.id, "delete".to_string(), "Quotes".to_string(), Some("Quote".to_string()), Some(id), Some("Deleted quote".to_string()), None, None).await;
+    Ok(())
+}
+
+#[tauri::command]
+async fn get_quote_items(state: State<'_, AppState>, quote_id: i32, token: String) -> Result<Vec<QuoteItem>, String> {
+    check_auth(&state, &token, vec![]).await?;
+    state.db.read().await.get_quote_items(quote_id).await
+}
+
+#[tauri::command]
+async fn add_quote_item(state: State<'_, AppState>, item: QuoteItem, token: String) -> Result<i64, String> {
+    let user = check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    let db = state.db.read().await;
+    let id = db.add_quote_item(item.clone()).await?;
+    let _ = db.log_activity(user.id, "create".to_string(), "Quotes".to_string(), Some("QuoteItem".to_string()), Some(id as i32), Some(format!("Added quote item: {}", item.description)), None, None).await;
+    Ok(id)
+}
+
+#[tauri::command]
+async fn update_quote_item(state: State<'_, AppState>, item: QuoteItem, token: String) -> Result<(), String> {
+    let user = check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    let db = state.db.read().await;
+    db.update_quote_item(item.clone()).await?;
+    let _ = db.log_activity(user.id, "update".to_string(), "Quotes".to_string(), Some("QuoteItem".to_string()), item.id, Some(format!("Updated quote item: {}", item.description)), None, None).await;
+    Ok(())
+}
+
+#[tauri::command]
+async fn delete_quote_item(state: State<'_, AppState>, id: i32, token: String) -> Result<(), String> {
+    let user = check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    let db = state.db.read().await;
+    db.delete_quote_item(id).await?;
+    let _ = db.log_activity(user.id, "delete".to_string(), "Quotes".to_string(), Some("QuoteItem".to_string()), Some(id), Some("Deleted quote item".to_string()), None, None).await;
+    Ok(())
+}
+
 // --- Audit Log Commands ---
 
 #[tauri::command]
@@ -1459,6 +1693,12 @@ pub fn run() {
             get_roles, add_role, get_permissions, get_role_permissions, update_role_permissions,
             get_feature_toggles, set_feature_toggle,
             get_setup_status, get_company_name, complete_setup, check_username, get_active_db_type,
+            get_business_configuration, save_business_configuration, update_business_configuration,
+            get_services, add_service, update_service, delete_service,
+            get_clients, add_client, update_client, delete_client,
+            get_time_entries, add_time_entry, update_time_entry, delete_time_entry,
+            get_service_contracts, add_service_contract, update_service_contract, delete_service_contract,
+            get_quotes, add_quote, update_quote, delete_quote, get_quote_items, add_quote_item, update_quote_item, delete_quote_item,
             get_audit_logs, export_audit_logs, update_client_info,
             get_dashboard_configs, save_dashboard_config,
             get_projects, add_project, update_project, get_project_tasks, add_project_task, update_project_task, delete_project, assign_project_employee, get_project_assignments, get_all_project_assignments, remove_project_assignment, delete_project_task,
