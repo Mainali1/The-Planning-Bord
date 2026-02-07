@@ -321,7 +321,7 @@ impl Database for PostgresDatabase {
 
         // Get items
         let rows = client.query(
-            "SELECT id, name, description, category, sku, current_quantity, minimum_quantity, reorder_quantity, unit_price, supplier_name, is_active FROM products WHERE name ILIKE $1 OR sku ILIKE $1 OR category ILIKE $1 LIMIT $2 OFFSET $3",
+            "SELECT id, name, description, category, sku, current_quantity, minimum_quantity, reorder_quantity, unit_price, supplier_name, is_active, cost_price FROM products WHERE name ILIKE $1 OR sku ILIKE $1 OR category ILIKE $1 LIMIT $2 OFFSET $3",
             &[&search_pattern, &limit, &offset]
         ).await.map_err(|e| format!("Failed to fetch products: {}", e))?;
 
@@ -339,6 +339,7 @@ impl Database for PostgresDatabase {
                 unit_price: row.get(8),
                 supplier_name: row.get(9),
                 is_active: row.get(10),
+                cost_price: row.get(11),
             });
         }
 
@@ -377,8 +378,8 @@ impl Database for PostgresDatabase {
         }
         
         let row = client.query_one(
-            "INSERT INTO products (name, description, category, sku, current_quantity, minimum_quantity, reorder_quantity, unit_price, supplier_name, is_active)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id",
+            "INSERT INTO products (name, description, category, sku, current_quantity, minimum_quantity, reorder_quantity, unit_price, supplier_name, is_active, cost_price)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id",
             &[
                 &product.name,
                 &product.description,
@@ -390,6 +391,7 @@ impl Database for PostgresDatabase {
                 &product.unit_price,
                 &product.supplier_name,
                 &product.is_active,
+                &product.cost_price,
             ],
         ).await.map_err(|e| {
             println!("postgres.add_product: Database insert error - {}", e);
@@ -705,14 +707,16 @@ impl Database for PostgresDatabase {
     }
 
     async fn add_payment(&self, payment: Payment) -> Result<i64, String> {
-        let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
-        let payment_date = parse_timestamp(payment.payment_date);
-        let due_date = parse_timestamp(payment.due_date);
+        let mut client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
+        let tx = client.transaction().await.map_err(|e| format!("Failed to start transaction: {}", e))?;
+
+        let payment_date = parse_timestamp(payment.payment_date.clone());
+        let due_date = parse_timestamp(payment.due_date.clone());
         
         // Ensure date is set (required by DB schema if not nullable, and good for consistency)
         let date = payment_date.unwrap_or_else(|| chrono::Local::now().naive_local());
 
-        let row = client.query_one(
+        let row = tx.query_one(
             "INSERT INTO payments (payment_type, amount, currency, description, status, payment_method, payment_date, due_date, reference_number, employee_id, supplier_name, date)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id",
             &[
@@ -721,6 +725,47 @@ impl Database for PostgresDatabase {
             ]
         ).await.map_err(|e| format!("Failed to add payment: {}", e))?;
         let id: i32 = row.get(0);
+
+        // --- GL Integration ---
+        // Determine codes based on payment type (default to expense if not specified)
+        let type_str = payment.payment_type.as_str();
+        let (dr_code, cr_code) = match type_str {
+            "income" => ("1000", "4000"), // Dr Bank, Cr Revenue
+            "salary" => ("5200", "1000"), // Dr Salary Exp, Cr Bank
+            _ => ("5100", "1000"),        // Dr Op Exp, Cr Bank
+        };
+
+        // Fetch IDs
+        let dr_opt = tx.query_opt("SELECT id FROM gl_accounts WHERE code = $1", &[&dr_code]).await.map_err(|e| e.to_string())?;
+        let cr_opt = tx.query_opt("SELECT id FROM gl_accounts WHERE code = $1", &[&cr_code]).await.map_err(|e| e.to_string())?;
+
+        if let (Some(dr_row), Some(cr_row)) = (dr_opt, cr_opt) {
+            let dr_id: i32 = dr_row.get(0);
+            let cr_id: i32 = cr_row.get(0);
+
+            // Create Entry
+            let entry_id: i32 = tx.query_one(
+                "INSERT INTO gl_entries (description, reference_type, reference_id, transaction_date) VALUES ($1, 'Payment', $2, $3) RETURNING id",
+                &[&format!("Payment #{} ({})", id, type_str), &id, &date]
+            ).await.map_err(|e| e.to_string())?.get(0);
+
+            // Lines
+            tx.execute("INSERT INTO gl_entry_lines (entry_id, account_id, debit, credit) VALUES ($1, $2, $3, 0)", &[&entry_id, &dr_id, &payment.amount]).await.map_err(|e| e.to_string())?;
+            tx.execute("INSERT INTO gl_entry_lines (entry_id, account_id, debit, credit) VALUES ($1, $2, 0, $3)", &[&entry_id, &cr_id, &payment.amount]).await.map_err(|e| e.to_string())?;
+
+            // Update Balances
+            if type_str == "income" {
+                 // Bank (Asset) +, Revenue (Rev) +
+                 tx.execute("UPDATE gl_accounts SET balance = balance + $1 WHERE id = $2", &[&payment.amount, &dr_id]).await.map_err(|e| e.to_string())?;
+                 tx.execute("UPDATE gl_accounts SET balance = balance + $1 WHERE id = $2", &[&payment.amount, &cr_id]).await.map_err(|e| e.to_string())?;
+            } else {
+                 // Expense +, Bank (Asset) -
+                 tx.execute("UPDATE gl_accounts SET balance = balance + $1 WHERE id = $2", &[&payment.amount, &dr_id]).await.map_err(|e| e.to_string())?;
+                 tx.execute("UPDATE gl_accounts SET balance = balance - $1 WHERE id = $2", &[&payment.amount, &cr_id]).await.map_err(|e| e.to_string())?;
+            }
+        }
+
+        tx.commit().await.map_err(|e| format!("Failed to commit transaction: {}", e))?;
         Ok(id as i64)
     }
 
@@ -2086,14 +2131,46 @@ impl Database for PostgresDatabase {
     }
 
     async fn create_invoice(&self, invoice: Invoice) -> Result<i64, String> {
-        let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
-        let invoice_date = parse_timestamp(Some(invoice.invoice_date));
-        let due_date = parse_timestamp(invoice.due_date);
-        let row = client.query_one(
+        let mut client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
+        let tx = client.transaction().await.map_err(|e| format!("Failed to start transaction: {}", e))?;
+
+        let invoice_date = parse_timestamp(Some(invoice.invoice_date.clone()));
+        let due_date = parse_timestamp(invoice.due_date.clone());
+        let date = invoice_date.unwrap_or_else(|| chrono::Local::now().naive_local());
+
+        let row = tx.query_one(
             "INSERT INTO invoices (customer_name, customer_email, invoice_date, due_date, total_amount, status, currency) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id",
             &[&invoice.customer_name, &invoice.customer_email, &invoice_date, &due_date, &invoice.total_amount, &invoice.status, &invoice.currency]
         ).await.map_err(|e| e.to_string())?;
-        Ok(row.get::<_, i32>(0) as i64)
+        
+        let id: i32 = row.get(0);
+
+        // --- GL Integration ---
+        // Dr 1100 (AR), Cr 4000 (Revenue)
+        let dr_opt = tx.query_opt("SELECT id FROM gl_accounts WHERE code = '1100'", &[]).await.map_err(|e| e.to_string())?;
+        let cr_opt = tx.query_opt("SELECT id FROM gl_accounts WHERE code = '4000'", &[]).await.map_err(|e| e.to_string())?;
+
+        if let (Some(dr_row), Some(cr_row)) = (dr_opt, cr_opt) {
+            let dr_id: i32 = dr_row.get(0);
+            let cr_id: i32 = cr_row.get(0);
+
+            // Create Entry
+            let entry_id: i32 = tx.query_one(
+                "INSERT INTO gl_entries (description, reference_type, reference_id, transaction_date) VALUES ($1, 'Invoice', $2, $3) RETURNING id",
+                &[&format!("Invoice #{} for {}", id, invoice.customer_name), &id, &date]
+            ).await.map_err(|e| e.to_string())?.get(0);
+
+            // Lines
+            tx.execute("INSERT INTO gl_entry_lines (entry_id, account_id, debit, credit) VALUES ($1, $2, $3, 0)", &[&entry_id, &dr_id, &invoice.total_amount]).await.map_err(|e| e.to_string())?;
+            tx.execute("INSERT INTO gl_entry_lines (entry_id, account_id, debit, credit) VALUES ($1, $2, 0, $3)", &[&entry_id, &cr_id, &invoice.total_amount]).await.map_err(|e| e.to_string())?;
+
+            // Update Balances (Both increase)
+            tx.execute("UPDATE gl_accounts SET balance = balance + $1 WHERE id = $2", &[&invoice.total_amount, &dr_id]).await.map_err(|e| e.to_string())?;
+            tx.execute("UPDATE gl_accounts SET balance = balance + $1 WHERE id = $2", &[&invoice.total_amount, &cr_id]).await.map_err(|e| e.to_string())?;
+        }
+
+        tx.commit().await.map_err(|e| format!("Failed to commit transaction: {}", e))?;
+        Ok(id as i64)
     }
 
     // --- Integrations ---
@@ -2109,6 +2186,10 @@ impl Database for PostgresDatabase {
                 api_key: row.get(3),
                 config_json: row.get(4),
                 connected_at: format_timestamp(row.get(5)),
+                // Defaulting fields not in this specific query but required by struct
+                icon: "extension".to_string(), 
+                description: "Integration".to_string(),
+                provider: "Generic".to_string(),
             });
         }
         Ok(integrations)
@@ -3026,6 +3107,522 @@ impl Database for PostgresDatabase {
         if rows_affected == 0 {
             return Err("Quote item not found".to_string());
         }
+        Ok(())
+    }
+
+    // ERP - General Ledger
+    async fn get_gl_accounts(&self) -> Result<Vec<GlAccount>, String> {
+        let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
+        let rows = client.query(
+            "SELECT id, code, name, account_type, balance, is_active, format_timestamp(created_at) as created_at, format_timestamp(updated_at) as updated_at FROM gl_accounts ORDER BY code", 
+            &[]
+        ).await.map_err(|e| format!("Failed to fetch GL accounts: {}", e))?;
+
+        let mut accounts = Vec::new();
+        for row in rows {
+            accounts.push(GlAccount {
+                id: Some(row.get("id")),
+                code: row.get("code"),
+                name: row.get("name"),
+                account_type: row.get("account_type"),
+                balance: row.get("balance"),
+                is_active: row.get("is_active"),
+                created_at: row.get("created_at"),
+                updated_at: row.get("updated_at"),
+            });
+        }
+        Ok(accounts)
+    }
+
+    async fn add_gl_account(&self, account: GlAccount) -> Result<i64, String> {
+        let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
+        let row = client.query_one(
+            "INSERT INTO gl_accounts (code, name, account_type, balance, is_active) 
+             VALUES ($1, $2, $3, $4, $5) RETURNING id",
+            &[&account.code, &account.name, &account.account_type, &account.balance, &account.is_active]
+        ).await.map_err(|e| format!("Failed to add GL account: {}", e))?;
+        
+        Ok(row.get::<_, i32>(0) as i64)
+    }
+
+    async fn get_gl_entries(&self, start_date: Option<String>, end_date: Option<String>) -> Result<Vec<GlEntry>, String> {
+        let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
+        
+        let mut query = "SELECT id, format_timestamp(transaction_date) as transaction_date, description, reference_type, reference_id, posted_by, format_timestamp(created_at) as created_at FROM gl_entries".to_string();
+        
+        let rows = if let (Some(start), Some(end)) = (&start_date, &end_date) {
+            query.push_str(" WHERE transaction_date BETWEEN $1 AND $2");
+            query.push_str(" ORDER BY transaction_date DESC");
+            
+            // Try parsing as DateTime first, then fallback to NaiveDate
+            // This handles both "2023-01-01" and "2023-01-01T00:00:00" formats
+            let start_dt = chrono::NaiveDate::parse_from_str(start, "%Y-%m-%d")
+                .map(|d| d.and_hms_opt(0, 0, 0).unwrap())
+                .or_else(|_| chrono::NaiveDateTime::parse_from_str(start, "%Y-%m-%dT%H:%M:%S"))
+                .map_err(|e| format!("Invalid start_date format: {} ({})", start, e))?;
+                
+            let end_dt = chrono::NaiveDate::parse_from_str(end, "%Y-%m-%d")
+                .map(|d| d.and_hms_opt(23, 59, 59).unwrap())
+                .or_else(|_| chrono::NaiveDateTime::parse_from_str(end, "%Y-%m-%dT%H:%M:%S"))
+                .map_err(|e| format!("Invalid end_date format: {} ({})", end, e))?;
+
+            client.query(&query, &[&start_dt, &end_dt]).await
+        } else {
+            query.push_str(" ORDER BY transaction_date DESC");
+            client.query(&query, &[]).await
+        };
+
+        let rows = rows.map_err(|e| format!("Failed to fetch GL entries: {}", e))?;
+
+        let mut entries = Vec::new();
+        for row in rows {
+            let id: i32 = row.get("id");
+            
+            // Fetch lines for this entry
+            let line_rows = client.query(
+                "SELECT id, entry_id, account_id, debit, credit, description FROM gl_entry_lines WHERE entry_id = $1 ORDER BY id",
+                &[&id]
+            ).await.map_err(|e| format!("Failed to fetch GL entry lines: {}", e))?;
+            
+            let mut lines = Vec::new();
+            for l_row in line_rows {
+                lines.push(GlEntryLine {
+                    id: Some(l_row.get("id")),
+                    entry_id: Some(l_row.get("entry_id")),
+                    account_id: l_row.get("account_id"),
+                    debit: l_row.get("debit"),
+                    credit: l_row.get("credit"),
+                    description: l_row.get("description"),
+                });
+            }
+
+            entries.push(GlEntry {
+                id: Some(id),
+                transaction_date: row.get("transaction_date"),
+                description: row.get("description"),
+                reference_type: row.get("reference_type"),
+                reference_id: row.get("reference_id"),
+                posted_by: row.get("posted_by"),
+                created_at: row.get("created_at"),
+                lines: Some(lines), 
+            });
+        }
+        Ok(entries)
+    }
+
+    async fn add_gl_entry(&self, entry: GlEntry) -> Result<i64, String> {
+        let mut client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
+        let tx = client.transaction().await.map_err(|e| format!("Failed to start transaction: {}", e))?;
+
+        let header_row = tx.query_one(
+             "INSERT INTO gl_entries (transaction_date, description, reference_type, reference_id, posted_by) 
+              VALUES (COALESCE($1::text::timestamp, CURRENT_TIMESTAMP), $2, $3, $4, $5) RETURNING id",
+             &[&entry.transaction_date, &entry.description, &entry.reference_type, &entry.reference_id, &entry.posted_by]
+        ).await.map_err(|e| format!("Failed to insert GL entry header: {}", e))?;
+        
+        let entry_id: i32 = header_row.get(0);
+
+        if let Some(lines) = entry.lines {
+            for line in lines {
+                tx.execute(
+                    "INSERT INTO gl_entry_lines (entry_id, account_id, debit, credit, description) 
+                     VALUES ($1, $2, $3, $4, $5)",
+                    &[&entry_id, &line.account_id, &line.debit, &line.credit, &line.description]
+                ).await.map_err(|e| format!("Failed to insert GL entry line: {}", e))?;
+                
+                // Update Account Balance
+                let acc_row = tx.query_one("SELECT account_type FROM gl_accounts WHERE id = $1", &[&line.account_id])
+                    .await.map_err(|e| format!("Failed to fetch account type: {}", e))?;
+                let acc_type: String = acc_row.get("account_type");
+                
+                let balance_change = match acc_type.as_str() {
+                    "Asset" | "Expense" => line.debit - line.credit,
+                    "Liability" | "Equity" | "Revenue" => line.credit - line.debit,
+                    _ => 0.0,
+                };
+                
+                tx.execute(
+                    "UPDATE gl_accounts SET balance = balance + $1 WHERE id = $2",
+                    &[&balance_change, &line.account_id]
+                ).await.map_err(|e| format!("Failed to update account balance: {}", e))?;
+            }
+        }
+
+        tx.commit().await.map_err(|e| format!("Failed to commit transaction: {}", e))?;
+        
+        Ok(entry_id as i64)
+    }
+
+    // ERP - Purchase Orders
+    async fn get_purchase_orders(&self) -> Result<Vec<PurchaseOrder>, String> {
+        let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
+        let rows = client.query(
+            "SELECT id, supplier_id, status, format_timestamp(order_date) as order_date, format_timestamp(expected_delivery_date) as expected_delivery_date, total_amount, notes, created_by_user_id, format_timestamp(created_at) as created_at, format_timestamp(updated_at) as updated_at FROM purchase_orders ORDER BY order_date DESC", 
+            &[]
+        ).await.map_err(|e| format!("Failed to fetch purchase orders: {}", e))?;
+
+        let mut orders = Vec::new();
+        for row in rows {
+            orders.push(PurchaseOrder {
+                id: Some(row.get("id")),
+                supplier_id: row.get("supplier_id"),
+                status: row.get("status"),
+                order_date: row.get("order_date"),
+                expected_delivery_date: row.get("expected_delivery_date"),
+                total_amount: row.get("total_amount"),
+                notes: row.get("notes"),
+                created_by_user_id: row.get("created_by_user_id"),
+                created_at: row.get("created_at"),
+                updated_at: row.get("updated_at"),
+                lines: None,
+            });
+        }
+        Ok(orders)
+    }
+
+    async fn get_purchase_order(&self, id: i32) -> Result<Option<PurchaseOrder>, String> {
+        let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
+        
+        let row = client.query_opt(
+            "SELECT id, supplier_id, status, format_timestamp(order_date) as order_date, format_timestamp(expected_delivery_date) as expected_delivery_date, total_amount, notes, created_by_user_id, format_timestamp(created_at) as created_at, format_timestamp(updated_at) as updated_at FROM purchase_orders WHERE id = $1", 
+            &[&id]
+        ).await.map_err(|e| format!("Failed to fetch purchase order: {}", e))?;
+
+        if let Some(row) = row {
+            let line_rows = client.query(
+                "SELECT id, po_id, product_id, quantity_ordered, quantity_received, unit_price, total_price, notes FROM purchase_order_lines WHERE po_id = $1 ORDER BY id",
+                &[&id]
+            ).await.map_err(|e| format!("Failed to fetch PO lines: {}", e))?;
+            
+            let mut lines = Vec::new();
+            for l_row in line_rows {
+                lines.push(PurchaseOrderLine {
+                    id: Some(l_row.get("id")),
+                    po_id: Some(l_row.get("po_id")),
+                    product_id: l_row.get("product_id"),
+                    quantity_ordered: l_row.get("quantity_ordered"),
+                    quantity_received: l_row.get("quantity_received"),
+                    unit_price: l_row.get("unit_price"),
+                    total_price: l_row.get("total_price"),
+                    notes: l_row.get("notes"),
+                });
+            }
+
+            Ok(Some(PurchaseOrder {
+                id: Some(row.get("id")),
+                supplier_id: row.get("supplier_id"),
+                status: row.get("status"),
+                order_date: row.get("order_date"),
+                expected_delivery_date: row.get("expected_delivery_date"),
+                total_amount: row.get("total_amount"),
+                notes: row.get("notes"),
+                created_by_user_id: row.get("created_by_user_id"),
+                created_at: row.get("created_at"),
+                updated_at: row.get("updated_at"),
+                lines: Some(lines),
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+
+    async fn create_purchase_order(&self, po: PurchaseOrder) -> Result<i64, String> {
+        let mut client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
+        let tx = client.transaction().await.map_err(|e| format!("Failed to start transaction: {}", e))?;
+
+        let header_row = tx.query_one(
+            "INSERT INTO purchase_orders (supplier_id, status, order_date, expected_delivery_date, total_amount, notes, created_by_user_id) 
+             VALUES ($1, $2, COALESCE($3::text::timestamp, CURRENT_TIMESTAMP), $4::text::timestamp, $5, $6, $7) RETURNING id",
+            &[&po.supplier_id, &po.status, &po.order_date, &po.expected_delivery_date, &po.total_amount, &po.notes, &po.created_by_user_id]
+        ).await.map_err(|e| format!("Failed to insert PO header: {}", e))?;
+        
+        let po_id: i32 = header_row.get(0);
+
+        if let Some(lines) = po.lines {
+            for line in lines {
+                tx.execute(
+                    "INSERT INTO purchase_order_lines (po_id, product_id, quantity_ordered, quantity_received, unit_price, total_price, notes) 
+                     VALUES ($1, $2, $3, $4, $5, $6, $7)",
+                    &[&po_id, &line.product_id, &line.quantity_ordered, &line.quantity_received, &line.unit_price, &line.total_price, &line.notes]
+                ).await.map_err(|e| format!("Failed to insert PO line: {}", e))?;
+            }
+        }
+
+        tx.commit().await.map_err(|e| format!("Failed to commit transaction: {}", e))?;
+        
+        Ok(po_id as i64)
+    }
+
+    async fn update_purchase_order_status(&self, id: i32, status: String) -> Result<(), String> {
+        let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
+        client.execute("UPDATE purchase_orders SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2", &[&status, &id])
+            .await.map_err(|e| format!("Failed to update PO status: {}", e))?;
+        Ok(())
+    }
+
+    async fn receive_purchase_order(&self, id: i32) -> Result<(), String> {
+        let mut client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
+        let tx = client.transaction().await.map_err(|e| format!("Failed to start transaction: {}", e))?;
+
+        // 1. Get PO Header
+        let po_row = tx.query_opt("SELECT total_amount, supplier_id FROM purchase_orders WHERE id = $1", &[&id])
+            .await.map_err(|e| format!("Failed to fetch PO: {}", e))?;
+        
+        let (total_amount, _supplier_id) = match po_row {
+            Some(row) => (row.get::<_, f64>(0), row.get::<_, i32>(1)),
+            None => return Err("Purchase Order not found".to_string()),
+        };
+
+        // 2. Get PO Lines
+        let lines = tx.query("SELECT product_id, quantity_ordered FROM purchase_order_lines WHERE po_id = $1", &[&id])
+            .await.map_err(|e| format!("Failed to fetch PO lines: {}", e))?;
+
+        // 3. Update Inventory
+        for line in lines {
+            let product_id: i32 = line.get(0);
+            let quantity: f64 = line.get(1);
+            
+            // Increment stock
+            tx.execute(
+                "UPDATE products SET current_quantity = COALESCE(current_quantity, 0) + $1 WHERE id = $2",
+                &[&quantity, &product_id]
+            ).await.map_err(|e| format!("Failed to update inventory for product {}: {}", product_id, e))?;
+        }
+
+        // 4. Update PO Status
+        tx.execute("UPDATE purchase_orders SET status = 'Received', updated_at = CURRENT_TIMESTAMP WHERE id = $1", &[&id])
+            .await.map_err(|e| format!("Failed to update PO status: {}", e))?;
+
+        // 5. GL Entries (Debit Inventory (1200), Credit AP (2000))
+        let inventory_acc = tx.query_opt("SELECT id FROM gl_accounts WHERE code = '1200'", &[])
+            .await.map_err(|e| format!("Failed to find Inventory account: {}", e))?;
+        
+        let ap_acc = tx.query_opt("SELECT id FROM gl_accounts WHERE code = '2000'", &[])
+            .await.map_err(|e| format!("Failed to find AP account: {}", e))?;
+
+        if let (Some(inv_row), Some(ap_row)) = (inventory_acc, ap_acc) {
+            let inv_id: i32 = inv_row.get(0);
+            let ap_id: i32 = ap_row.get(0);
+
+            // Create GL Entry Header
+            let entry_row = tx.query_one(
+                "INSERT INTO gl_entries (description, reference_type, reference_id, transaction_date) VALUES ($1, 'PurchaseOrder', $2, CURRENT_TIMESTAMP) RETURNING id",
+                &[&format!("Goods Receipt for PO #{}", id), &id]
+            ).await.map_err(|e| format!("Failed to create GL entry header: {}", e))?;
+            
+            let entry_id: i32 = entry_row.get(0);
+
+            // Debit Inventory
+            tx.execute(
+                "INSERT INTO gl_entry_lines (entry_id, account_id, debit, credit, description) VALUES ($1, $2, $3, 0, 'Inventory Receipt')",
+                &[&entry_id, &inv_id, &total_amount]
+            ).await.map_err(|e| format!("Failed to create debit line: {}", e))?;
+
+            // Credit AP
+            tx.execute(
+                "INSERT INTO gl_entry_lines (entry_id, account_id, debit, credit, description) VALUES ($1, $2, 0, $3, 'Accounts Payable')",
+                &[&entry_id, &ap_id, &total_amount]
+            ).await.map_err(|e| format!("Failed to create credit line: {}", e))?;
+            
+            // Update Account Balances (Inventory increases with Debit, Liability increases with Credit)
+             tx.execute("UPDATE gl_accounts SET balance = balance + $1 WHERE id = $2", &[&total_amount, &inv_id])
+                .await.map_err(|e| format!("Failed to update Inventory balance: {}", e))?;
+             tx.execute("UPDATE gl_accounts SET balance = balance + $1 WHERE id = $2", &[&total_amount, &ap_id])
+                .await.map_err(|e| format!("Failed to update AP balance: {}", e))?;
+
+        } else {
+             println!("Warning: GL Accounts 1200 or 2000 not found. Skipping GL entry for PO #{}", id);
+        }
+
+        tx.commit().await.map_err(|e| format!("Failed to commit transaction: {}", e))?;
+        Ok(())
+    }
+
+    // ERP - Sales Orders & Clients
+
+    async fn get_sales_orders(&self) -> Result<Vec<SalesOrder>, String> {
+        let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
+        let rows = client.query(
+            "SELECT id, client_id, status, format_timestamp(order_date) as order_date, format_timestamp(expected_shipment_date) as expected_shipment_date, total_amount, notes, created_by_user_id, format_timestamp(created_at) as created_at, format_timestamp(updated_at) as updated_at FROM sales_orders ORDER BY order_date DESC",
+            &[]
+        ).await.map_err(|e| format!("Failed to fetch sales orders: {}", e))?;
+
+        let mut orders = Vec::new();
+        for row in rows {
+            orders.push(SalesOrder {
+                id: Some(row.get("id")),
+                client_id: row.get("client_id"),
+                status: row.get("status"),
+                order_date: row.get("order_date"),
+                expected_shipment_date: row.get("expected_shipment_date"),
+                total_amount: row.get("total_amount"),
+                notes: row.get("notes"),
+                created_by_user_id: row.get("created_by_user_id"),
+                created_at: row.get("created_at"),
+                updated_at: row.get("updated_at"),
+                lines: None,
+            });
+        }
+        Ok(orders)
+    }
+
+    async fn get_sales_order(&self, id: i32) -> Result<Option<SalesOrder>, String> {
+        let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
+        
+        let row = client.query_opt(
+            "SELECT id, client_id, status, format_timestamp(order_date) as order_date, format_timestamp(expected_shipment_date) as expected_shipment_date, total_amount, notes, created_by_user_id, format_timestamp(created_at) as created_at, format_timestamp(updated_at) as updated_at FROM sales_orders WHERE id = $1",
+            &[&id]
+        ).await.map_err(|e| format!("Failed to fetch sales order: {}", e))?;
+
+        if let Some(row) = row {
+            let line_rows = client.query(
+                "SELECT id, so_id, product_id, quantity, unit_price, total_price, notes FROM sales_order_lines WHERE so_id = $1 ORDER BY id",
+                &[&id]
+            ).await.map_err(|e| format!("Failed to fetch SO lines: {}", e))?;
+            
+            let mut lines = Vec::new();
+            for l_row in line_rows {
+                lines.push(SalesOrderLine {
+                    id: Some(l_row.get("id")),
+                    so_id: Some(l_row.get("so_id")),
+                    product_id: l_row.get("product_id"),
+                    quantity: l_row.get("quantity"),
+                    unit_price: l_row.get("unit_price"),
+                    total_price: l_row.get("total_price"),
+                    notes: l_row.get("notes"),
+                });
+            }
+
+            Ok(Some(SalesOrder {
+                id: Some(row.get("id")),
+                client_id: row.get("client_id"),
+                status: row.get("status"),
+                order_date: row.get("order_date"),
+                expected_shipment_date: row.get("expected_shipment_date"),
+                total_amount: row.get("total_amount"),
+                notes: row.get("notes"),
+                created_by_user_id: row.get("created_by_user_id"),
+                created_at: row.get("created_at"),
+                updated_at: row.get("updated_at"),
+                lines: Some(lines),
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+
+    async fn create_sales_order(&self, so: SalesOrder) -> Result<i64, String> {
+        let mut client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
+        let tx = client.transaction().await.map_err(|e| format!("Failed to start transaction: {}", e))?;
+
+        let header_row = tx.query_one(
+            "INSERT INTO sales_orders (client_id, status, order_date, expected_shipment_date, total_amount, notes, created_by_user_id) 
+             VALUES ($1, $2, COALESCE($3::text::timestamp, CURRENT_TIMESTAMP), $4::text::timestamp, $5, $6, $7) RETURNING id",
+            &[&so.client_id, &so.status, &so.order_date, &so.expected_shipment_date, &so.total_amount, &so.notes, &so.created_by_user_id]
+        ).await.map_err(|e| format!("Failed to insert SO header: {}", e))?;
+        
+        let so_id: i32 = header_row.get(0);
+
+        if let Some(lines) = so.lines {
+            for line in lines {
+                tx.execute(
+                    "INSERT INTO sales_order_lines (so_id, product_id, quantity, unit_price, total_price, notes) 
+                     VALUES ($1, $2, $3, $4, $5, $6)",
+                    &[&so_id, &line.product_id, &line.quantity, &line.unit_price, &line.total_price, &line.notes]
+                ).await.map_err(|e| format!("Failed to insert SO line: {}", e))?;
+            }
+        }
+
+        tx.commit().await.map_err(|e| format!("Failed to commit transaction: {}", e))?;
+        
+        Ok(so_id as i64)
+    }
+
+    async fn ship_sales_order(&self, id: i32) -> Result<(), String> {
+        let mut client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
+        let tx = client.transaction().await.map_err(|e| format!("Failed to start transaction: {}", e))?;
+
+        // 1. Get SO Header
+        let so_row = tx.query_opt("SELECT total_amount, client_id FROM sales_orders WHERE id = $1", &[&id])
+            .await.map_err(|e| format!("Failed to fetch SO: {}", e))?;
+        
+        let (total_amount, _client_id) = match so_row {
+            Some(row) => (row.get::<_, f64>(0), row.get::<_, i32>(1)),
+            None => return Err("Sales Order not found".to_string()),
+        };
+
+        // 2. Get SO Lines
+        let lines = tx.query("SELECT product_id, quantity FROM sales_order_lines WHERE so_id = $1", &[&id])
+            .await.map_err(|e| format!("Failed to fetch SO lines: {}", e))?;
+
+        // 3. Update Inventory & Calculate COGS
+        let mut total_cogs = 0.0;
+        for line in lines {
+            let product_id: i32 = line.get(0);
+            let quantity: f64 = line.get(1);
+            
+            // Fetch cost price
+            let prod_row = tx.query_one("SELECT cost_price FROM products WHERE id = $1", &[&product_id])
+                .await.map_err(|e| format!("Failed to fetch product cost: {}", e))?;
+            let cost_price: f64 = prod_row.get::<_, Option<f64>>(0).unwrap_or(0.0);
+            
+            total_cogs += quantity * cost_price;
+
+            // Decrement stock
+            tx.execute(
+                "UPDATE products SET current_quantity = current_quantity - $1 WHERE id = $2",
+                &[&quantity, &product_id]
+            ).await.map_err(|e| format!("Failed to update inventory for product {}: {}", product_id, e))?;
+        }
+
+        // 4. Update SO Status
+        tx.execute("UPDATE sales_orders SET status = 'Shipped', updated_at = CURRENT_TIMESTAMP WHERE id = $1", &[&id])
+            .await.map_err(|e| format!("Failed to update SO status: {}", e))?;
+
+        // 5. GL Entries
+        
+        // 5a. COGS / Inventory (Debit COGS 5000, Credit Inventory 1200)
+        let cogs_acc = tx.query_opt("SELECT id FROM gl_accounts WHERE code = '5000'", &[]).await.map_err(|e| e.to_string())?;
+        let inv_acc = tx.query_opt("SELECT id FROM gl_accounts WHERE code = '1200'", &[]).await.map_err(|e| e.to_string())?;
+
+        // 5b. AR / Revenue (Debit AR 1100, Credit Revenue 4000)
+        let ar_acc = tx.query_opt("SELECT id FROM gl_accounts WHERE code = '1100'", &[]).await.map_err(|e| e.to_string())?;
+        let rev_acc = tx.query_opt("SELECT id FROM gl_accounts WHERE code = '4000'", &[]).await.map_err(|e| e.to_string())?;
+
+        if let (Some(cogs), Some(inv), Some(ar), Some(rev)) = (cogs_acc, inv_acc, ar_acc, rev_acc) {
+            let cogs_id: i32 = cogs.get(0);
+            let inv_id: i32 = inv.get(0);
+            let ar_id: i32 = ar.get(0);
+            let rev_id: i32 = rev.get(0);
+
+            // Create GL Entry Header
+            let entry_row = tx.query_one(
+                "INSERT INTO gl_entries (description, reference_type, reference_id, transaction_date) VALUES ($1, 'SalesOrder', $2, CURRENT_TIMESTAMP) RETURNING id",
+                &[&format!("Shipment for SO #{}", id), &id]
+            ).await.map_err(|e| format!("Failed to create GL entry header: {}", e))?;
+            let entry_id: i32 = entry_row.get(0);
+
+            // 1. Debit COGS
+             tx.execute("INSERT INTO gl_entry_lines (entry_id, account_id, debit, credit, description) VALUES ($1, $2, $3, 0, 'Cost of Goods Sold')", &[&entry_id, &cogs_id, &total_cogs]).await.map_err(|e| e.to_string())?;
+             tx.execute("UPDATE gl_accounts SET balance = balance + $1 WHERE id = $2", &[&total_cogs, &cogs_id]).await.map_err(|e| e.to_string())?;
+
+            // 2. Credit Inventory
+             tx.execute("INSERT INTO gl_entry_lines (entry_id, account_id, debit, credit, description) VALUES ($1, $2, 0, $3, 'Inventory Reduction')", &[&entry_id, &inv_id, &total_cogs]).await.map_err(|e| e.to_string())?;
+             tx.execute("UPDATE gl_accounts SET balance = balance - $1 WHERE id = $2", &[&total_cogs, &inv_id]).await.map_err(|e| e.to_string())?;
+
+            // 3. Debit AR
+             tx.execute("INSERT INTO gl_entry_lines (entry_id, account_id, debit, credit, description) VALUES ($1, $2, $3, 0, 'Accounts Receivable')", &[&entry_id, &ar_id, &total_amount]).await.map_err(|e| e.to_string())?;
+             tx.execute("UPDATE gl_accounts SET balance = balance + $1 WHERE id = $2", &[&total_amount, &ar_id]).await.map_err(|e| e.to_string())?;
+
+            // 4. Credit Revenue
+             tx.execute("INSERT INTO gl_entry_lines (entry_id, account_id, debit, credit, description) VALUES ($1, $2, 0, $3, 'Sales Revenue')", &[&entry_id, &rev_id, &total_amount]).await.map_err(|e| e.to_string())?;
+             tx.execute("UPDATE gl_accounts SET balance = balance + $1 WHERE id = $2", &[&total_amount, &rev_id]).await.map_err(|e| e.to_string())?;
+
+        } else {
+             println!("Warning: One or more GL accounts (5000, 1200, 1100, 4000) missing. Skipping GL entries for SO #{}", id);
+        }
+
+        tx.commit().await.map_err(|e| format!("Failed to commit transaction: {}", e))?;
         Ok(())
     }
 }

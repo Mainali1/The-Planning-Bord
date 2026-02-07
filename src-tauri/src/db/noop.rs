@@ -173,6 +173,12 @@ impl Database for NoOpDatabase {
     async fn update_client(&self, _client: Client) -> Result<(), String> { Err("DB not configured".into()) }
     async fn delete_client(&self, _id: i32) -> Result<(), String> { Err("DB not configured".into()) }
 
+    // Sales Orders
+    async fn get_sales_orders(&self) -> Result<Vec<SalesOrder>, String> { Err("DB not configured".into()) }
+    async fn get_sales_order(&self, _id: i32) -> Result<Option<SalesOrder>, String> { Err("DB not configured".into()) }
+    async fn create_sales_order(&self, _order: SalesOrder) -> Result<i64, String> { Err("DB not configured".into()) }
+    async fn ship_sales_order(&self, _id: i32) -> Result<(), String> { Err("DB not configured".into()) }
+
     // Time Entries
     async fn get_time_entries(&self, _employee_id: Option<i32>, _client_id: Option<i32>, _project_id: Option<i32>) -> Result<Vec<TimeEntry>, String> { Err("DB not configured".into()) }
     async fn add_time_entry(&self, _time_entry: TimeEntry) -> Result<i64, String> { Err("DB not configured".into()) }
@@ -194,4 +200,17 @@ impl Database for NoOpDatabase {
     async fn add_quote_item(&self, _item: QuoteItem) -> Result<i64, String> { Err("DB not configured".into()) }
     async fn update_quote_item(&self, _item: QuoteItem) -> Result<(), String> { Err("DB not configured".into()) }
     async fn delete_quote_item(&self, _id: i32) -> Result<(), String> { Err("DB not configured".into()) }
+
+    // ERP - General Ledger
+    async fn get_gl_accounts(&self) -> Result<Vec<GlAccount>, String> { Err("DB not configured".into()) }
+    async fn add_gl_account(&self, _account: GlAccount) -> Result<i64, String> { Err("DB not configured".into()) }
+    async fn get_gl_entries(&self, _start_date: Option<String>, _end_date: Option<String>) -> Result<Vec<GlEntry>, String> { Err("DB not configured".into()) }
+    async fn add_gl_entry(&self, _entry: GlEntry) -> Result<i64, String> { Err("DB not configured".into()) }
+
+    // ERP - Purchase Orders
+    async fn get_purchase_orders(&self) -> Result<Vec<PurchaseOrder>, String> { Err("DB not configured".into()) }
+    async fn get_purchase_order(&self, _id: i32) -> Result<Option<PurchaseOrder>, String> { Err("DB not configured".into()) }
+    async fn create_purchase_order(&self, _po: PurchaseOrder) -> Result<i64, String> { Err("DB not configured".into()) }
+    async fn update_purchase_order_status(&self, _id: i32, _status: String) -> Result<(), String> { Err("DB not configured".into()) }
+    async fn receive_purchase_order(&self, _id: i32) -> Result<(), String> { Err("DB not configured".into()) }
 }

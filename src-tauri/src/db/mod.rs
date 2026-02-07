@@ -181,6 +181,12 @@ pub trait Database: Send + Sync {
     async fn delete_client(&self, id: i32) -> Result<(), String>;
     async fn get_client_by_id(&self, id: i32) -> Result<Option<Client>, String>;
 
+    // Sales Orders
+    async fn get_sales_orders(&self) -> Result<Vec<SalesOrder>, String>;
+    async fn get_sales_order(&self, id: i32) -> Result<Option<SalesOrder>, String>;
+    async fn create_sales_order(&self, order: SalesOrder) -> Result<i64, String>;
+    async fn ship_sales_order(&self, id: i32) -> Result<(), String>;
+
     // Time Entries
     async fn get_time_entries(&self, employee_id: Option<i32>, client_id: Option<i32>, project_id: Option<i32>) -> Result<Vec<TimeEntry>, String>;
     async fn add_time_entry(&self, time_entry: TimeEntry) -> Result<i64, String>;
@@ -202,4 +208,17 @@ pub trait Database: Send + Sync {
     async fn add_quote_item(&self, item: QuoteItem) -> Result<i64, String>;
     async fn update_quote_item(&self, item: QuoteItem) -> Result<(), String>;
     async fn delete_quote_item(&self, id: i32) -> Result<(), String>;
+
+    // ERP - General Ledger
+    async fn get_gl_accounts(&self) -> Result<Vec<GlAccount>, String>;
+    async fn add_gl_account(&self, account: GlAccount) -> Result<i64, String>;
+    async fn get_gl_entries(&self, start_date: Option<String>, end_date: Option<String>) -> Result<Vec<GlEntry>, String>;
+    async fn add_gl_entry(&self, entry: GlEntry) -> Result<i64, String>;
+
+    // ERP - Purchase Orders
+    async fn get_purchase_orders(&self) -> Result<Vec<PurchaseOrder>, String>;
+    async fn get_purchase_order(&self, id: i32) -> Result<Option<PurchaseOrder>, String>;
+    async fn create_purchase_order(&self, po: PurchaseOrder) -> Result<i64, String>;
+    async fn update_purchase_order_status(&self, id: i32, status: String) -> Result<(), String>;
+    async fn receive_purchase_order(&self, id: i32) -> Result<(), String>;
 }

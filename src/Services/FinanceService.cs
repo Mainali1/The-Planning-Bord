@@ -15,6 +15,12 @@ namespace ThePlanningBord.Services
         Task<long> AddAccountAsync(Account account);
         Task<List<Invoice>> GetInvoicesAsync();
         Task<long> CreateInvoiceAsync(Invoice invoice);
+
+        // General Ledger
+        Task<List<GlAccount>> GetGlAccountsAsync();
+        Task<long> AddGlAccountAsync(GlAccount account);
+        Task<List<GlEntry>> GetGlEntriesAsync(string? startDate, string? endDate);
+        Task<long> AddGlEntryAsync(GlEntry entry);
     }
 
     public class FinanceService : IFinanceService
@@ -74,6 +80,30 @@ namespace ThePlanningBord.Services
         {
             var token = await _userService.GetTokenAsync();
             return await _tauri.InvokeAsync<long>("create_invoice", new { invoice, token });
+        }
+
+        public async Task<List<GlAccount>> GetGlAccountsAsync()
+        {
+            var token = await _userService.GetTokenAsync();
+            return await _tauri.InvokeAsync<List<GlAccount>>("get_gl_accounts", new { token });
+        }
+
+        public async Task<long> AddGlAccountAsync(GlAccount account)
+        {
+            var token = await _userService.GetTokenAsync();
+            return await _tauri.InvokeAsync<long>("add_gl_account", new { account, token });
+        }
+
+        public async Task<List<GlEntry>> GetGlEntriesAsync(string? startDate, string? endDate)
+        {
+            var token = await _userService.GetTokenAsync();
+            return await _tauri.InvokeAsync<List<GlEntry>>("get_gl_entries", new { startDate, endDate, token });
+        }
+
+        public async Task<long> AddGlEntryAsync(GlEntry entry)
+        {
+            var token = await _userService.GetTokenAsync();
+            return await _tauri.InvokeAsync<long>("add_gl_entry", new { entry, token });
         }
     }
 }

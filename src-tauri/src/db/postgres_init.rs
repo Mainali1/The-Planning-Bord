@@ -4,6 +4,19 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
     ensure_database_exists(connection_string)?;
     let mut client = Client::connect(connection_string, NoTls)?;
 
+    // Helper Functions
+    client.execute(
+        "CREATE OR REPLACE FUNCTION format_timestamp(ts TIMESTAMP) RETURNS TEXT AS $$
+        BEGIN
+            IF ts IS NULL THEN
+                RETURN NULL;
+            END IF;
+            RETURN to_char(ts, 'YYYY-MM-DD\"T\"HH24:MI:SS');
+        END;
+        $$ LANGUAGE plpgsql;",
+        &[],
+    )?;
+
     // 0. Core RBAC (Roles & Permissions) - Must be first for FKs
     client.execute(
         "CREATE TABLE IF NOT EXISTS roles (
@@ -104,6 +117,9 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
     let _ = client.execute("ALTER TABLE payments ADD COLUMN IF NOT EXISTS payment_date TIMESTAMP", &[]);
     let _ = client.execute("ALTER TABLE payments ALTER COLUMN date DROP NOT NULL", &[]);
 
+    // Patch gl_accounts
+    let _ = client.execute("ALTER TABLE gl_accounts ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP", &[]);
+
     client.execute(
         "CREATE TABLE IF NOT EXISTS sessions (
             token TEXT PRIMARY KEY,
@@ -155,6 +171,9 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
         )",
         &[],
     )?;
+
+    // Patch products
+    let _ = client.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS cost_price DOUBLE PRECISION DEFAULT 0.0", &[]);
 
     client.execute(
         "CREATE TABLE IF NOT EXISTS inventory_logs (
@@ -548,7 +567,24 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
         &[],
     )?;
 
+    client.execute(
+        "CREATE TABLE IF NOT EXISTS inventory_movements (
+            id SERIAL PRIMARY KEY,
+            product_id INTEGER REFERENCES products(id) ON DELETE CASCADE,
+            batch_id INTEGER REFERENCES inventory_batches(id),
+            movement_type TEXT NOT NULL,
+            quantity DOUBLE PRECISION NOT NULL,
+            reference_type TEXT,
+            reference_id TEXT,
+            performed_by_user_id INTEGER,
+            notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )",
+        &[],
+    )?;
 
+    // Indexes
+    let _ = client.execute("CREATE INDEX IF NOT EXISTS idx_inventory_movements_product_date ON inventory_movements(product_id, created_at)", &[]);
 
     // 14. Generic Tasks
     client.execute(
@@ -750,6 +786,138 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             "INSERT INTO business_configurations (business_type, company_name, industry, is_active, tax_rate) VALUES ($1, $2, $3, $4, $5)",
             &[&"both", &"Mainali Services", &"Manufacturing", &true, &0.0],
         )?;
+    }
+
+    // 18. ERP Standardization (GL & Purchase Orders)
+    client.execute(
+        "CREATE TABLE IF NOT EXISTS gl_accounts (
+            id SERIAL PRIMARY KEY,
+            code TEXT UNIQUE NOT NULL,
+            name TEXT NOT NULL,
+            account_type TEXT NOT NULL,
+            balance DOUBLE PRECISION DEFAULT 0.0,
+            is_active BOOLEAN DEFAULT TRUE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )",
+        &[],
+    )?;
+
+    client.execute(
+        "CREATE TABLE IF NOT EXISTS gl_entries (
+            id SERIAL PRIMARY KEY,
+            transaction_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            description TEXT,
+            reference_type TEXT,
+            reference_id INTEGER,
+            posted_by INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )",
+        &[],
+    )?;
+
+    client.execute(
+        "CREATE TABLE IF NOT EXISTS gl_entry_lines (
+            id SERIAL PRIMARY KEY,
+            entry_id INTEGER REFERENCES gl_entries(id) ON DELETE CASCADE,
+            account_id INTEGER REFERENCES gl_accounts(id),
+            debit DOUBLE PRECISION DEFAULT 0.0,
+            credit DOUBLE PRECISION DEFAULT 0.0,
+            description TEXT
+        )",
+        &[],
+    )?;
+
+    client.execute(
+        "CREATE TABLE IF NOT EXISTS purchase_orders (
+            id SERIAL PRIMARY KEY,
+            supplier_id INTEGER REFERENCES suppliers(id),
+            status TEXT DEFAULT 'Draft',
+            order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            expected_delivery_date TIMESTAMP,
+            total_amount DOUBLE PRECISION DEFAULT 0.0,
+            notes TEXT,
+            created_by_user_id INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )",
+        &[],
+    )?;
+
+    client.execute(
+        "CREATE TABLE IF NOT EXISTS purchase_order_lines (
+            id SERIAL PRIMARY KEY,
+            po_id INTEGER REFERENCES purchase_orders(id) ON DELETE CASCADE,
+            product_id INTEGER REFERENCES products(id),
+            quantity_ordered DOUBLE PRECISION NOT NULL,
+            quantity_received DOUBLE PRECISION DEFAULT 0.0,
+            unit_price DOUBLE PRECISION DEFAULT 0.0,
+            total_price DOUBLE PRECISION DEFAULT 0.0,
+            notes TEXT
+        )",
+        &[],
+    )?;
+
+    // 19. Sales Orders (Order-to-Cash)
+    client.execute(
+        "CREATE TABLE IF NOT EXISTS sales_orders (
+            id SERIAL PRIMARY KEY,
+            client_id INTEGER REFERENCES clients(id),
+            status TEXT DEFAULT 'Draft',
+            order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            expected_shipment_date TIMESTAMP,
+            total_amount DOUBLE PRECISION DEFAULT 0.0,
+            notes TEXT,
+            created_by_user_id INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )",
+        &[],
+    )?;
+
+    client.execute(
+        "CREATE TABLE IF NOT EXISTS sales_order_lines (
+            id SERIAL PRIMARY KEY,
+            so_id INTEGER REFERENCES sales_orders(id) ON DELETE CASCADE,
+            product_id INTEGER REFERENCES products(id),
+            quantity DOUBLE PRECISION NOT NULL,
+            unit_price DOUBLE PRECISION DEFAULT 0.0,
+            total_price DOUBLE PRECISION DEFAULT 0.0,
+            notes TEXT
+        )",
+        &[],
+    )?;
+
+    // Indexes
+    let _ = client.execute("CREATE INDEX IF NOT EXISTS idx_sales_orders_client ON sales_orders(client_id)", &[]);
+    let _ = client.execute("CREATE INDEX IF NOT EXISTS idx_sales_orders_status ON sales_orders(status)", &[]);
+    
+    // Indexes
+    let _ = client.execute("CREATE INDEX IF NOT EXISTS idx_gl_entries_date ON gl_entries(transaction_date)", &[]);
+    let _ = client.execute("CREATE INDEX IF NOT EXISTS idx_gl_entry_lines_account ON gl_entry_lines(account_id)", &[]);
+    let _ = client.execute("CREATE INDEX IF NOT EXISTS idx_purchase_orders_supplier ON purchase_orders(supplier_id)", &[]);
+    let _ = client.execute("CREATE INDEX IF NOT EXISTS idx_purchase_orders_status ON purchase_orders(status)", &[]);
+
+    // Seed Default GL Accounts
+    let gl_count: i64 = client.query_one("SELECT COUNT(*) FROM gl_accounts", &[])?.get(0);
+    if gl_count == 0 {
+        let accounts = vec![
+            ("1000", "Bank", "Asset"),
+            ("1100", "Accounts Receivable", "Asset"),
+            ("1200", "Inventory", "Asset"),
+            ("2000", "Accounts Payable", "Liability"),
+            ("4000", "Sales Revenue", "Revenue"),
+            ("5000", "Cost of Goods Sold", "Expense"),
+            ("5100", "Operating Expense", "Expense"),
+            ("5200", "Salary Expense", "Expense"),
+        ];
+
+        for (code, name, type_) in accounts {
+            client.execute(
+                "INSERT INTO gl_accounts (code, name, account_type, is_active) VALUES ($1, $2, $3, $4)",
+                &[&code, &name, &type_, &true],
+            )?;
+        }
     }
 
     Ok(())

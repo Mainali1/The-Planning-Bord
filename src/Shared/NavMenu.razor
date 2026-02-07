@@ -27,6 +27,20 @@
                         Suppliers
                     </NavLink>
                 </AuthorizeView>
+
+                <AuthorizeView Roles="CEO,Finance,Inventory">
+                    <NavLink href="purchase-orders" class="group flex items-center px-2 py-2 text-base font-medium rounded-md text-gray-300 hover:bg-gray-700 hover:text-white" ActiveClass="bg-gray-900 text-white">
+                        <span class="mr-3">🛒</span>
+                        Purchase Orders
+                    </NavLink>
+                </AuthorizeView>
+
+                <AuthorizeView Roles="CEO,Finance,Inventory,Manager">
+                    <NavLink href="sales-orders" class="group flex items-center px-2 py-2 text-base font-medium rounded-md text-gray-300 hover:bg-gray-700 hover:text-white" ActiveClass="bg-gray-900 text-white">
+                        <span class="mr-3">📋</span>
+                        Sales Orders
+                    </NavLink>
+                </AuthorizeView>
             }
 
             @if (businessType == "service-only" || businessType == "both")
@@ -89,6 +103,13 @@
                     <span class="mr-3">💰</span>
                     Finance
                 </NavLink>
+                
+                <AuthorizeView Roles="CEO,Finance" Context="financeContext">
+                    <NavLink href="finance/general-ledger" class="group flex items-center px-2 py-2 text-base font-medium rounded-md text-gray-300 hover:bg-gray-700 hover:text-white ml-4" ActiveClass="bg-gray-900 text-white">
+                        <span class="mr-3">📒</span>
+                        General Ledger
+                    </NavLink>
+                </AuthorizeView>
             </AuthorizeView>
 
             <AuthorizeView>

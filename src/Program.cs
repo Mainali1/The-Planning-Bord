@@ -28,6 +28,8 @@ builder.Services.AddScoped<IProjectService, ProjectService>();
 builder.Services.AddScoped<IIntegrationService, IntegrationService>();
 builder.Services.AddScoped<IBusinessConfigurationService, BusinessConfigurationService>();
 builder.Services.AddScoped<IClientService, ClientService>();
+builder.Services.AddScoped<ISalesService, SalesService>();
+builder.Services.AddScoped<IPurchaseOrderService, PurchaseOrderService>();
 builder.Services.AddScoped<ITimeTrackingService, TimeTrackingService>();
 builder.Services.AddScoped<IContractService, ContractService>();
 builder.Services.AddScoped<IQuoteService, QuoteService>();

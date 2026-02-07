@@ -1,0 +1,502 @@
+@page "/finance/general-ledger"
+@attribute [Authorize(Roles = "CEO,Finance")]
+@inject IFinanceService FinanceService
+@inject NotificationService NotificationService
+@using ThePlanningBord.Models
+
+<PageTitle>General Ledger - The Planning Bord</PageTitle>
+
+<div class="flex flex-col h-full relative">
+    <div class="flex justify-between items-center mb-6">
+        <h3 class="text-lg font-medium leading-6 text-gray-900">General Ledger</h3>
+        <div class="flex space-x-2">
+            @if (activeTab == "accounts")
+            {
+                <button @onclick="OpenAddAccountModal" class="flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
+                    ➕ New Account
+                </button>
+            }
+            else if (activeTab == "entries")
+            {
+                <button @onclick="OpenAddEntryModal" class="flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
+                    ➕ New Journal Entry
+                </button>
+            }
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="border-b border-gray-200 mb-4">
+        <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+            <button @onclick="@(() => SetTab("accounts"))" class="@GetTabClass("accounts") whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                Chart of Accounts
+            </button>
+            <button @onclick="@(() => SetTab("entries"))" class="@GetTabClass("entries") whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                Journal Entries
+            </button>
+        </nav>
+    </div>
+
+    <div class="flex-1 overflow-auto bg-white shadow rounded-lg">
+        @if (isLoading)
+        {
+            <div class="p-6 text-center text-gray-500">Loading...</div>
+        }
+        else if (activeTab == "accounts")
+        {
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
+                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    @foreach (var account in accounts.OrderBy(a => a.Code))
+                    {
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">@account.Code</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">@account.Name</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">@account.AccountType</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">@account.Balance.ToString("C")</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-center">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full @(account.IsActive ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800")">
+                                    @(account.IsActive ? "Active" : "Inactive")
+                                </span>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+        else if (activeTab == "entries")
+        {
+             <div class="p-4 flex justify-end space-x-2 bg-gray-50 border-b border-gray-200">
+                <input type="date" @bind="startDate" class="border-gray-300 rounded-md shadow-sm text-sm" />
+                <span class="self-center text-gray-500">-</span>
+                <input type="date" @bind="endDate" class="border-gray-300 rounded-md shadow-sm text-sm" />
+                <button @onclick="LoadEntries" class="px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 text-sm">Filter</button>
+            </div>
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reference</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                        <th class="relative px-6 py-3"><span class="sr-only">Details</span></th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    @if (!entries.Any()) { <tr><td colspan="5" class="px-6 py-4 text-center text-gray-500">No entries found for this period.</td></tr> }
+                    @foreach (var entry in entries.OrderByDescending(e => e.TransactionDate))
+                    {
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">@entry.TransactionDate</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">@entry.Description</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">@entry.ReferenceType #@entry.ReferenceId</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
+                                @(entry.Lines?.Where(l => l.Debit > 0).Sum(l => l.Debit).ToString("C") ?? "0.00")
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <button @onclick="() => ViewEntry(entry)" class="text-indigo-600 hover:text-indigo-900">Details</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>
+
+<!-- Add Account Modal -->
+@if (showAccountModal)
+{
+    <div class="fixed z-10 inset-0 overflow-y-auto">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 transition-opacity" aria-hidden="true" @onclick="CloseModals">
+                <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
+            </div>
+            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900">New GL Account</h3>
+                    <div class="mt-4 space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Code</label>
+                            <input @bind="newAccount.Code" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm" placeholder="e.g. 1000" />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Name</label>
+                            <input @bind="newAccount.Name" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm" placeholder="e.g. Cash on Hand" />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Type</label>
+                            <select @bind="newAccount.AccountType" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
+                                <option value="Asset">Asset</option>
+                                <option value="Liability">Liability</option>
+                                <option value="Equity">Equity</option>
+                                <option value="Revenue">Revenue</option>
+                                <option value="Expense">Expense</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                    <button type="button" @onclick="SaveAccount" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">
+                        Save
+                    </button>
+                    <button type="button" @onclick="CloseModals" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Entry Details Modal -->
+@if (showCreateEntryModal)
+{
+    <div class="fixed z-10 inset-0 overflow-y-auto">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 transition-opacity" aria-hidden="true" @onclick="CloseModals">
+                <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
+            </div>
+            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
+                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900">New Journal Entry</h3>
+                    
+                    <div class="mt-4 grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Date</label>
+                            <input type="date" value="@newEntry.TransactionDate" @onchange="@(e => newEntry.TransactionDate = e.Value?.ToString())" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm" />
+                        </div>
+                        <div class="col-span-2">
+                            <label class="block text-sm font-medium text-gray-700">Description</label>
+                            <input @bind="newEntry.Description" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm" placeholder="e.g. Monthly Rent" />
+                        </div>
+                    </div>
+
+                    <div class="mt-6">
+                        <div class="flex justify-between items-center mb-2">
+                            <h4 class="text-sm font-medium text-gray-700">Lines</h4>
+                            <button type="button" @onclick="AddLine" class="text-sm text-indigo-600 hover:text-indigo-900">
+                                + Add Line
+                            </button>
+                        </div>
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500">Account</th>
+                                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500">Description (Optional)</th>
+                                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-500">Debit</th>
+                                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-500">Credit</th>
+                                    <th class="px-3 py-2"></th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200">
+                                @if (newEntry.Lines != null)
+                                {
+                                    @foreach (var line in newEntry.Lines)
+                                    {
+                                        <tr>
+                                            <td class="px-3 py-2">
+                                                <select @bind="line.AccountId" class="block w-full border-gray-300 rounded-md shadow-sm text-sm">
+                                                    <option value="0">Select Account...</option>
+                                                    @foreach (var acc in accounts.OrderBy(a => a.Code))
+                                                    {
+                                                        <option value="@acc.Id">@acc.Code - @acc.Name</option>
+                                                    }
+                                                </select>
+                                            </td>
+                                            <td class="px-3 py-2">
+                                                <input @bind="line.Description" class="block w-full border-gray-300 rounded-md shadow-sm text-sm" />
+                                            </td>
+                                            <td class="px-3 py-2">
+                                                <input type="number" step="0.01" @bind="line.Debit" class="block w-full border-gray-300 rounded-md shadow-sm text-sm text-right" />
+                                            </td>
+                                            <td class="px-3 py-2">
+                                                <input type="number" step="0.01" @bind="line.Credit" class="block w-full border-gray-300 rounded-md shadow-sm text-sm text-right" />
+                                            </td>
+                                            <td class="px-3 py-2 text-center">
+                                                <button @onclick="() => RemoveLine(line)" class="text-red-600 hover:text-red-900">
+                                                    🗑️
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                            <tfoot class="bg-gray-50 font-bold">
+                                <tr>
+                                    <td colspan="2" class="px-3 py-2 text-right text-sm">Totals:</td>
+                                    <td class="px-3 py-2 text-right text-sm @(Math.Abs((newEntry.Lines?.Sum(l => l.Debit) ?? 0) - (newEntry.Lines?.Sum(l => l.Credit) ?? 0)) > 0.01 ? "text-red-600" : "text-green-600")">
+                                        @(newEntry.Lines?.Sum(l => l.Debit).ToString("C"))
+                                    </td>
+                                    <td class="px-3 py-2 text-right text-sm @(Math.Abs((newEntry.Lines?.Sum(l => l.Debit) ?? 0) - (newEntry.Lines?.Sum(l => l.Credit) ?? 0)) > 0.01 ? "text-red-600" : "text-green-600")">
+                                        @(newEntry.Lines?.Sum(l => l.Credit).ToString("C"))
+                                    </td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                    <button type="button" @onclick="SaveEntry" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">
+                        Save Entry
+                    </button>
+                    <button type="button" @onclick="CloseModals" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Entry Details Modal -->
+@if (showEntryModal && selectedEntry != null)
+{
+    <div class="fixed z-10 inset-0 overflow-y-auto">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 transition-opacity" aria-hidden="true" @onclick="CloseModals">
+                <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
+            </div>
+            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-3xl sm:w-full">
+                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900">Journal Entry Details</h3>
+                    <div class="mt-2 grid grid-cols-2 gap-4 text-sm">
+                        <div><span class="font-medium">Date:</span> @selectedEntry.TransactionDate</div>
+                        <div><span class="font-medium">Reference:</span> @selectedEntry.ReferenceType #@selectedEntry.ReferenceId</div>
+                        <div class="col-span-2"><span class="font-medium">Description:</span> @selectedEntry.Description</div>
+                    </div>
+                    
+                    <div class="mt-4 border-t border-gray-200 pt-4">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500">Account</th>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500">Description</th>
+                                    <th class="px-4 py-2 text-right text-xs font-medium text-gray-500">Debit</th>
+                                    <th class="px-4 py-2 text-right text-xs font-medium text-gray-500">Credit</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200">
+                                @if (selectedEntry.Lines != null)
+                                {
+                                    @foreach (var line in selectedEntry.Lines)
+                                    {
+                                        <tr>
+                                            <td class="px-4 py-2 text-sm text-gray-900">
+                                                @(accounts.FirstOrDefault(a => a.Id == line.AccountId)?.Name ?? $"Account #{line.AccountId}")
+                                                <span class="text-gray-500 text-xs block">@(accounts.FirstOrDefault(a => a.Id == line.AccountId)?.Code)</span>
+                                            </td>
+                                            <td class="px-4 py-2 text-sm text-gray-500">@line.Description</td>
+                                            <td class="px-4 py-2 text-sm text-right text-gray-900">@(line.Debit > 0 ? line.Debit.ToString("C") : "")</td>
+                                            <td class="px-4 py-2 text-sm text-right text-gray-900">@(line.Credit > 0 ? line.Credit.ToString("C") : "")</td>
+                                        </tr>
+                                    }
+                                }
+                                <tr class="bg-gray-50 font-bold">
+                                    <td colspan="2" class="px-4 py-2 text-right text-sm">Totals:</td>
+                                    <td class="px-4 py-2 text-right text-sm">@selectedEntry.Lines?.Sum(l => l.Debit).ToString("C")</td>
+                                    <td class="px-4 py-2 text-right text-sm">@selectedEntry.Lines?.Sum(l => l.Credit).ToString("C")</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                    <button type="button" @onclick="CloseModals" class="w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private string activeTab = "accounts";
+    private bool isLoading = true;
+    private List<GlAccount> accounts = new();
+    private List<GlEntry> entries = new();
+    
+    private bool showAccountModal = false;
+    private bool showEntryModal = false;
+    
+    private GlEntry newEntry = new();
+    private GlAccount newAccount = new();
+    private GlEntry? selectedEntry;
+    
+    private DateTime startDate = DateTime.Now.AddDays(-30);
+    private DateTime endDate = DateTime.Now;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        try
+        {
+            accounts = await FinanceService.GetGlAccountsAsync();
+            if (activeTab == "entries")
+            {
+                await LoadEntries();
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificationService.ShowError($"Failed to load data: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task LoadEntries()
+    {
+        try 
+        {
+            entries = await FinanceService.GetGlEntriesAsync(startDate.ToString("yyyy-MM-dd"), endDate.ToString("yyyy-MM-dd"));
+        }
+        catch (Exception ex)
+        {
+            NotificationService.ShowError($"Failed to load entries: {ex.Message}");
+        }
+    }
+
+    private async Task SetTab(string tab)
+    {
+        activeTab = tab;
+        if (tab == "entries" && !entries.Any())
+        {
+            await LoadEntries();
+        }
+    }
+
+    private string GetTabClass(string tab)
+    {
+        return activeTab == tab
+            ? "border-indigo-500 text-indigo-600"
+            : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300";
+    }
+
+    private void OpenAddAccountModal()
+    {
+        newAccount = new GlAccount { AccountType = "Asset", IsActive = true };
+        showAccountModal = true;
+    }
+
+    private bool showCreateEntryModal = false;
+
+    private void OpenAddEntryModal()
+    {
+        newEntry = new GlEntry 
+        { 
+            TransactionDate = DateTime.Now.ToString("yyyy-MM-dd"),
+            ReferenceType = "Manual",
+            Lines = new List<GlEntryLine> 
+            { 
+                new GlEntryLine(), 
+                new GlEntryLine() 
+            }
+        };
+        showCreateEntryModal = true;
+    }
+
+    private void AddLine()
+    {
+        newEntry.Lines?.Add(new GlEntryLine());
+    }
+
+    private void RemoveLine(GlEntryLine line)
+    {
+        newEntry.Lines?.Remove(line);
+    }
+
+    private async Task SaveEntry()
+    {
+        if (string.IsNullOrWhiteSpace(newEntry.Description))
+        {
+            NotificationService.ShowError("Description is required.");
+            return;
+        }
+        
+        if (newEntry.Lines == null || !newEntry.Lines.Any())
+        {
+            NotificationService.ShowError("At least one line is required.");
+            return;
+        }
+
+        if (newEntry.Lines.Any(l => l.AccountId == 0))
+        {
+            NotificationService.ShowError("All lines must have an account selected.");
+            return;
+        }
+
+        var totalDebit = newEntry.Lines.Sum(l => l.Debit);
+        var totalCredit = newEntry.Lines.Sum(l => l.Credit);
+        
+        if (Math.Abs(totalDebit - totalCredit) > 0.01)
+        {
+            NotificationService.ShowError($"Debits ({totalDebit:C}) must equal Credits ({totalCredit:C}). Difference: {Math.Abs(totalDebit - totalCredit):C}");
+            return;
+        }
+
+        try
+        {
+            await FinanceService.AddGlEntryAsync(newEntry);
+            NotificationService.ShowSuccess("Journal Entry created successfully.");
+            showCreateEntryModal = false;
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            NotificationService.ShowError($"Error creating entry: {ex.Message}");
+        }
+    }
+    
+    private void ViewEntry(GlEntry entry)
+    {
+        selectedEntry = entry;
+        showEntryModal = true;
+    }
+
+    private void CloseModals()
+    {
+        showAccountModal = false;
+        showEntryModal = false;
+        showCreateEntryModal = false;
+        selectedEntry = null;
+    }
+
+    private async Task SaveAccount()
+    {
+        if (string.IsNullOrWhiteSpace(newAccount.Code) || string.IsNullOrWhiteSpace(newAccount.Name))
+        {
+            NotificationService.ShowError("Code and Name are required.");
+            return;
+        }
+
+        try
+        {
+            await FinanceService.AddGlAccountAsync(newAccount);
+            NotificationService.ShowSuccess("Account created successfully.");
+            showAccountModal = false;
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            NotificationService.ShowError($"Error creating account: {ex.Message}");
+        }
+    }
+}

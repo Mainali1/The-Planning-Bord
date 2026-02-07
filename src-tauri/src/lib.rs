@@ -5,7 +5,7 @@ pub mod setup;
 use tauri::{State, Manager};
 use tokio::sync::RwLock;
 use std::collections::HashMap;
-use models::{Product, Employee, Payment, DashboardStats, Task, Attendance, ReportSummary, ChartDataPoint, Complaint, Tool, Role, Permission, FeatureToggle, ToolAssignment, AuditLog, DashboardConfig, Project, ProjectTask, ProjectAssignment, Account, Invoice, Integration, User, LoginResponse, Invite, BomHeader, BomLine, InventoryBatch, VelocityReport, BomData, Supplier, SupplierOrder, Sale, BusinessConfiguration, Service, Client, TimeEntry, ServiceContract, Quote, QuoteItem};
+use models::{Product, Employee, Payment, DashboardStats, Task, Attendance, ReportSummary, ChartDataPoint, Complaint, Tool, Role, Permission, FeatureToggle, ToolAssignment, AuditLog, DashboardConfig, Project, ProjectTask, ProjectAssignment, Account, Invoice, Integration, User, LoginResponse, Invite, BomHeader, BomLine, InventoryBatch, VelocityReport, BomData, Supplier, SupplierOrder, Sale, BusinessConfiguration, Service, Client, TimeEntry, ServiceContract, Quote, QuoteItem, GlAccount, GlEntry, PurchaseOrder, SalesOrder};
 use db::{Database, DbConfig, PostgresDatabase};
 use argon2::{
     password_hash::{
@@ -1055,6 +1055,44 @@ async fn delete_client(state: State<'_, AppState>, id: i32, token: String) -> Re
     Ok(())
 }
 
+#[tauri::command]
+async fn get_client_by_id(state: State<'_, AppState>, id: i32, token: String) -> Result<Option<Client>, String> {
+    check_auth(&state, &token, vec![]).await?;
+    state.db.read().await.get_client_by_id(id).await
+}
+
+// --- Sales Order Commands ---
+
+#[tauri::command]
+async fn get_sales_orders(state: State<'_, AppState>, token: String) -> Result<Vec<SalesOrder>, String> {
+    check_auth(&state, &token, vec!["CEO", "Manager", "Finance", "Inventory"]).await?;
+    state.db.read().await.get_sales_orders().await
+}
+
+#[tauri::command]
+async fn get_sales_order(state: State<'_, AppState>, id: i32, token: String) -> Result<Option<SalesOrder>, String> {
+    check_auth(&state, &token, vec!["CEO", "Manager", "Finance", "Inventory"]).await?;
+    state.db.read().await.get_sales_order(id).await
+}
+
+#[tauri::command]
+async fn create_sales_order(state: State<'_, AppState>, order: SalesOrder, token: String) -> Result<i64, String> {
+    let user = check_auth(&state, &token, vec!["CEO", "Manager", "Finance"]).await?;
+    let db = state.db.read().await;
+    let id = db.create_sales_order(order.clone()).await?;
+    let _ = db.log_activity(user.id, "create".to_string(), "Sales".to_string(), Some("SalesOrder".to_string()), Some(id as i32), Some(format!("Created Sales Order for Client: {:?}", order.client_id)), None, None).await;
+    Ok(id)
+}
+
+#[tauri::command]
+async fn ship_sales_order(state: State<'_, AppState>, id: i32, token: String) -> Result<(), String> {
+    let user = check_auth(&state, &token, vec!["CEO", "Manager", "Inventory"]).await?;
+    let db = state.db.read().await;
+    db.ship_sales_order(id).await?;
+    let _ = db.log_activity(user.id, "ship".to_string(), "Sales".to_string(), Some("SalesOrder".to_string()), Some(id), Some("Shipped Sales Order".to_string()), None, None).await;
+    Ok(())
+}
+
 // --- Time Tracking Commands ---
 
 #[tauri::command]
@@ -1545,6 +1583,79 @@ async fn reset_database(state: State<'_, AppState>, token: String) -> Result<(),
     Ok(())
 }
 
+// ERP - General Ledger
+#[tauri::command]
+async fn get_gl_accounts(state: State<'_, AppState>, token: String) -> Result<Vec<GlAccount>, String> {
+    check_auth(&state, &token, vec!["CEO", "Finance"]).await?;
+    state.db.read().await.get_gl_accounts().await
+}
+
+#[tauri::command]
+async fn add_gl_account(state: State<'_, AppState>, account: GlAccount, token: String) -> Result<i64, String> {
+    let user = check_auth(&state, &token, vec!["CEO", "Finance"]).await?;
+    let db = state.db.read().await;
+    let id = db.add_gl_account(account.clone()).await?;
+    let _ = db.log_activity(user.id, "create".to_string(), "Finance".to_string(), Some("GlAccount".to_string()), Some(id as i32), Some(format!("Added GL Account: {}", account.code)), None, None).await;
+    Ok(id)
+}
+
+#[tauri::command]
+async fn get_gl_entries(state: State<'_, AppState>, start_date: Option<String>, end_date: Option<String>, token: String) -> Result<Vec<GlEntry>, String> {
+    check_auth(&state, &token, vec!["CEO", "Finance"]).await?;
+    state.db.read().await.get_gl_entries(start_date, end_date).await
+}
+
+#[tauri::command]
+async fn add_gl_entry(state: State<'_, AppState>, entry: GlEntry, token: String) -> Result<i64, String> {
+    let user = check_auth(&state, &token, vec!["CEO", "Finance"]).await?;
+    let db = state.db.read().await;
+    let id = db.add_gl_entry(entry.clone()).await?;
+    let _ = db.log_activity(user.id, "create".to_string(), "Finance".to_string(), Some("GlEntry".to_string()), Some(id as i32), Some(format!("Added Journal Entry: {}", entry.description.clone().unwrap_or_default())), None, None).await;
+    Ok(id)
+}
+
+// ERP - Purchase Orders
+#[tauri::command]
+async fn get_purchase_orders(state: State<'_, AppState>, token: String) -> Result<Vec<PurchaseOrder>, String> {
+    check_auth(&state, &token, vec!["CEO", "Finance", "Inventory"]).await?;
+    state.db.read().await.get_purchase_orders().await
+}
+
+#[tauri::command]
+async fn get_purchase_order(state: State<'_, AppState>, id: i32, token: String) -> Result<Option<PurchaseOrder>, String> {
+    check_auth(&state, &token, vec!["CEO", "Finance", "Inventory"]).await?;
+    state.db.read().await.get_purchase_order(id).await
+}
+
+#[tauri::command]
+async fn create_purchase_order(state: State<'_, AppState>, po: PurchaseOrder, token: String) -> Result<i64, String> {
+    let user = check_auth(&state, &token, vec!["CEO", "Finance", "Inventory"]).await?;
+    let mut po = po;
+    po.created_by_user_id = user.id; // Enforce current user
+    let db = state.db.read().await;
+    let id = db.create_purchase_order(po.clone()).await?;
+    let _ = db.log_activity(user.id, "create".to_string(), "SupplyChain".to_string(), Some("PurchaseOrder".to_string()), Some(id as i32), Some(format!("Created PO for Supplier: {:?}", po.supplier_id)), None, None).await;
+    Ok(id)
+}
+
+#[tauri::command]
+async fn update_purchase_order_status(state: State<'_, AppState>, id: i32, status: String, token: String) -> Result<(), String> {
+    let user = check_auth(&state, &token, vec!["CEO", "Finance", "Inventory"]).await?;
+    let db = state.db.read().await;
+    db.update_purchase_order_status(id, status.clone()).await?;
+    let _ = db.log_activity(user.id, "update".to_string(), "SupplyChain".to_string(), Some("PurchaseOrder".to_string()), Some(id), Some(format!("Updated Status: {}", status)), None, None).await;
+    Ok(())
+}
+
+#[tauri::command]
+async fn receive_purchase_order(state: State<'_, AppState>, id: i32, token: String) -> Result<(), String> {
+    let user = check_auth(&state, &token, vec!["CEO", "Inventory"]).await?;
+    let db = state.db.read().await;
+    db.receive_purchase_order(id).await?;
+    let _ = db.log_activity(user.id, "receive".to_string(), "SupplyChain".to_string(), Some("PurchaseOrder".to_string()), Some(id), Some("Received PO (Goods Receipt)".to_string()), None, None).await;
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     dotenv::dotenv().ok();
@@ -1695,7 +1806,8 @@ pub fn run() {
             get_setup_status, get_company_name, complete_setup, check_username, get_active_db_type,
             get_business_configuration, save_business_configuration, update_business_configuration,
             get_services, add_service, update_service, delete_service,
-            get_clients, add_client, update_client, delete_client,
+            get_clients, add_client, update_client, delete_client, get_client_by_id,
+            get_sales_orders, get_sales_order, create_sales_order, ship_sales_order,
             get_time_entries, add_time_entry, update_time_entry, delete_time_entry,
             get_service_contracts, add_service_contract, update_service_contract, delete_service_contract,
             get_quotes, add_quote, update_quote, delete_quote, get_quote_items, add_quote_item, update_quote_item, delete_quote_item,
@@ -1703,6 +1815,8 @@ pub fn run() {
             get_dashboard_configs, save_dashboard_config,
             get_projects, add_project, update_project, get_project_tasks, add_project_task, update_project_task, delete_project, assign_project_employee, get_project_assignments, get_all_project_assignments, remove_project_assignment, delete_project_task,
             get_accounts, add_account, get_invoices, create_invoice,
+            get_gl_accounts, add_gl_account, get_gl_entries, add_gl_entry,
+            get_purchase_orders, get_purchase_order, create_purchase_order, update_purchase_order_status, receive_purchase_order,
             get_integrations, toggle_integration, configure_integration, seed_demo_data, reset_database,
             save_db_config, ensure_local_db, cleanup_local_db, check_embedded_pg_available, check_postgres_installed, exit_app
         ])
