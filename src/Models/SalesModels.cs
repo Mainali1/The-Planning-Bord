@@ -52,6 +52,9 @@ namespace ThePlanningBord.Models
         [JsonPropertyName("product_id")]
         public int? ProductId { get; set; }
 
+        [JsonPropertyName("service_id")]
+        public int? ServiceId { get; set; }
+
         [JsonPropertyName("quantity")]
         public double Quantity { get; set; }
 

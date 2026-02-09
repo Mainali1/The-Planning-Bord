@@ -9,11 +9,21 @@
         </div>
         
         <div class="px-2 space-y-1">
+            <!-- Core / Global Pages -->
             <NavLink href="" Match="NavLinkMatch.All" class="group flex items-center px-2 py-2 text-base font-medium rounded-md text-gray-300 hover:bg-gray-700 hover:text-white" ActiveClass="bg-gray-900 text-white">
                 <span class="mr-3">📊</span>
                 Dashboard
             </NavLink>
 
+            <!-- Clients (Global - Required for both Service and Product/SalesOrders) -->
+            <AuthorizeView Roles="CEO,Manager">
+                <NavLink href="clients" class="group flex items-center px-2 py-2 text-base font-medium rounded-md text-gray-300 hover:bg-gray-700 hover:text-white" ActiveClass="bg-gray-900 text-white">
+                    <span class="mr-3">👥</span>
+                    Clients
+                </NavLink>
+            </AuthorizeView>
+
+            <!-- Product-Only Block -->
             @if (businessType == "product-only" || businessType == "both")
             {
                 <NavLink href="inventory" class="group flex items-center px-2 py-2 text-base font-medium rounded-md text-gray-300 hover:bg-gray-700 hover:text-white" ActiveClass="bg-gray-900 text-white">
@@ -43,19 +53,13 @@
                 </AuthorizeView>
             }
 
+            <!-- Service-Only Block -->
             @if (businessType == "service-only" || businessType == "both")
             {
                 <AuthorizeView Roles="CEO,Manager">
                     <NavLink href="services" class="group flex items-center px-2 py-2 text-base font-medium rounded-md text-gray-300 hover:bg-gray-700 hover:text-white" ActiveClass="bg-gray-900 text-white">
                         <span class="mr-3">🔧</span>
                         Services
-                    </NavLink>
-                </AuthorizeView>
-
-                <AuthorizeView Roles="CEO,Manager">
-                    <NavLink href="clients" class="group flex items-center px-2 py-2 text-base font-medium rounded-md text-gray-300 hover:bg-gray-700 hover:text-white" ActiveClass="bg-gray-900 text-white">
-                        <span class="mr-3">👥</span>
-                        Clients
                     </NavLink>
                 </AuthorizeView>
 
@@ -86,6 +90,7 @@
                 </NavLink>
             }
  
+            <!-- Global / Core (Continued) -->
              <AuthorizeView Roles="CEO,Manager,Technical">
                  <NavLink href="tools" class="group flex items-center px-2 py-2 text-base font-medium rounded-md text-gray-300 hover:bg-gray-700 hover:text-white" ActiveClass="bg-gray-900 text-white">
                      <span class="mr-3">🔧</span>

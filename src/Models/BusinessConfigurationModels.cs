@@ -1,7 +1,39 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace ThePlanningBord.Models
 {
+    public class DateConverter : JsonConverter<DateTime>
+    {
+        public override DateTime Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            return DateTime.Parse(reader.GetString()!);
+        }
+
+        public override void Write(Utf8JsonWriter writer, DateTime value, JsonSerializerOptions options)
+        {
+            writer.WriteStringValue(value.ToString("yyyy-MM-dd"));
+        }
+    }
+
+    public class NullableDateConverter : JsonConverter<DateTime?>
+    {
+        public override DateTime? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            var str = reader.GetString();
+            if (string.IsNullOrEmpty(str)) return null;
+            return DateTime.Parse(str);
+        }
+
+        public override void Write(Utf8JsonWriter writer, DateTime? value, JsonSerializerOptions options)
+        {
+            if (value.HasValue)
+                writer.WriteStringValue(value.Value.ToString("yyyy-MM-dd"));
+            else
+                writer.WriteNullValue();
+        }
+    }
+
     public class BusinessConfiguration
     {
         [JsonPropertyName("id")]
@@ -91,6 +123,15 @@ namespace ThePlanningBord.Models
         [JsonPropertyName("credit_limit")]
         public double? CreditLimit { get; set; }
 
+        [JsonPropertyName("tax_id")]
+        public string? TaxId { get; set; }
+
+        [JsonPropertyName("notes")]
+        public string? Notes { get; set; }
+
+        [JsonPropertyName("is_active")]
+        public bool IsActive { get; set; } = true;
+
         [JsonPropertyName("created_at")]
         public string? CreatedAt { get; set; }
 
@@ -161,9 +202,11 @@ namespace ThePlanningBord.Models
         public string ContractType { get; set; } = "retainer"; // 'retainer', 'project', 'recurring'
 
         [JsonPropertyName("start_date")]
+        [JsonConverter(typeof(DateConverter))]
         public DateTime StartDate { get; set; }
 
         [JsonPropertyName("end_date")]
+        [JsonConverter(typeof(NullableDateConverter))]
         public DateTime? EndDate { get; set; }
 
         [JsonPropertyName("total_value")]
@@ -174,6 +217,9 @@ namespace ThePlanningBord.Models
 
         [JsonPropertyName("status")]
         public string Status { get; set; } = "draft"; // 'draft', 'active', 'completed', 'cancelled'
+
+        [JsonPropertyName("is_active")]
+        public bool IsActive { get; set; } = true;
 
         [JsonPropertyName("created_at")]
         public string? CreatedAt { get; set; }
@@ -206,6 +252,7 @@ namespace ThePlanningBord.Models
         public double TotalAmount { get; set; }
 
         [JsonPropertyName("valid_until")]
+        [JsonConverter(typeof(DateConverter))]
         public DateTime ValidUntil { get; set; }
 
         [JsonPropertyName("status")]

@@ -17,6 +17,7 @@ namespace ThePlanningBord.Services
         Task<List<ProjectAssignment>> GetProjectAssignmentsAsync(int projectId);
         Task<List<ProjectAssignment>> GetAllProjectAssignmentsAsync();
         Task RemoveProjectAssignmentAsync(int projectId, int employeeId);
+        Task<ProjectProfitability> GetProjectProfitabilityAsync(int projectId);
     }
 
     public class ProjectService : IProjectService
@@ -182,6 +183,23 @@ namespace ThePlanningBord.Services
         {
             var token = await _userService.GetTokenAsync();
             await _tauri.InvokeVoidAsync("remove_project_assignment", new { projectId, employeeId, token });
+        }
+
+        public async Task<ProjectProfitability> GetProjectProfitabilityAsync(int projectId)
+        {
+            Console.WriteLine($"ProjectService.GetProjectProfitabilityAsync: Fetching profitability for project {projectId}");
+            var token = await _userService.GetTokenAsync();
+            try
+            {
+                var result = await _tauri.InvokeAsync<ProjectProfitability>("get_project_profitability", new { projectId, token });
+                Console.WriteLine($"ProjectService.GetProjectProfitabilityAsync: Successfully fetched profitability for project {projectId}");
+                return result;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"ProjectService.GetProjectProfitabilityAsync: Error fetching profitability - {ex.Message}");
+                throw;
+            }
         }
     }
 }

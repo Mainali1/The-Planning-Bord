@@ -6,6 +6,7 @@
 @inject NavigationManager Navigation
 @inject Microsoft.AspNetCore.Components.Authorization.AuthenticationStateProvider AuthStateProvider
 @inject NotificationService NotificationService
+@inject IThemeService ThemeService
 @using ThePlanningBord.Services
 @using ThePlanningBord.Auth
 
@@ -48,15 +49,30 @@
                          <h3 class="text-lg font-medium text-gray-900">Appearance</h3>
                          <p class="text-sm text-gray-500">Customize the look and feel of the application.</p>
                     </div>
-                    <div class="p-6 flex items-center justify-between">
-                        <div>
-                            <h4 class="text-sm font-medium text-gray-900">Dark Mode</h4>
-                            <p class="text-sm text-gray-500">Use dark theme for the application.</p>
+                    <div class="p-6">
+                        <div class="mb-4">
+                            <h4 class="text-sm font-medium text-gray-900">Theme Preference</h4>
+                            <p class="text-sm text-gray-500">Choose your preferred theme.</p>
                         </div>
-                        <div class="flex items-center">
-                            <button type="button" @onclick="ToggleDarkMode" class="@(darkModeEnabled ? "bg-blue-600" : "bg-gray-200") relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                                <span class="@(darkModeEnabled ? "translate-x-5" : "translate-x-0") pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200"></span>
-                            </button>
+                        <div class="flex items-center space-x-6">
+                            <label class="inline-flex items-center cursor-pointer">
+                                <input type="radio" class="form-radio text-blue-600 focus:ring-blue-500 h-4 w-4" name="theme" 
+                                       checked="@(themePreference == "light")" 
+                                       @onchange="@(() => SetTheme("light"))">
+                                <span class="ml-2 text-gray-700">Light</span>
+                            </label>
+                            <label class="inline-flex items-center cursor-pointer">
+                                <input type="radio" class="form-radio text-blue-600 focus:ring-blue-500 h-4 w-4" name="theme" 
+                                       checked="@(themePreference == "dark")" 
+                                       @onchange="@(() => SetTheme("dark"))">
+                                <span class="ml-2 text-gray-700">Dark</span>
+                            </label>
+                            <label class="inline-flex items-center cursor-pointer">
+                                <input type="radio" class="form-radio text-blue-600 focus:ring-blue-500 h-4 w-4" name="theme" 
+                                       checked="@(themePreference == "system")" 
+                                       @onchange="@(() => SetTheme("system"))">
+                                <span class="ml-2 text-gray-700">System</span>
+                            </label>
                         </div>
                     </div>
                 </section>
@@ -379,7 +395,7 @@
 @code {
     private string activeTab = "general";
     private bool notificationsEnabled;
-    private bool darkModeEnabled;
+    private string themePreference = "system";
     private bool isM365Connected;
     
     // Access Control
@@ -407,8 +423,8 @@
     {
         var enabledStr = await JS.InvokeAsync<string>("getSetting", "notifications_enabled");
         bool.TryParse(enabledStr, out notificationsEnabled);
-        var darkStr = await JS.InvokeAsync<string>("getSetting", "dark_mode_enabled");
-        bool.TryParse(darkStr, out darkModeEnabled);
+        
+        themePreference = await ThemeService.GetThemePreferenceAsync();
         
         isM365Connected = await GraphService.IsConnected();
 
@@ -446,12 +462,16 @@
     private async Task SaveGeneralSettings()
     {
         await JS.InvokeVoidAsync("setSetting", "notifications_enabled", notificationsEnabled.ToString());
-        await JS.InvokeVoidAsync("setSetting", "dark_mode_enabled", darkModeEnabled.ToString());
-        await JS.InvokeVoidAsync("applyTheme", darkModeEnabled ? "dark" : "light");
         NotificationService.ShowSuccess("Settings saved successfully!");
     }
     
-    private void ToggleDarkMode() => darkModeEnabled = !darkModeEnabled;
+    private async Task SetTheme(string theme)
+    {
+        themePreference = theme;
+        await ThemeService.SetThemeAsync(theme);
+        // Optional: Show a toast? Probably not needed for immediate feedback.
+    }
+
     private void ToggleNotifications() => notificationsEnabled = !notificationsEnabled;
     
     private async Task ToggleM365()

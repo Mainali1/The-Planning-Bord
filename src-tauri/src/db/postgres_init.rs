@@ -107,16 +107,8 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
     let _ = client.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'Employee'", &[]);
     let _ = client.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE", &[]);
 
-    // Patch projects
-    let _ = client.execute("ALTER TABLE projects ADD COLUMN IF NOT EXISTS manager_id INTEGER REFERENCES employees(id)", &[]);
-
-    // Patch payments
-    let _ = client.execute("ALTER TABLE payments ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'USD'", &[]);
-    let _ = client.execute("ALTER TABLE payments ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'pending'", &[]);
-    let _ = client.execute("ALTER TABLE payments ADD COLUMN IF NOT EXISTS payment_type TEXT DEFAULT 'expense'", &[]);
-    let _ = client.execute("ALTER TABLE payments ADD COLUMN IF NOT EXISTS payment_date TIMESTAMP", &[]);
-    let _ = client.execute("ALTER TABLE payments ALTER COLUMN date DROP NOT NULL", &[]);
-
+    // Patches moved to end of file to ensure tables exist
+    
     // Patch gl_accounts
     let _ = client.execute("ALTER TABLE gl_accounts ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP", &[]);
 
@@ -219,6 +211,7 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             position TEXT,
             hire_date TIMESTAMP,
             salary DOUBLE PRECISION,
+            hourly_cost DOUBLE PRECISION DEFAULT 0.0,
             status TEXT DEFAULT 'active',
             address TEXT,
             emergency_contact_name TEXT,
@@ -228,6 +221,9 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
         )",
         &[],
     )?;
+
+    // Patch employees
+    let _ = client.execute("ALTER TABLE employees ADD COLUMN IF NOT EXISTS hourly_cost DOUBLE PRECISION DEFAULT 0.0", &[]);
 
     // 4. Finance & Accounting
     client.execute(
@@ -244,6 +240,7 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             due_date TIMESTAMP,
             reference_number TEXT,
             employee_id INTEGER REFERENCES employees(id),
+            project_id INTEGER,
             supplier_name TEXT,
             supplier_email TEXT,
             notes TEXT,
@@ -353,16 +350,13 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             start_date TIMESTAMP,
             end_date TIMESTAMP,
             budget DOUBLE PRECISION,
-            client_name TEXT,
+            client_id INTEGER,
             manager_id INTEGER REFERENCES employees(id),
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )",
         &[],
     )?;
-
-    // Patch projects
-    let _ = client.execute("ALTER TABLE projects ADD COLUMN IF NOT EXISTS manager_id INTEGER REFERENCES employees(id)", &[]);
 
 
     client.execute(
@@ -693,6 +687,13 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
         &[],
     )?;
 
+    // Patch clients (for existing tables)
+    let _ = client.execute("ALTER TABLE clients ADD COLUMN IF NOT EXISTS payment_terms TEXT", &[]);
+    let _ = client.execute("ALTER TABLE clients ADD COLUMN IF NOT EXISTS credit_limit DOUBLE PRECISION", &[]);
+    let _ = client.execute("ALTER TABLE clients ADD COLUMN IF NOT EXISTS tax_id TEXT", &[]);
+    let _ = client.execute("ALTER TABLE clients ADD COLUMN IF NOT EXISTS notes TEXT", &[]);
+    let _ = client.execute("ALTER TABLE clients ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE", &[]);
+
     client.execute(
         "CREATE TABLE IF NOT EXISTS time_entries (
             id SERIAL PRIMARY KEY,
@@ -863,6 +864,7 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
         "CREATE TABLE IF NOT EXISTS sales_orders (
             id SERIAL PRIMARY KEY,
             client_id INTEGER REFERENCES clients(id),
+            project_id INTEGER REFERENCES projects(id),
             status TEXT DEFAULT 'Draft',
             order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             expected_shipment_date TIMESTAMP,
@@ -887,6 +889,22 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
         )",
         &[],
     )?;
+
+    // Patch sales_order_lines for Service Support
+    let _ = client.execute("ALTER TABLE sales_order_lines ADD COLUMN IF NOT EXISTS service_id INTEGER REFERENCES services(id)", &[]);
+    let _ = client.execute("ALTER TABLE sales_order_lines ALTER COLUMN product_id DROP NOT NULL", &[]);
+    // Drop existing constraint if it exists to avoid error on repeated runs or re-definitions
+    let _ = client.execute("ALTER TABLE sales_order_lines DROP CONSTRAINT IF EXISTS chk_so_line_item_type", &[]);
+    let _ = client.execute("ALTER TABLE sales_order_lines ADD CONSTRAINT chk_so_line_item_type CHECK (
+        (product_id IS NOT NULL AND service_id IS NULL) OR
+        (product_id IS NULL AND service_id IS NOT NULL)
+    )", &[]);
+
+    // Patch payments table
+    let _ = client.execute("ALTER TABLE payments ADD COLUMN IF NOT EXISTS project_id INTEGER REFERENCES projects(id)", &[]);
+
+    // Patch sales_orders table
+    let _ = client.execute("ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS project_id INTEGER REFERENCES projects(id)", &[]);
 
     // Indexes
     let _ = client.execute("CREATE INDEX IF NOT EXISTS idx_sales_orders_client ON sales_orders(client_id)", &[]);
@@ -919,6 +937,30 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             )?;
         }
     }
+
+    // --- Post-Initialization Patches & Constraints ---
+    // Moved here to ensure all tables exist before applying constraints
+    println!("DEBUG: Applying post-initialization patches and constraints...");
+    
+    // 1. Projects Patches
+    let _ = client.execute("ALTER TABLE projects ADD COLUMN IF NOT EXISTS manager_id INTEGER REFERENCES employees(id)", &[]);
+    // Ensure client_id column exists (legacy)
+    let _ = client.execute("ALTER TABLE projects ADD COLUMN IF NOT EXISTS client_id INTEGER REFERENCES clients(id)", &[]);
+    // Apply FK constraint for fresh installs (where column exists but no FK)
+    // Ignore error if constraint already exists
+    let _ = client.execute("ALTER TABLE projects ADD CONSTRAINT fk_projects_client FOREIGN KEY (client_id) REFERENCES clients(id)", &[]);
+
+    // 2. Payments Patches
+    let _ = client.execute("ALTER TABLE payments ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'USD'", &[]);
+    let _ = client.execute("ALTER TABLE payments ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'pending'", &[]);
+    let _ = client.execute("ALTER TABLE payments ADD COLUMN IF NOT EXISTS payment_type TEXT DEFAULT 'expense'", &[]);
+    let _ = client.execute("ALTER TABLE payments ADD COLUMN IF NOT EXISTS payment_date TIMESTAMP", &[]);
+    let _ = client.execute("ALTER TABLE payments ALTER COLUMN date DROP NOT NULL", &[]);
+    
+    // Ensure project_id column exists (legacy)
+    let _ = client.execute("ALTER TABLE payments ADD COLUMN IF NOT EXISTS project_id INTEGER REFERENCES projects(id)", &[]);
+    // Apply FK constraint for fresh installs (where column exists but no FK)
+    let _ = client.execute("ALTER TABLE payments ADD CONSTRAINT fk_payments_project FOREIGN KEY (project_id) REFERENCES projects(id)", &[]);
 
     Ok(())
 }

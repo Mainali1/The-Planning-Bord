@@ -78,6 +78,7 @@ pub struct Product {
 pub struct SalesOrder {
     pub id: Option<i32>,
     pub client_id: Option<i32>,
+    pub project_id: Option<i32>, // Added for Project Profitability
     pub status: String, // 'Draft', 'Confirmed', 'Shipped', 'Invoiced', 'Cancelled'
     pub order_date: Option<String>,
     pub expected_shipment_date: Option<String>,
@@ -94,6 +95,7 @@ pub struct SalesOrderLine {
     pub id: Option<i32>,
     pub so_id: Option<i32>,
     pub product_id: Option<i32>,
+    pub service_id: Option<i32>,
     pub quantity: f64,
     pub unit_price: f64,
     pub total_price: f64,
@@ -298,7 +300,21 @@ pub struct Payment {
     pub due_date: Option<String>,
     pub reference_number: Option<String>,
     pub employee_id: Option<i32>,
+    pub project_id: Option<i32>, // Added for Project Profitability
     pub supplier_name: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ProjectProfitability {
+    pub project_id: i32,
+    pub project_name: String,
+    pub client_name: String,
+    pub total_revenue: f64,
+    pub total_labor_cost: f64,
+    pub total_material_cost: f64,
+    pub total_expense_cost: f64,
+    pub gross_margin: f64,
+    pub profit_margin_percent: f64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -453,6 +469,7 @@ pub struct Employee {
     pub department: Option<String>,
     pub position: Option<String>,
     pub salary: Option<f64>,
+    pub hourly_cost: Option<f64>, // Added for Project Profitability
     pub status: String,
 }
 
@@ -592,6 +609,7 @@ pub struct Project {
     pub end_date: Option<String>,
     pub status: String,
     pub manager_id: Option<i32>,
+    pub client_id: Option<i32>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

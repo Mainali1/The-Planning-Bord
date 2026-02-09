@@ -187,6 +187,9 @@ impl Database for NoOpDatabase {
 
     // Service Contracts
     async fn get_service_contracts(&self, _client_id: Option<i32>) -> Result<Vec<ServiceContract>, String> { Err("DB not configured".into()) }
+
+    async fn get_project_profitability(&self, _project_id: i32) -> Result<ProjectProfitability, String> { Err("DB not configured".into()) }
+
     async fn add_service_contract(&self, _contract: ServiceContract) -> Result<i64, String> { Err("DB not configured".into()) }
     async fn update_service_contract(&self, _contract: ServiceContract) -> Result<(), String> { Err("DB not configured".into()) }
     async fn delete_service_contract(&self, _id: i32) -> Result<(), String> { Err("DB not configured".into()) }

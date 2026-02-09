@@ -39,5 +39,7 @@ builder.Services.AddScoped<ISlackService, SlackService>();
 builder.Services.AddScoped<NotificationService>();
 builder.Services.AddScoped<ITauriInterop, TauriInterop>();
 builder.Services.AddScoped<BackgroundJobService>();
+builder.Services.AddScoped<IThemeService, ThemeService>();
+builder.Services.AddScoped<INetworkService, NetworkService>();
 
 await builder.Build().RunAsync();

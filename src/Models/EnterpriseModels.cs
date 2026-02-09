@@ -78,6 +78,39 @@ namespace ThePlanningBord.Models
 
         [JsonPropertyName("manager_id")]
         public int? ManagerId { get; set; }
+
+        [JsonPropertyName("client_id")]
+        public int? ClientId { get; set; }
+    }
+
+    public class ProjectProfitability
+    {
+        [JsonPropertyName("project_id")]
+        public int ProjectId { get; set; }
+
+        [JsonPropertyName("project_name")]
+        public string ProjectName { get; set; } = string.Empty;
+
+        [JsonPropertyName("client_name")]
+        public string ClientName { get; set; } = string.Empty;
+
+        [JsonPropertyName("total_revenue")]
+        public double TotalRevenue { get; set; }
+
+        [JsonPropertyName("total_labor_cost")]
+        public double TotalLaborCost { get; set; }
+
+        [JsonPropertyName("total_material_cost")]
+        public double TotalMaterialCost { get; set; }
+
+        [JsonPropertyName("total_expense_cost")]
+        public double TotalExpenseCost { get; set; }
+
+        [JsonPropertyName("gross_margin")]
+        public double GrossMargin { get; set; }
+
+        [JsonPropertyName("profit_margin_percent")]
+        public double ProfitMarginPercent { get; set; }
     }
 
     public class ProjectTask

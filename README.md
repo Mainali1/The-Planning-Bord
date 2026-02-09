@@ -1,106 +1,102 @@
 # The Planning Bord
 
-The Planning Bord is a comprehensive Enterprise Resource Planning (ERP) application built with **Tauri (Rust)** for the backend and **Blazor WebAssembly (C#)** for the frontend. It provides modules for Inventory Management, Human Resources, Finance, Task Management, and System Administration.
+The Planning Bord is a comprehensive, enterprise-grade ERP (Enterprise Resource Planning) desktop application designed for modern businesses. Built with a **Hybrid Desktop Architecture**, it combines the performance and security of **Rust (Tauri)** with the rich, interactive UI of **Blazor WebAssembly (C#)**.
 
-## Project Overview
+## 🚀 Key Features
 
-This application is designed to be a robust, offline-capable desktop application that manages core business processes. It leverages the performance and security of Rust with the productivity and component ecosystem of Blazor.
+### 📦 Inventory & Supply Chain
+- **Advanced Inventory Control:** Real-time stock tracking with batch management and expiration monitoring.
+- **Bill of Materials (BOM) & Recipes:** Define complex product structures for manufacturing.
+- **Velocity Reporting:** Intelligent reorder recommendations based on sales velocity and lead times.
+- **Purchase Orders:** Streamlined procurement process.
 
-## Prerequisites
+### 👥 Human Resources
+- **Employee Management:** Comprehensive staff records and role-based access control (RBAC).
+- **Time Tracking:** Precision clock-in/out with "Late Arrival" and "Early Departure" detection.
+- **Attendance Records:** Detailed history of employee work hours.
 
-- **Node.js** (for Tauri CLI)
-- **Rust** (latest stable)
-- **.NET 8.0 SDK** (or later)
-- **Visual Studio Code** or **Visual Studio 2022** (recommended)
-- **PostgreSQL** (Optional - the application includes an `InMemoryDatabase` for quick testing, but a local PostgreSQL instance is recommended for production/persistence)
+### 📊 Project Management & Services
+- **Project Planning:** Interactive Gantt charts for timeline visualization.
+- **Resource Planning:** Efficiently allocate staff and tools to projects.
+- **Project Profitability:** Real-time financial analysis of project margins.
+- **Service Management:** Track service-based offerings alongside physical products.
 
-## Installation and Setup
+### 💰 Finance & Sales
+- **General Ledger:** Full double-entry bookkeeping capabilities.
+- **Sales Orders:** Manage customer orders from quote to delivery.
+- **Invoicing:** Automated invoice generation and payment tracking.
+- **Financial Reporting:** Balance sheets, income statements, and cash flow analysis.
 
-1.  **Clone the repository:**
+### 🤝 CRM & Client Relations
+- **Client Management:** Centralized database for customer details.
+- **Quotes & Contracts:** Generate professional quotes and manage long-term contracts.
+- **Complaints System:** Anonymous feedback channel for continuous improvement.
+
+### 🔌 Integrations
+- **Microsoft 365:** Seamless integration for Outlook email and calendar.
+- **Slack:** Real-time notifications for critical system events.
+- **Extensible API:** Designed to support future integrations (Quickbooks, etc.).
+
+## 🛠 Tech Stack
+
+- **Frontend:** Blazor WebAssembly (.NET 8)
+- **Styling:** Tailwind CSS
+- **Backend:** Rust (Tauri v2)
+- **Database:** PostgreSQL (with `tokio-postgres`)
+- **Architecture:** Local-first, offline-capable desktop application.
+
+## 📋 Prerequisites
+
+- **Node.js** (v16+ for Tailwind CSS and Tauri CLI)
+- **Rust** (Latest Stable)
+- **.NET 8.0 SDK**
+- **PostgreSQL** (v14+ Recommended)
+- **Visual Studio 2022** or **VS Code**
+
+## ⚡ Installation & Setup
+
+1.  **Clone the Repository**
     ```bash
     git clone <repository-url>
     cd The-Planning-Bord
     ```
 
-2.  **Install dependencies:**
-    - Restore .NET packages:
-      ```bash
-      dotnet restore
-      ```
-    - Install Tauri CLI and dependencies (inside `src-tauri` if needed, or globally):
-      ```bash
-      cargo install tauri-cli
-      ```
+2.  **Install Dependencies**
+    *   **Frontend (.NET):**
+        ```bash
+        dotnet restore
+        ```
+    *   **Styling (Tailwind):**
+        ```bash
+        npm install
+        ```
+    *   **Backend (Rust):**
+        ```bash
+        cd src-tauri
+        cargo install tauri-cli
+        cargo fetch
+        ```
 
-3.  **Build the application:**
-    ```bash
-    dotnet publish -c Release src/ThePlanningBord.csproj -o dist
-    cd src-tauri
-    cargo tauri build
-    ```
+3.  **Database Configuration**
+    The application defaults to connecting to a local PostgreSQL instance.
+    *   Default Connection: `postgres://postgres:password@localhost:5432/planning_bord`
+    *   Override via Environment Variable: `DATABASE_URL`
 
-## Development
-
-To run the application in development mode with hot reloading:
-
-1.  **Start the frontend and backend:**
+4.  **Run in Development Mode**
+    This command compiles the Tailwind CSS, builds the Blazor frontend, and starts the Tauri application with hot-reloading.
     ```bash
     cargo tauri dev
     ```
-    This command will build the Blazor frontend and start the Tauri application.
 
-## Configuration
+5.  **Build for Production**
+    Generate an optimized installer (`.msi` or `.exe`).
+    ```bash
+    cargo tauri build
+    ```
 
-Configuration is managed via:
-- `src-tauri/tauri.conf.json`: Main Tauri configuration (window settings, permissions, bundle settings).
-- `src/wwwroot/appsettings.json` (if applicable): Frontend configuration.
-- **Database**:
-  - By default, the application attempts to connect to a local PostgreSQL instance (using `trust` auth on `localhost:5432`).
-  - You can override the connection string by setting the `DATABASE_URL` environment variable (e.g., `postgres://user:password@localhost:5432/planning_bord`).
+## 📄 License
 
-## Architecture
+This software is licensed under a proprietary commercial license. See the [LICENSE](LICENSE) file for details. Unauthorized copying, reverse engineering, or distribution is strictly prohibited.
 
-- **Frontend:** Blazor WebAssembly
-  - Components: Reusable UI elements (Inventory, Attendance, etc.)
-  - Services: Modular services (`InventoryService`, `HrService`) communicating with the backend.
-  - Interop: `TauriInterop` service handles communication with Rust via `__TAURI__.core.invoke`.
-
-- **Backend:** Rust (Tauri)
-  - Commands: Rust functions exposed to the frontend (e.g., `get_products`, `clock_in`).
-  - Database: PostgreSQL via `rust-postgres` for persistent storage.
-  - State Management: `AppState` struct holding the database connection.
-
-## Troubleshooting
-
-### Common Issues
-
-1.  **"Localhost refused to connect" or White Screen:**
-    - **Cause:** The frontend assets are not loading, or the Tauri backend cannot connect to the dev server.
-    - **Solution:**
-        - Ensure `dotnet publish` was successful if running in release mode.
-        - Check terminal output for build errors.
-        - The application includes an exponential backoff reconnection strategy. If the issue persists, check if the Rust backend is crashing (check terminal logs).
-
-2.  **Database Connection Failed:**
-    - **Cause:** PostgreSQL service is not running or credentials are incorrect.
-    - **Solution:**
-      - Ensure PostgreSQL is running on port 5432.
-      - Check if `DATABASE_URL` environment variable is set correctly.
-      - If using default setup, ensure the local Postgres instance allows `trust` authentication for the `postgres` user.
-
-3.  **Build Errors (E0063, CS0103):**
-    - **Cause:** Mismatched struct fields or missing service registrations.
-    - **Solution:** Run `dotnet build` and `cargo check` to identify specific errors. Ensure all fields in Rust structs match the database schema and C# models.
-
-## Usage Examples
-
-- **Inventory:** Navigate to the "Inventory" tab to add, update, or delete products. Use the search bar to filter items.
-- **HR:** Use the "Employees" tab to manage staff. The "Attendance" tab allows clock-in/out functionality with precise timestamps and status indicators.
-- **Projects:** Create projects, assign teams, and manage tasks with Gantt chart visualization.
-- **Finance:** Track payments, invoices, and expenses in the "Finance" module.
-- **Integrations:** Connect to Microsoft 365 for enhanced functionality.
-
-## Maintenance
-
-- **Database:** The SQLite database is automatically created. Backups should be performed by copying the `planningbord.db` file from the app data directory.
-- **Updates:** Rebuild the application using `cargo tauri build` to generate new installers.
+---
+© 2024 The Planning Bord. All Rights Reserved.

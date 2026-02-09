@@ -1,4 +1,5 @@
 @inherits LayoutComponentBase
+@implements IDisposable
 @inject BackgroundJobService BackgroundService
 @inject ISystemService SystemService
 @inject IUserService UserService
@@ -6,34 +7,45 @@
 @inject NotificationService NotificationService
 @inject AuthenticationStateProvider AuthStateProvider
 @inject IJSRuntime JS
+@inject IThemeService ThemeService
+@inject INetworkService NetworkService
 @using ThePlanningBord.Auth
+@using ThePlanningBord.Services
 
-    <div class="flex h-screen bg-gray-100 font-sans overflow-hidden">
-        <!-- Sidebar -->
-        <div class="w-64 bg-gray-800 flex-shrink-0 overflow-y-auto overflow-x-hidden">
-            <NavMenu />
-        </div>
+<div class="flex h-screen bg-gray-100 font-sans overflow-hidden">
+    <!-- Sidebar -->
+    <div class="w-64 bg-gray-800 flex-shrink-0 overflow-y-auto overflow-x-hidden">
+        <NavMenu />
+    </div>
 
-        <div class="flex-1 flex flex-col overflow-hidden min-w-0">
-            <header class="bg-white shadow-sm z-10">
-                <div class="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
-                    <div class="flex items-center">
-                        <button @onclick="ToggleSidebar" class="mr-4 text-gray-500 focus:outline-none md:hidden">
-                            <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-                            </svg>
-                        </button>
-                        <h1 class="text-2xl font-bold leading-tight text-gray-900 truncate">
-                            @companyName
-                        </h1>
-                    </div>
+    <div class="flex-1 flex flex-col overflow-hidden min-w-0">
+        <header class="bg-white shadow-sm z-10">
+            <div class="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
+                <div class="flex items-center">
+                    <button @onclick="ToggleSidebar" class="mr-4 text-gray-500 focus:outline-none md:hidden">
+                        <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                        </svg>
+                    </button>
+                    <h1 class="text-2xl font-bold leading-tight text-gray-900 truncate">
+                        @companyName
+                    </h1>
+                </div>
                 <div class="flex items-center space-x-4">
+                    <!-- Network Indicator -->
+                    <div class="flex items-center px-3 py-1 rounded-full bg-gray-50 border border-gray-200" title="@(isOnline ? "Online - Connected" : "Offline - Check Connection")">
+                        <span class="connection-status-dot @(isOnline ? "online" : "offline")"></span>
+                        <span class="text-sm font-medium @(isOnline ? "text-green-600" : "text-red-600") hidden sm:inline">
+                            @(isOnline ? "Online" : "Offline")
+                        </span>
+                    </div>
+
                     <button @onclick="OpenHelp" class="text-gray-400 hover:text-gray-500 focus:outline-none" title="Help">
                         <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                     </button>
-                    <span class="text-sm text-gray-500">License: Active</span>
+                    <span class="text-sm text-gray-500 hidden md:inline">License: Active</span>
                     <button @onclick="Logout" class="text-sm text-red-600 hover:text-red-800 font-medium border border-red-200 rounded px-3 py-1 hover:bg-red-50">
                         Logout
                     </button>
@@ -59,18 +71,22 @@
     private HelpModal? helpModal;
     private bool sidebarOpen = false;
     private string companyName = "The Planning Bord™";
+    private bool isOnline = true;
 
     protected override async Task OnInitializedAsync()
     {
         // Avoid running setup check if we are already on the setup page
         var uri = Navigation.Uri;
-        if (uri.Contains("/setup"))
-        {
-            return;
-        }
+        if (uri.Contains("/setup")) return;
 
         try
         {
+            await ThemeService.InitializeAsync();
+            await NetworkService.InitializeAsync();
+            
+            isOnline = await NetworkService.IsOnlineAsync();
+            NetworkService.OnStatusChanged += HandleStatusChanged;
+
             var isSetup = await SystemService.GetSetupStatusAsync();
             if (!isSetup)
             {
@@ -85,24 +101,42 @@
             }
 
             // Update client info for audit logs
-            try
-            {
-                var ua = await JS.InvokeAsync<string>("getUserAgent");
-                await SystemService.UpdateClientInfoAsync("127.0.0.1", ua);
-            }
-            catch (Exception)
-            {
-                 // Ignore client info update failures
-            }
-
-            // Auth check is now handled by App.razor and AuthorizeRouteView
+            await UpdateClientInfo();
         }
         catch (Exception ex)
         {
-            NotificationService.ShowError($"Setup check failed: {ex.Message}");
+            Console.WriteLine($"Initialization error: {ex.Message}");
         }
 
         BackgroundService.Start();
+    }
+
+    private async Task UpdateClientInfo()
+    {
+        try
+        {
+            var ua = await JS.InvokeAsync<string>("getUserAgent");
+            // In a real web app we might use an IP service, but for this desktop app we'll just use a placeholder or local
+            await SystemService.UpdateClientInfoAsync("127.0.0.1", ua);
+        }
+        catch (Exception)
+        {
+             // Ignore client info update failures
+        }
+    }
+
+    private void HandleStatusChanged(bool status)
+    {
+        isOnline = status;
+        InvokeAsync(StateHasChanged);
+        if (!isOnline)
+        {
+            NotificationService.ShowError("You are offline. Some features may be unavailable.");
+        }
+        else
+        {
+            NotificationService.ShowSuccess("You are back online.");
+        }
     }
 
     private async Task Logout()
@@ -123,5 +157,10 @@
     private void ToggleSidebar()
     {
         sidebarOpen = !sidebarOpen;
+    }
+
+    public void Dispose()
+    {
+        NetworkService.OnStatusChanged -= HandleStatusChanged;
     }
 }

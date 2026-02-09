@@ -125,6 +125,7 @@ pub trait Database: Send + Sync {
     async fn get_project_assignments(&self, project_id: i32) -> Result<Vec<ProjectAssignment>, String>;
     async fn get_all_project_assignments(&self) -> Result<Vec<ProjectAssignment>, String>;
     async fn remove_project_assignment(&self, project_id: i32, employee_id: i32) -> Result<(), String>;
+    async fn get_project_profitability(&self, project_id: i32) -> Result<ProjectProfitability, String>;
     
     // Integrations
     async fn get_integrations(&self) -> Result<Vec<Integration>, String>;

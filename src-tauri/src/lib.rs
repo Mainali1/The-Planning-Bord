@@ -5,7 +5,7 @@ pub mod setup;
 use tauri::{State, Manager};
 use tokio::sync::RwLock;
 use std::collections::HashMap;
-use models::{Product, Employee, Payment, DashboardStats, Task, Attendance, ReportSummary, ChartDataPoint, Complaint, Tool, Role, Permission, FeatureToggle, ToolAssignment, AuditLog, DashboardConfig, Project, ProjectTask, ProjectAssignment, Account, Invoice, Integration, User, LoginResponse, Invite, BomHeader, BomLine, InventoryBatch, VelocityReport, BomData, Supplier, SupplierOrder, Sale, BusinessConfiguration, Service, Client, TimeEntry, ServiceContract, Quote, QuoteItem, GlAccount, GlEntry, PurchaseOrder, SalesOrder};
+use models::{Product, Employee, Payment, DashboardStats, Task, Attendance, ReportSummary, ChartDataPoint, Complaint, Tool, Role, Permission, FeatureToggle, ToolAssignment, AuditLog, DashboardConfig, Project, ProjectProfitability, ProjectTask, ProjectAssignment, Account, Invoice, Integration, User, LoginResponse, Invite, BomHeader, BomLine, InventoryBatch, VelocityReport, BomData, Supplier, SupplierOrder, Sale, BusinessConfiguration, Service, Client, TimeEntry, ServiceContract, Quote, QuoteItem, GlAccount, GlEntry, PurchaseOrder, SalesOrder};
 use db::{Database, DbConfig, PostgresDatabase};
 use argon2::{
     password_hash::{
@@ -1295,6 +1295,12 @@ async fn get_projects(state: State<'_, AppState>, token: String) -> Result<Vec<P
 }
 
 #[tauri::command]
+async fn get_project_profitability(state: State<'_, AppState>, project_id: i32, token: String) -> Result<ProjectProfitability, String> {
+    check_auth(&state, &token, vec!["CEO", "Manager", "Finance"]).await?;
+    state.db.read().await.get_project_profitability(project_id).await
+}
+
+#[tauri::command]
 async fn add_project(state: State<'_, AppState>, project: Project, token: String) -> Result<i64, String> {
     println!("add_project: Attempting to add project '{}' with status '{}'", project.name, project.status);
     let user = check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
@@ -1813,7 +1819,7 @@ pub fn run() {
             get_quotes, add_quote, update_quote, delete_quote, get_quote_items, add_quote_item, update_quote_item, delete_quote_item,
             get_audit_logs, export_audit_logs, update_client_info,
             get_dashboard_configs, save_dashboard_config,
-            get_projects, add_project, update_project, get_project_tasks, add_project_task, update_project_task, delete_project, assign_project_employee, get_project_assignments, get_all_project_assignments, remove_project_assignment, delete_project_task,
+            get_projects, get_project_profitability, add_project, update_project, get_project_tasks, add_project_task, update_project_task, delete_project, assign_project_employee, get_project_assignments, get_all_project_assignments, remove_project_assignment, delete_project_task,
             get_accounts, add_account, get_invoices, create_invoice,
             get_gl_accounts, add_gl_account, get_gl_entries, add_gl_entry,
             get_purchase_orders, get_purchase_order, create_purchase_order, update_purchase_order_status, receive_purchase_order,
