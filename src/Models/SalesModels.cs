@@ -10,6 +10,9 @@ namespace ThePlanningBord.Models
         [JsonPropertyName("client_id")]
         public int? ClientId { get; set; }
 
+        [JsonPropertyName("project_id")]
+        public int? ProjectId { get; set; }
+
         [JsonPropertyName("status")]
         public string Status { get; set; } = "Draft";
 

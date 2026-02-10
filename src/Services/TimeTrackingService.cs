@@ -4,7 +4,7 @@ namespace ThePlanningBord.Services
 {
     public interface ITimeTrackingService
     {
-        Task<List<TimeEntry>> GetTimeEntriesAsync(int? clientId = null, int? serviceId = null);
+        Task<List<TimeEntry>> GetTimeEntriesAsync(int? employeeId = null, int? clientId = null, int? projectId = null);
         Task<long> AddTimeEntryAsync(TimeEntry entry);
         Task UpdateTimeEntryAsync(TimeEntry entry);
         Task DeleteTimeEntryAsync(int id);
@@ -21,12 +21,12 @@ namespace ThePlanningBord.Services
             _userService = userService;
         }
 
-        public async Task<List<TimeEntry>> GetTimeEntriesAsync(int? clientId = null, int? serviceId = null)
+        public async Task<List<TimeEntry>> GetTimeEntriesAsync(int? employeeId = null, int? clientId = null, int? projectId = null)
         {
             try
             {
                 var token = await _userService.GetTokenAsync();
-                return await _tauri.InvokeAsync<List<TimeEntry>>("get_time_entries", new { clientId, serviceId, token });
+                return await _tauri.InvokeAsync<List<TimeEntry>>("get_time_entries", new { employeeId, clientId, projectId, token });
             }
             catch
             {

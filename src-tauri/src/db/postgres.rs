@@ -1107,11 +1107,12 @@ impl Database for PostgresDatabase {
         
         // 1. Project Info
         let project_row = client.query_one(
-            "SELECT p.name, c.name FROM projects p JOIN clients c ON p.client_id = c.id WHERE p.id = $1",
+            "SELECT p.name, c.company_name FROM projects p LEFT JOIN clients c ON p.client_id = c.id WHERE p.id = $1",
             &[&project_id]
         ).await.map_err(|e| format!("Project not found: {}", e))?;
         let project_name: String = project_row.get(0);
-        let client_name: String = project_row.get(1);
+        let client_name: Option<String> = project_row.get(1);
+        let client_name = client_name.unwrap_or_else(|| "Unassigned Client".to_string());
 
         // 2. Revenue (Billable Time + Sales Orders)
         let time_revenue: f64 = client.query_one(

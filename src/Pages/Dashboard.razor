@@ -32,14 +32,14 @@
 </div>
 
 <div class="grid grid-cols-1 gap-6 mb-6 lg:grid-cols-4">
-    @if ((businessType == "product" || businessType == "both") && ShowWidget("products")) {
+    @if ((businessType == "product-only" || businessType == "both") && ShowWidget("products")) {
     <div class="w-full px-4 py-5 bg-white rounded-lg shadow relative group">
         <div class="text-sm font-medium text-gray-500 truncate">Total Products</div>
         <div class="mt-1 text-3xl font-semibold text-gray-900">@stats.TotalProducts</div>
         @if(editMode) { <button @onclick='() => ToggleWidget("products")' class="absolute top-2 right-2 text-red-500">Hide</button> }
     </div>
     }
-    @if ((businessType == "product" || businessType == "both") && ShowWidget("lowstock")) {
+    @if ((businessType == "product-only" || businessType == "both") && ShowWidget("lowstock")) {
     <div class="w-full px-4 py-5 bg-white rounded-lg shadow relative group">
         <div class="text-sm font-medium text-gray-500 truncate">Low Stock Items</div>
         <div class="mt-1 text-3xl font-semibold text-red-600">@stats.LowStockItems</div>
@@ -75,7 +75,7 @@
             @if(editMode) { <button @onclick='() => ToggleWidget("sales")' class="absolute top-2 right-2 text-red-500">Hide</button> }
         </div>
         }
-        @if ((businessType == "product" || businessType == "both") && ShowWidget("turnover")) {
+        @if ((businessType == "product-only" || businessType == "both") && ShowWidget("turnover")) {
         <div class="w-full px-4 py-5 bg-white rounded-lg shadow relative group">
             <div class="text-sm font-medium text-gray-500 truncate">Inventory Turnover</div>
             <div class="mt-1 text-3xl font-semibold text-blue-600">@inventoryTurnover.ToString("0.0")x</div>
@@ -83,49 +83,49 @@
             @if(editMode) { <button @onclick='() => ToggleWidget("turnover")' class="absolute top-2 right-2 text-red-500">Hide</button> }
         </div>
         }
-        @if ((businessType == "service" || businessType == "both") && ShowWidget("services")) {
+        @if ((businessType == "service-only" || businessType == "both") && ShowWidget("services")) {
         <div class="w-full px-4 py-5 bg-white rounded-lg shadow relative group">
             <div class="text-sm font-medium text-gray-500 truncate">Active Services</div>
             <div class="mt-1 text-3xl font-semibold text-purple-600">@stats.TotalServices</div>
             @if(editMode) { <button @onclick='() => ToggleWidget("services")' class="absolute top-2 right-2 text-red-500">Hide</button> }
         </div>
         }
-        @if ((businessType == "service" || businessType == "both") && ShowWidget("clients")) {
+        @if ((businessType == "service-only" || businessType == "both") && ShowWidget("clients")) {
         <div class="w-full px-4 py-5 bg-white rounded-lg shadow relative group">
             <div class="text-sm font-medium text-gray-500 truncate">Total Clients</div>
             <div class="mt-1 text-3xl font-semibold text-cyan-600">@stats.TotalClients</div>
             @if(editMode) { <button @onclick='() => ToggleWidget("clients")' class="absolute top-2 right-2 text-red-500">Hide</button> }
         </div>
         }
-        @if ((businessType == "service" || businessType == "both") && ShowWidget("billable")) {
+        @if ((businessType == "service-only" || businessType == "both") && ShowWidget("billable")) {
         <div class="w-full px-4 py-5 bg-white rounded-lg shadow relative group">
             <div class="text-sm font-medium text-gray-500 truncate">Billable Hours</div>
             <div class="mt-1 text-3xl font-semibold text-orange-600">@stats.BillableHours.ToString("F1")</div>
             @if(editMode) { <button @onclick='() => ToggleWidget("billable")' class="absolute top-2 right-2 text-red-500">Hide</button> }
         </div>
         }
-        @if ((businessType == "service" || businessType == "both") && ShowWidget("utilization")) {
+        @if ((businessType == "service-only" || businessType == "both") && ShowWidget("utilization")) {
         <div class="w-full px-4 py-5 bg-white rounded-lg shadow relative group">
             <div class="text-sm font-medium text-gray-500 truncate">Billable Utilization</div>
             <div class="mt-1 text-3xl font-semibold text-blue-500">@stats.BillableUtilization.ToString("P1")</div>
             @if(editMode) { <button @onclick='() => ToggleWidget("utilization")' class="absolute top-2 right-2 text-red-500">Hide</button> }
         </div>
         }
-        @if ((businessType == "service" || businessType == "both") && ShowWidget("margin")) {
+        @if ((businessType == "service-only" || businessType == "both") && ShowWidget("margin")) {
         <div class="w-full px-4 py-5 bg-white rounded-lg shadow relative group">
             <div class="text-sm font-medium text-gray-500 truncate">Avg. Project Margin</div>
             <div class="mt-1 text-3xl font-semibold text-green-500">@stats.AverageProjectMargin.ToString("P1")</div>
             @if(editMode) { <button @onclick='() => ToggleWidget("margin")' class="absolute top-2 right-2 text-red-500">Hide</button> }
         </div>
         }
-        @if ((businessType == "service" || businessType == "both") && ShowWidget("availability")) {
+        @if ((businessType == "service-only" || businessType == "both") && ShowWidget("availability")) {
         <div class="w-full px-4 py-5 bg-white rounded-lg shadow relative group">
             <div class="text-sm font-medium text-gray-500 truncate">Resource Availability</div>
             <div class="mt-1 text-3xl font-semibold text-indigo-500">@stats.ResourceAvailabilityRate.ToString("P1")</div>
             @if(editMode) { <button @onclick='() => ToggleWidget("availability")' class="absolute top-2 right-2 text-red-500">Hide</button> }
         </div>
         }
-        @if ((businessType == "service" || businessType == "both") && ShowWidget("contracts")) {
+        @if ((businessType == "service-only" || businessType == "both") && ShowWidget("contracts")) {
         <div class="w-full px-4 py-5 bg-white rounded-lg shadow relative group">
             <div class="text-sm font-medium text-gray-500 truncate">Expiring Contracts</div>
             <div class="mt-1 text-3xl font-semibold text-red-500">@stats.ContractsExpiringSoon</div>
@@ -148,7 +148,7 @@
     </div>
 }
 
-@if ((businessType == "product" || businessType == "both") && lowStockProducts.Any())
+@if ((businessType == "product-only" || businessType == "both") && lowStockProducts.Any())
 {
     <div class="bg-red-50 border-l-4 border-red-400 p-4 mb-6 shadow rounded-md">
         <div class="flex">
@@ -181,13 +181,13 @@
     <div class="bg-white shadow rounded-lg p-6">
         <h3 class="text-lg font-medium leading-6 text-gray-900 mb-4">Quick Actions</h3>
         <div class="grid grid-cols-2 gap-4">
-            @if (businessType == "product" || businessType == "both")
+            @if (businessType == "product-only" || businessType == "both")
             {
                 <a href="inventory" class="flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
                     📦 Manage Inventory
                 </a>
             }
-            @if (businessType == "service" || businessType == "both")
+            @if (businessType == "service-only" || businessType == "both")
             {
                 <a href="services" class="flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700">
                     🛠️ Manage Services
@@ -196,7 +196,7 @@
             <a href="tasks" class="flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700">
                 ✅ View Tasks
             </a>
-            @if (businessType == "service" || businessType == "both")
+            @if (businessType == "service-only" || businessType == "both")
             {
                 <a href="clients" class="flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-cyan-600 hover:bg-cyan-700">
                     👥 Manage Clients
@@ -205,13 +205,13 @@
             <a href="employees" class="flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
                 👥 Employees
             </a>
-            @if (businessType == "service" || businessType == "both")
+            @if (businessType == "service-only" || businessType == "both")
             {
-                <a href="timetracking" class="flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700">
+                <a href="time-tracking" class="flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700">
                     ⏰ Time Tracking
                 </a>
             }
-            @if (businessType == "product" || businessType == "both")
+            @if (businessType == "product-only" || businessType == "both")
             {
                 <a href="finance" class="flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-yellow-600 hover:bg-yellow-700">
                     💰 Finance
