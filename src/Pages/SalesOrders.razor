@@ -3,6 +3,7 @@
 @inject ISalesService SalesService
 @inject IClientService ClientService
 @inject IInventoryService InventoryService
+@inject IProjectService ProjectService
 @inject IBusinessConfigurationService BusinessConfigurationService
 @inject NotificationService NotificationService
 @using ThePlanningBord.Models
@@ -25,14 +26,15 @@
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SO #</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Project</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                     <th class="relative px-6 py-3"><span class="sr-only">Actions</span></th>
                 </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
-                @if (salesOrders == null) { <tr><td colspan="6" class="px-6 py-4 text-center">Loading...</td></tr> }
-                else if (!salesOrders.Any()) { <tr><td colspan="6" class="px-6 py-4 text-center">No sales orders found.</td></tr> }
+                @if (salesOrders == null) { <tr><td colspan="7" class="px-6 py-4 text-center">Loading...</td></tr> }
+                else if (!salesOrders.Any()) { <tr><td colspan="7" class="px-6 py-4 text-center">No sales orders found.</td></tr> }
                 else
                 {
                     @foreach (var so in salesOrders)
@@ -42,6 +44,9 @@
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">@so.OrderDate</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                 @(clients.FirstOrDefault(c => c.Id == so.ClientId)?.CompanyName ?? $"ID: {so.ClientId}")
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                @(projects.FirstOrDefault(p => p.Id == so.ProjectId)?.Name ?? "—")
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">@so.TotalAmount.ToString("C")</td>
                             <td class="px-6 py-4 whitespace-nowrap">
@@ -89,6 +94,23 @@
                                     @foreach (var c in clients)
                                     {
                                         <option value="@c.Id">@c.CompanyName</option>
+                                    }
+                                </select>
+                            }
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Project (Optional)</label>
+                            @if (isViewing)
+                            {
+                                <div class="mt-1 text-sm text-gray-900">@(projects.FirstOrDefault(p => p.Id == editingSo.ProjectId)?.Name ?? "—")</div>
+                            }
+                            else
+                            {
+                                <select @bind="editingSo.ProjectId" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
+                                    <option value="">-- No Project --</option>
+                                    @foreach (var p in projects)
+                                    {
+                                        <option value="@p.Id">@p.Name</option>
                                     }
                                 </select>
                             }
@@ -235,6 +257,7 @@
     private List<Client> clients = new();
     private List<Product> products = new();
     private List<Service> services = new();
+    private List<Project> projects = new();
     
     private bool showModal = false;
     private bool isViewing = false;
@@ -257,6 +280,7 @@
             var pagedProducts = await InventoryService.GetProductsAsync();
             products = pagedProducts.Items;
             services = await BusinessConfigurationService.GetServicesAsync();
+            projects = await ProjectService.GetProjectsAsync();
         }
         catch (Exception ex)
         {
@@ -391,6 +415,7 @@
 
         try
         {
+            if (editingSo.ProjectId == 0) editingSo.ProjectId = null;
             editingSo.Lines = currentLines;
             await SalesService.CreateSalesOrderAsync(editingSo);
             NotificationService.ShowSuccess("Sales Order created successfully.");
