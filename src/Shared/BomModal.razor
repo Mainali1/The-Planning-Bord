@@ -52,7 +52,7 @@
                                                             <option value="0">Select Item</option>
                                                             @foreach (var p in allProducts)
                                                             {
-                                                                <option value="@p.Id">@p.Name</option>
+                                                                <option value="@p.Id">[@(char.ToUpper(p.ItemType[0]) + p.ItemType.Substring(1))] @p.Name</option>
                                                             }
                                                         </select>
                                                     </td>
@@ -111,7 +111,10 @@
             {
                 // Load products for dropdown
                 var productResult = await InventoryService.GetProductsAsync(null, 1, 1000);
-                allProducts = productResult.Items.Where(p => p.Id != ProductId).ToList(); // Exclude self
+                // Filter components: Exclude self, and only allow Ingredients or Goods (sub-assemblies)
+                allProducts = productResult.Items
+                    .Where(p => p.Id != ProductId && (p.ItemType == "ingredients" || p.ItemType == "goods"))
+                    .ToList();
 
                 // Load BOM
                 var result = await InventoryService.GetProductBomAsync(ProductId);

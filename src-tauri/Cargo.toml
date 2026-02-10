@@ -1,9 +1,9 @@
 [package]
 name = "the-planning-bord"
 version = "0.1.0"
-description = "A Tauri App"
-authors = ["you"]
-edition = "2021"
+description = "The Planning Bord is a comprehensive, enterprise-grade ERP (Enterprise Resource Planning) desktop application designed for modern businesses."
+authors = ["Rijan Mainali"]
+edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -34,3 +34,8 @@ tokio-postgres = { version = "0.7.15", features = ["with-chrono-0_4", "with-uuid
 deadpool-postgres = "0.14.1"
 async-trait = "0.1.89"
 csv = "1.3"
+lettre = "0.11.19"
+
+[profile.dev]
+debug = 0  # Reduce debug info to avoid PDB errors (LNK1318)
+split-debuginfo = "unpacked" # Improve link times and avoid giant PDBs on Windows

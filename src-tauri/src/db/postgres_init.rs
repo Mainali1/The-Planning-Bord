@@ -167,6 +167,15 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
     // Patch products
     let _ = client.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS cost_price DOUBLE PRECISION DEFAULT 0.0", &[]);
 
+    // Item Categorization
+    client.execute("DO $$ BEGIN
+        CREATE TYPE item_type_enum AS ENUM ('goods', 'ingredients', 'assets');
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END $$;", &[]).ok();
+
+    let _ = client.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS item_type item_type_enum DEFAULT 'goods'", &[]);
+
     client.execute(
         "CREATE TABLE IF NOT EXISTS inventory_logs (
             id SERIAL PRIMARY KEY,
@@ -339,6 +348,9 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
         "ALTER TABLE tool_assignments ADD COLUMN IF NOT EXISTS condition_on_assignment TEXT",
         &[],
     ).ok();
+
+    // Patch tools for asset linking
+    let _ = client.execute("ALTER TABLE tools ADD COLUMN IF NOT EXISTS product_id INTEGER REFERENCES products(id)", &[]);
 
     // 7. Project Management
     client.execute(
@@ -602,6 +614,7 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             id SERIAL PRIMARY KEY,
             name TEXT UNIQUE NOT NULL,
             email TEXT,
+            order_email TEXT,
             phone TEXT,
             contact_person TEXT,
             address TEXT,
@@ -613,6 +626,7 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
     )?;
 
     // Patch inventory_batches
+    let _ = client.execute("ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS order_email TEXT", &[]);
     let _ = client.execute("ALTER TABLE inventory_batches ADD COLUMN IF NOT EXISTS supplier_id INTEGER REFERENCES suppliers(id)", &[]);
 
     // 16. Supplier Orders

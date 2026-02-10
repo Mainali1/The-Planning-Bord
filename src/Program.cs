@@ -35,6 +35,7 @@ builder.Services.AddScoped<IContractService, ContractService>();
 builder.Services.AddScoped<IQuoteService, QuoteService>();
 builder.Services.AddScoped<IResourcePlanningService, ResourcePlanningService>();
 builder.Services.AddScoped<MicrosoftGraphService>();
+builder.Services.AddScoped<SmtpEmailService>();
 builder.Services.AddScoped<ISlackService, SlackService>();
 builder.Services.AddScoped<NotificationService>();
 builder.Services.AddScoped<ITauriInterop, TauriInterop>();

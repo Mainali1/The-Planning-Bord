@@ -252,12 +252,30 @@
         showModal = true;
     }
 
-    private void ViewOrder(PurchaseOrder po)
+    private async Task ViewOrder(PurchaseOrder po)
     {
         editingPo = po;
-        currentLines = po.Lines ?? new();
         isViewing = true;
         showModal = true;
+        
+        try 
+        {
+            var fullPo = await PurchaseOrderService.GetPurchaseOrderAsync(po.Id ?? 0);
+            if (fullPo != null)
+            {
+                editingPo = fullPo;
+                currentLines = fullPo.Lines ?? new();
+            }
+            else
+            {
+                currentLines = new();
+            }
+        }
+        catch (Exception ex)
+        {
+             NotificationService.ShowError("Failed to load order details: " + ex.Message);
+             currentLines = new();
+        }
     }
 
     private void CloseModal()

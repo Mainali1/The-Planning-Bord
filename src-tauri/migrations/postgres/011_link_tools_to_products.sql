@@ -1,0 +1,1 @@
+ALTER TABLE tools ADD COLUMN IF NOT EXISTS product_id INTEGER REFERENCES products(id);

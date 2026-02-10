@@ -34,6 +34,12 @@ namespace ThePlanningBord.Models
         [JsonPropertyName("supplier_name")]
         public string? SupplierName { get; set; }
 
+        [JsonPropertyName("item_type")]
+        public string ItemType { get; set; } = "goods";
+
+        [JsonPropertyName("cost_price")]
+        public double? CostPrice { get; set; }
+
         [JsonPropertyName("is_active")]
         public bool IsActive { get; set; } = true;
     }
@@ -42,6 +48,9 @@ namespace ThePlanningBord.Models
     {
         [JsonPropertyName("id")]
         public int? Id { get; set; }
+
+        [JsonPropertyName("product_id")]
+        public int? ProductId { get; set; }
 
         [JsonPropertyName("name")]
         public string Name { get; set; } = string.Empty;

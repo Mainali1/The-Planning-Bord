@@ -59,6 +59,7 @@
                     <thead class="bg-gray-50 sticky top-0">
                         <tr>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
@@ -76,6 +77,9 @@
                                     <td class="px-6 py-4 whitespace-nowrap">
                                         <div class="text-sm font-medium text-gray-900">@p.Name</div>
                                         <div class="text-sm text-gray-500">@p.Sku</div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">@p.ItemType</span>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">@p.Category</td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">@p.CurrentQuantity / @p.MinimumQuantity</td>
@@ -209,10 +213,37 @@
                             <input type="text" @bind="newProduct.Sku" placeholder="SKU" class="block w-full border-gray-300 rounded-md shadow-sm" />
                             <input type="text" @bind="newProduct.Category" placeholder="Category" class="block w-full border-gray-300 rounded-md shadow-sm" />
                             <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-700 mb-1">Item Type</label>
+                                    <select @bind="newProduct.ItemType" class="block w-full border-gray-300 rounded-md shadow-sm">
+                                        <option value="goods">Goods (Sellable)</option>
+                                        <option value="ingredients">Ingredient (Raw Material)</option>
+                                        <option value="assets">Asset (Equipment)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-700 mb-1">Cost Price</label>
+                                    <input type="number" @bind="newProduct.CostPrice" step="0.01" placeholder="Cost" class="block w-full border-gray-300 rounded-md shadow-sm" />
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
                                 <input type="number" @bind="newProduct.CurrentQuantity" placeholder="Qty" class="block w-full border-gray-300 rounded-md shadow-sm" />
                                 <input type="number" @bind="newProduct.MinimumQuantity" placeholder="Min Qty" class="block w-full border-gray-300 rounded-md shadow-sm" />
                             </div>
-                            <input type="number" @bind="newProduct.UnitPrice" step="0.01" placeholder="Price" class="block w-full border-gray-300 rounded-md shadow-sm" />
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-700 mb-1">Reorder Amount</label>
+                                    <input type="number" @bind="newProduct.ReorderQuantity" placeholder="Reorder Qty" class="block w-full border-gray-300 rounded-md shadow-sm" />
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-700 mb-1">Supplier Name</label>
+                                    <input type="text" @bind="newProduct.SupplierName" placeholder="Supplier" class="block w-full border-gray-300 rounded-md shadow-sm" />
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Selling Price</label>
+                                <input type="number" @bind="newProduct.UnitPrice" step="0.01" placeholder="Selling Price" class="block w-full border-gray-300 rounded-md shadow-sm" />
+                            </div>
                         </div>
                     }
                     else

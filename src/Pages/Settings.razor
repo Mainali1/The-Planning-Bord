@@ -7,6 +7,7 @@
 @inject Microsoft.AspNetCore.Components.Authorization.AuthenticationStateProvider AuthStateProvider
 @inject NotificationService NotificationService
 @inject IThemeService ThemeService
+@inject SmtpEmailService SmtpService
 @using ThePlanningBord.Services
 @using ThePlanningBord.Auth
 
@@ -43,6 +44,70 @@
         @if (activeTab == "general")
         {
             <div class="max-w-4xl space-y-6">
+                <!-- Inventory Settings -->
+                <section class="bg-white shadow rounded-lg overflow-hidden">
+                    <div class="p-6 border-b border-gray-200">
+                         <h3 class="text-lg font-medium text-gray-900">Inventory Configuration</h3>
+                         <p class="text-sm text-gray-500">Manage global inventory and purchasing settings.</p>
+                    </div>
+                    <div class="p-6">
+                        <div class="max-w-md">
+                            <label class="block text-sm font-medium text-gray-700">Global Order Email</label>
+                            <div class="mt-1 flex rounded-md shadow-sm">
+                                <input type="email" @bind="globalOrderEmail" class="flex-1 min-w-0 block w-full px-3 py-2 rounded-md border-gray-300 sm:text-sm focus:ring-blue-500 focus:border-blue-500" placeholder="fallback@example.com">
+                                <button type="button" @onclick="SaveGlobalOrderEmail" class="ml-3 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                    Save
+                                </button>
+                            </div>
+                            <p class="mt-2 text-sm text-gray-500">This email will be used for auto-orders if the supplier does not have a specific Order Email defined.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Email Configuration (SMTP) -->
+                <section class="bg-white shadow rounded-lg overflow-hidden">
+                    <div class="p-6 border-b border-gray-200">
+                         <h3 class="text-lg font-medium text-gray-900">Email Configuration (SMTP)</h3>
+                         <p class="text-sm text-gray-500">Configure outbound email settings (Gmail, Outlook, etc.).</p>
+                    </div>
+                    <div class="p-6 space-y-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">SMTP Host</label>
+                                <input type="text" @bind="smtpConfig.Host" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="smtp.gmail.com">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Port</label>
+                                <input type="number" @bind="smtpConfig.Port" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="587">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Username</label>
+                                <input type="text" @bind="smtpConfig.Username" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="your_email@gmail.com">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Password / App Password</label>
+                                <input type="password" @bind="smtpConfig.Password" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="App Password">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">From Email</label>
+                                <input type="email" @bind="smtpConfig.FromEmail" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="your_email@gmail.com">
+                            </div>
+                            <div class="flex items-center pt-6">
+                                <input id="use_ssl" type="checkbox" @bind="smtpConfig.UseSsl" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                                <label for="use_ssl" class="ml-2 block text-sm text-gray-900">Use SSL (Implicit, port 465)</label>
+                            </div>
+                        </div>
+                        <div class="flex justify-end pt-4">
+                            <button type="button" @onclick="SaveSmtpConfig" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                                Save SMTP Settings
+                            </button>
+                        </div>
+                        <p class="text-xs text-gray-500">
+                            Note: For Gmail, use "smtp.gmail.com", port 587 (STARTTLS) or 465 (SSL). Enable "App Passwords" in your Google Account Security settings if 2FA is on.
+                        </p>
+                    </div>
+                </section>
+
                 <!-- Appearance -->
                 <section class="bg-white shadow rounded-lg overflow-hidden">
                     <div class="p-6 border-b border-gray-200">
@@ -395,6 +460,10 @@
 @code {
     private string activeTab = "general";
     private bool notificationsEnabled;
+    private bool emailAlertsEnabled = false;
+    private string adminEmail = "";
+    private string globalOrderEmail = "";
+    private SmtpConfig smtpConfig = new();
     private string themePreference = "system";
     private bool isM365Connected;
     
@@ -423,7 +492,15 @@
     {
         var enabledStr = await JS.InvokeAsync<string>("getSetting", "notifications_enabled");
         bool.TryParse(enabledStr, out notificationsEnabled);
+
+        var emailStr = await JS.InvokeAsync<string>("getSetting", "email_alerts_enabled");
+        if (!string.IsNullOrEmpty(emailStr)) bool.TryParse(emailStr, out emailAlertsEnabled);
+
+        adminEmail = await JS.InvokeAsync<string>("getSetting", "admin_email") ?? "";
+        globalOrderEmail = await JS.InvokeAsync<string>("getSetting", "global_order_email") ?? "";
         
+        await LoadSmtpConfig();
+
         themePreference = await ThemeService.GetThemePreferenceAsync();
         
         isM365Connected = await GraphService.IsConnected();
@@ -464,6 +541,30 @@
         await JS.InvokeVoidAsync("setSetting", "notifications_enabled", notificationsEnabled.ToString());
         NotificationService.ShowSuccess("Settings saved successfully!");
     }
+
+    private async Task SaveGlobalOrderEmail()
+    {
+        await JS.InvokeVoidAsync("saveSetting", "global_order_email", globalOrderEmail);
+        NotificationService.ShowSuccess("Global Order Email saved successfully.");
+    }
+
+    private async Task LoadSmtpConfig()
+    {
+        var config = await SmtpService.GetConfigAsync();
+        if (config != null) smtpConfig = config;
+    }
+
+    private async Task SaveSmtpConfig()
+    {
+        await SmtpService.SaveConfigAsync(smtpConfig);
+        NotificationService.ShowSuccess("SMTP Configuration saved successfully.");
+    }
+
+    private async Task SaveAdminEmail()
+    {
+        await JS.InvokeVoidAsync("setSetting", "admin_email", adminEmail);
+        NotificationService.ShowSuccess("Admin Email saved successfully.");
+    }
     
     private async Task SetTheme(string theme)
     {
@@ -472,7 +573,17 @@
         // Optional: Show a toast? Probably not needed for immediate feedback.
     }
 
-    private void ToggleNotifications() => notificationsEnabled = !notificationsEnabled;
+    private async Task ToggleNotifications()
+    {
+        notificationsEnabled = !notificationsEnabled;
+        await JS.InvokeVoidAsync("setSetting", "notifications_enabled", notificationsEnabled.ToString());
+    }
+
+    private async Task ToggleEmailAlerts()
+    {
+        emailAlertsEnabled = !emailAlertsEnabled;
+        await JS.InvokeVoidAsync("setSetting", "email_alerts_enabled", emailAlertsEnabled.ToString());
+    }
     
     private async Task ToggleM365()
     {

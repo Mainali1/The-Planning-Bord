@@ -1,21 +1,28 @@
 using System.Timers;
 using Microsoft.JSInterop;
+using ThePlanningBord.Models;
 
 namespace ThePlanningBord.Services
 {
     public class BackgroundJobService : IDisposable
     {
         private readonly IInventoryService _inventoryService;
+        private readonly IPurchaseOrderService _purchaseOrderService;
         private readonly IJSRuntime _jsRuntime;
-        private readonly MicrosoftGraphService _graphService;
+        private readonly SmtpEmailService _smtpEmailService;
         private System.Timers.Timer? _timer;
         private bool _isRunning;
 
-        public BackgroundJobService(IInventoryService inventoryService, IJSRuntime jsRuntime, MicrosoftGraphService graphService)
+        public BackgroundJobService(
+            IInventoryService inventoryService, 
+            IPurchaseOrderService purchaseOrderService,
+            IJSRuntime jsRuntime, 
+            SmtpEmailService smtpEmailService)
         {
             _inventoryService = inventoryService;
+            _purchaseOrderService = purchaseOrderService;
             _jsRuntime = jsRuntime;
-            _graphService = graphService;
+            _smtpEmailService = smtpEmailService;
         }
 
         public void Start()
@@ -39,40 +46,146 @@ namespace ThePlanningBord.Services
                     return;
                 }
 
-                // Fetch all products for check (using a large page size for now)
-                var result = await _inventoryService.GetProductsAsync(null, 1, 1000);
+                // Fetch data
+                var result = await _inventoryService.GetProductsAsync(null, 1, 10000); // Fetch all
                 var products = result.Items;
                 var lowStock = products.Where(p => p.CurrentQuantity <= p.MinimumQuantity).ToList();
 
-                if (lowStock.Any())
+                if (!lowStock.Any()) return;
+
+                // Check for auto-order settings
+                var emailEnabledStr = await _jsRuntime.InvokeAsync<string>("getSetting", "email_alerts_enabled");
+                bool emailEnabled = bool.TryParse(emailEnabledStr, out bool eEnabled) && eEnabled;
+
+                if (!emailEnabled)
                 {
+                    // Just notify admin locally if email is disabled
                     var message = $"Warning: {lowStock.Count} items are low on stock!";
                     await _jsRuntime.InvokeVoidAsync("notify", message);
-                    
-                    // Future: Trigger M365 Email if enabled
-                    var emailEnabledStr = await _jsRuntime.InvokeAsync<string>("getSetting", "email_alerts_enabled");
-                    if (bool.TryParse(emailEnabledStr, out bool emailEnabled) && emailEnabled)
+                    return;
+                }
+
+                // Auto-Order Logic
+                var suppliers = await _inventoryService.GetSuppliersAsync();
+                var allPOs = await _purchaseOrderService.GetPurchaseOrdersAsync();
+                var activePOs = allPOs.Where(po => po.Status != "Received" && po.Status != "Cancelled").ToList();
+
+                var autoOrderedItems = new List<string>();
+                var manualAttentionItems = new List<string>();
+
+                var globalOrderEmail = await _jsRuntime.InvokeAsync<string>("getSetting", "global_order_email");
+
+                foreach (var item in lowStock)
+                {
+                    // Check if already ordered
+                    bool alreadyOrdered = activePOs.Any(po => po.Lines != null && po.Lines.Any(l => l.ProductId == item.Id));
+                    if (alreadyOrdered) continue;
+
+                    if (item.ReorderQuantity > 0 && !string.IsNullOrEmpty(item.SupplierName))
                     {
-                        var adminEmail = await _jsRuntime.InvokeAsync<string>("getSetting", "admin_email");
-                        if (!string.IsNullOrEmpty(adminEmail))
+                        var supplier = suppliers.FirstOrDefault(s => s.Name.Equals(item.SupplierName, StringComparison.OrdinalIgnoreCase));
+                        if (supplier != null)
                         {
-                            var sb = new System.Text.StringBuilder();
-                            sb.AppendLine("The following items are low on stock:");
-                            foreach (var item in lowStock)
+                            // Determine target email: Supplier Order Email -> Global Order Email -> Supplier General Email
+                            var targetEmail = !string.IsNullOrWhiteSpace(supplier.OrderEmail) ? supplier.OrderEmail : globalOrderEmail;
+                            if (string.IsNullOrWhiteSpace(targetEmail)) targetEmail = supplier.Email;
+
+                            if (!string.IsNullOrEmpty(targetEmail))
                             {
-                                sb.AppendLine($"- {item.Name} (SKU: {item.Sku}): {item.CurrentQuantity} / {item.MinimumQuantity}");
+                                // Create PO
+                                var po = new PurchaseOrder
+                                {
+                                    SupplierId = supplier.Id,
+                                    Status = "Draft", // Will be updated to Sent after email? Or keep Draft for approval? User said "will be ordered". Let's say "Ordered".
+                                    OrderDate = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss"),
+                                    TotalAmount = item.ReorderQuantity * item.UnitPrice, // Approx
+                                    Notes = "Auto-generated by Low Stock System",
+                                    Lines = new List<PurchaseOrderLine>
+                                    {
+                                        new PurchaseOrderLine
+                                        {
+                                            ProductId = item.Id,
+                                            QuantityOrdered = item.ReorderQuantity,
+                                            UnitPrice = item.UnitPrice,
+                                            TotalPrice = item.ReorderQuantity * item.UnitPrice
+                                        }
+                                    }
+                                };
+
+                                try 
+                                {
+                                    await _purchaseOrderService.CreatePurchaseOrderAsync(po);
+                                    
+                                    // Send Email to Supplier
+                                    var subject = $"Purchase Order: {item.Name}";
+                                    var body = $"Dear {supplier.Name},\n\nPlease ship the following item:\n\n" +
+                                               $"Product: {item.Name}\n" +
+                                               $"SKU: {item.Sku}\n" +
+                                               $"Quantity: {item.ReorderQuantity}\n\n" +
+                                               $"Thank you,\nThe Planning Bord System";
+                                    
+                                    bool emailSent = await _smtpEmailService.SendEmailAsync(targetEmail, subject, body);
+                                    
+                                    if (emailSent)
+                                    {
+                                        autoOrderedItems.Add($"{item.Name} (Qty: {item.ReorderQuantity}) from {supplier.Name} (sent to {targetEmail})");
+                                    }
+                                    else
+                                    {
+                                        manualAttentionItems.Add($"{item.Name} (Email failed)");
+                                    }
+                                }
+                                catch
+                                {
+                                    manualAttentionItems.Add($"{item.Name} (PO Creation failed)");
+                                }
                             }
-                            
-                            await _graphService.SendRestockEmailAsync(adminEmail, "Low Stock Alert", sb.ToString());
+                            else
+                            {
+                                manualAttentionItems.Add($"{item.Name} (Missing Supplier Email)");
+                            }
+                        }
+                        else
+                        {
+                             manualAttentionItems.Add($"{item.Name} (Supplier not found)");
                         }
                     }
+                    else
+                    {
+                        manualAttentionItems.Add($"{item.Name} (No Reorder Qty/Supplier)");
+                    }
+                }
+
+                // Notify Admin
+                var adminEmail = await _jsRuntime.InvokeAsync<string>("getSetting", "admin_email");
+                if (!string.IsNullOrEmpty(adminEmail) && (autoOrderedItems.Any() || manualAttentionItems.Any()))
+                {
+                    var sb = new System.Text.StringBuilder();
+                    sb.AppendLine("Low Stock Report:");
+                    
+                    if (autoOrderedItems.Any())
+                    {
+                        sb.AppendLine("\nAuto-Ordered Items:");
+                        foreach (var i in autoOrderedItems) sb.AppendLine($"- {i}");
+                    }
+
+                    if (manualAttentionItems.Any())
+                    {
+                        sb.AppendLine("\nRequires Manual Attention:");
+                        foreach (var i in manualAttentionItems) sb.AppendLine($"- {i}");
+                    }
+
+                    await _smtpEmailService.SendEmailAsync(adminEmail, "Low Stock Auto-Order Report", sb.ToString());
+                }
+                
+                if (autoOrderedItems.Any())
+                {
+                    await _jsRuntime.InvokeVoidAsync("notify", $"Auto-ordered {autoOrderedItems.Count} items.");
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Background job errors should not crash the app, but maybe notify admin?
-                // For now, suppress or log to notification if critical
-                // _notificationService.ShowError($"Background job error: {ex.Message}");
+                Console.WriteLine($"BackgroundJobService Error: {ex.Message}");
             }
         }
 

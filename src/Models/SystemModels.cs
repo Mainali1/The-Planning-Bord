@@ -141,7 +141,43 @@ namespace ThePlanningBord.Models
         [JsonPropertyName("provider")]
         public string Provider { get; set; } = string.Empty;
     }
-    
+
+    public class SmtpConfig
+    {
+        [JsonPropertyName("host")]
+        public string Host { get; set; } = string.Empty;
+
+        [JsonPropertyName("port")]
+        public int Port { get; set; } = 587;
+
+        [JsonPropertyName("username")]
+        public string Username { get; set; } = string.Empty;
+
+        [JsonPropertyName("password")]
+        public string Password { get; set; } = string.Empty;
+
+        [JsonPropertyName("from_email")]
+        public string FromEmail { get; set; } = string.Empty;
+
+        [JsonPropertyName("use_ssl")]
+        public bool UseSsl { get; set; } = false;
+    }
+
+    public class EmailRequest
+    {
+        [JsonPropertyName("to")]
+        public string To { get; set; } = string.Empty;
+
+        [JsonPropertyName("subject")]
+        public string Subject { get; set; } = string.Empty;
+
+        [JsonPropertyName("body")]
+        public string Body { get; set; } = string.Empty;
+
+        [JsonPropertyName("config")]
+        public SmtpConfig Config { get; set; } = new();
+    }
+
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public enum DbType
     {

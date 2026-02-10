@@ -73,6 +73,18 @@
                 <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                     <h3 class="text-lg leading-6 font-medium text-gray-900">@((newTool.Id.HasValue ? "Edit" : "Add")) Tool</h3>
                     <div class="mt-4 grid grid-cols-1 gap-y-4">
+                        <div class="col-span-1">
+                            <label class="block text-sm font-medium text-gray-700">Link to Asset (Inventory) <span class="text-gray-400 font-normal">(Optional)</span></label>
+                            <select @onchange="OnAssetSelected" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                <option value="">(None - Standalone Tool)</option>
+                                @foreach (var p in assetProducts)
+                                {
+                                    <option value="@p.Id" selected="@(newTool.ProductId == p.Id)">@p.Name (Qty: @p.CurrentQuantity)</option>
+                                }
+                            </select>
+                            <p class="mt-1 text-xs text-gray-500">Select an inventory asset if this tool is a tracked instance (e.g., "Drill #1" linked to "Makita Drill"). Leave empty for general equipment or if not applicable.</p>
+                        </div>
+                        
                         <input type="text" @bind="newTool.Name" placeholder="Tool Name" class="block w-full border-gray-300 rounded-md shadow-sm" />
                         <input type="text" @bind="newTool.TypeName" placeholder="Type (e.g., Drill, Saw)" class="block w-full border-gray-300 rounded-md shadow-sm" />
                         <select @bind="newTool.Status" class="block w-full border-gray-300 rounded-md shadow-sm">
@@ -287,6 +299,7 @@
 @code {
     private List<Tool>? tools;
     private List<Employee>? employees;
+    private List<Product> assetProducts = new(); // List of asset products from inventory
     private bool showAddModal = false;
     private bool showAssignModal = false;
     private bool showReturnModal = false;
@@ -312,8 +325,22 @@
     {
         await LoadTools();
         await LoadEmployees();
+        await LoadAssetProducts();
         try { currentUser = await UserService.GetCurrentUserAsync(); }
         catch { }
+    }
+
+    private async Task LoadAssetProducts()
+    {
+        try 
+        {
+            var result = await InventoryService.GetProductsAsync(null, 1, 1000);
+            assetProducts = result.Items.Where(p => p.ItemType == "assets").ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Tools.LoadAssetProducts: {ex.Message}");
+        }
     }
 
     private async Task LoadTools()
@@ -350,6 +377,24 @@
         return emp != null ? $"{emp.FirstName} {emp.LastName}" : "Unknown";
     }
 
+    private void OnAssetSelected(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int pid))
+        {
+            var p = assetProducts.FirstOrDefault(x => x.Id == pid);
+            if (p != null)
+            {
+                newTool.ProductId = pid;
+                newTool.Name = p.Name;
+                newTool.TypeName = p.Category ?? "Asset"; 
+            }
+        }
+        else
+        {
+            newTool.ProductId = null;
+        }
+    }
+
     private void OpenAddModal()
     {
         newTool = new Tool();
@@ -358,7 +403,16 @@
 
     private void EditTool(Tool t)
     {
-        newTool = new Tool { Id = t.Id, Name = t.Name, TypeName = t.TypeName, Status = t.Status, AssignedToEmployeeId = t.AssignedToEmployeeId, PurchaseDate = t.PurchaseDate, Condition = t.Condition };
+        newTool = new Tool { 
+            Id = t.Id, 
+            Name = t.Name, 
+            TypeName = t.TypeName, 
+            Status = t.Status, 
+            AssignedToEmployeeId = t.AssignedToEmployeeId, 
+            PurchaseDate = t.PurchaseDate, 
+            Condition = t.Condition,
+            ProductId = t.ProductId
+        };
         showAddModal = true;
     }
 

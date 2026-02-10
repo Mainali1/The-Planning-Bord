@@ -71,7 +71,7 @@
                                     <div class="text-sm text-gray-900">$@entry.HourlyRate.ToString("F2")</div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="text-sm font-medium text-gray-900">$@(entry.DurationHours * entry.HourlyRate).ToString("F2")</div>
+                                    <div class="text-sm font-medium text-gray-900">$@((entry.DurationHours * entry.HourlyRate).ToString("F2"))</div>
                                 </td>
                                 <td class="px-6 py-4">
                                     <div class="text-sm text-gray-500">@entry.Description</div>

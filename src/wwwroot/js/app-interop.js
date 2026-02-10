@@ -58,5 +58,15 @@ window.appInterop = {
             // Initial check
             updateStatus();
         }
+    },
+
+    // Settings (LocalStorage Wrapper)
+    settings: {
+        get: (key) => localStorage.getItem(key),
+        set: (key, value) => localStorage.setItem(key, value)
     }
 };
+
+// Global Shortcuts for dotNet interop simplicity
+window.getSetting = (key) => window.appInterop.settings.get(key);
+window.saveSetting = (key, value) => window.appInterop.settings.set(key, value);

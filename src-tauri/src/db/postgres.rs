@@ -33,7 +33,7 @@ use deadpool_postgres::{Pool, Manager, ManagerConfig, RecyclingMethod};
 use tokio_postgres::NoTls;
 use tokio_postgres::error::SqlState;
 use std::str::FromStr;
-use chrono::{NaiveDateTime, NaiveDate};
+use chrono::{NaiveDateTime, NaiveDate, DateTime};
 use argon2::{
     password_hash::{
         rand_core::OsRng,
@@ -82,7 +82,8 @@ impl PostgresDatabase {
 
 // Helper to format Option<NaiveDateTime> to Option<String>
 fn format_timestamp(ts: Option<NaiveDateTime>) -> Option<String> {
-    ts.map(|t| t.format("%Y-%m-%d %H:%M:%S").to_string())
+    // Use ISO 8601 format (with 'T') for better compatibility with frontend DateTime deserializers
+    ts.map(|t| t.format("%Y-%m-%dT%H:%M:%S").to_string())
 }
 
 // Helper to parse Option<String> to Option<NaiveDateTime>
@@ -93,6 +94,19 @@ fn parse_timestamp(ts: Option<String>) -> Option<NaiveDateTime> {
             return None; 
         }
         println!("parse_timestamp: Attempting to parse timestamp: '{}'", s);
+        
+        // Try RFC3339 (ISO 8601 with timezone) e.g. "2026-02-10T21:00:34.196+05:45"
+        if let Ok(dt) = DateTime::parse_from_rfc3339(&s) {
+            println!("parse_timestamp: Successfully parsed as RFC3339: {:?}", dt);
+            return Some(dt.naive_utc());
+        }
+
+        // Try ISO format with milliseconds (no timezone) e.g. "2026-02-10T21:00:34.196"
+        if let Ok(dt) = NaiveDateTime::parse_from_str(&s, "%Y-%m-%dT%H:%M:%S%.f") {
+            println!("parse_timestamp: Successfully parsed as ISO format with millis: {:?}", dt);
+            return Some(dt);
+        }
+
         // Try ISO format first (with 'T')
         if let Ok(dt) = NaiveDateTime::parse_from_str(&s, "%Y-%m-%dT%H:%M:%S") {
             println!("parse_timestamp: Successfully parsed as ISO format: {:?}", dt);
@@ -323,7 +337,7 @@ impl Database for PostgresDatabase {
 
         // Get items
         let rows = client.query(
-            "SELECT id, name, description, category, sku, current_quantity, minimum_quantity, reorder_quantity, unit_price, supplier_name, is_active, cost_price FROM products WHERE name ILIKE $1 OR sku ILIKE $1 OR category ILIKE $1 LIMIT $2 OFFSET $3",
+            "SELECT id, name, description, category, sku, current_quantity, minimum_quantity, reorder_quantity, unit_price, supplier_name, is_active, cost_price, item_type::text, created_at, updated_at FROM products WHERE name ILIKE $1 OR sku ILIKE $1 OR category ILIKE $1 LIMIT $2 OFFSET $3",
             &[&search_pattern, &limit, &offset]
         ).await.map_err(|e| format!("Failed to fetch products: {}", e))?;
 
@@ -342,6 +356,9 @@ impl Database for PostgresDatabase {
                 supplier_name: row.get(9),
                 is_active: row.get(10),
                 cost_price: row.get(11),
+                item_type: row.get(12),
+                created_at: format_timestamp(row.get(13)),
+                updated_at: format_timestamp(row.get(14)),
             });
         }
 
@@ -360,8 +377,8 @@ impl Database for PostgresDatabase {
             format!("Failed to get db connection: {}", e)
         })?;
         
-        println!("postgres.add_product: Product data - name: '{:?}', sku: '{:?}', category: '{:?}', current_quantity: {:?}, minimum_quantity: {:?}, unit_price: {:?}", 
-                 product.name, product.sku, product.category, product.current_quantity, product.minimum_quantity, product.unit_price);
+        println!("postgres.add_product: Product data - name: '{:?}', sku: '{:?}', category: '{:?}', current_quantity: {:?}, minimum_quantity: {:?}, unit_price: {:?}, cost_price: {:?}", 
+                 product.name, product.sku, product.category, product.current_quantity, product.minimum_quantity, product.unit_price, product.cost_price);
         
         // Check if SKU already exists (if SKU is provided)
         if let Some(ref sku) = product.sku {
@@ -380,8 +397,8 @@ impl Database for PostgresDatabase {
         }
         
         let row = client.query_one(
-            "INSERT INTO products (name, description, category, sku, current_quantity, minimum_quantity, reorder_quantity, unit_price, supplier_name, is_active, cost_price)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id",
+            "INSERT INTO products (name, description, category, sku, current_quantity, minimum_quantity, reorder_quantity, unit_price, supplier_name, is_active, cost_price, item_type)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::text::item_type_enum) RETURNING id",
             &[
                 &product.name,
                 &product.description,
@@ -393,7 +410,8 @@ impl Database for PostgresDatabase {
                 &product.unit_price,
                 &product.supplier_name,
                 &product.is_active,
-                &product.cost_price,
+                &product.cost_price.unwrap_or(0.0),
+                &product.item_type,
             ],
         ).await.map_err(|e| {
             println!("postgres.add_product: Database insert error - {}", e);
@@ -423,7 +441,7 @@ impl Database for PostgresDatabase {
             }
             
             client.execute(
-                "UPDATE products SET name = $1, description = $2, category = $3, sku = $4, current_quantity = $5, minimum_quantity = $6, reorder_quantity = $7, unit_price = $8, supplier_name = $9, is_active = $10 WHERE id = $11",
+                "UPDATE products SET name = $1, description = $2, category = $3, sku = $4, current_quantity = $5, minimum_quantity = $6, reorder_quantity = $7, unit_price = $8, supplier_name = $9, is_active = $10, cost_price = $11, item_type = $12::text::item_type_enum WHERE id = $13",
                 &[
                     &product.name,
                     &product.description,
@@ -435,6 +453,8 @@ impl Database for PostgresDatabase {
                     &product.unit_price,
                     &product.supplier_name,
                     &product.is_active,
+                    &product.cost_price.unwrap_or(0.0),
+                    &product.item_type,
                     &id
                 ],
             ).await.map_err(|e| format!("Failed to update product: {}", e))?;
@@ -453,6 +473,33 @@ impl Database for PostgresDatabase {
             let count: i64 = row.get(0);
             if count > 0 {
                 return Err("Cannot delete product: It is used as a component in a Bill of Materials.".to_string());
+            }
+        }
+
+        // Check for usage in Sales Orders
+        let so_rows = client.query("SELECT count(*) FROM sales_order_lines WHERE product_id = $1", &[&id]).await.map_err(|e| format!("Failed to check SO usage: {}", e))?;
+        if let Some(row) = so_rows.get(0) {
+            let count: i64 = row.get(0);
+            if count > 0 {
+                return Err("Cannot delete product: It is associated with existing Sales Orders.".to_string());
+            }
+        }
+
+        // Check for usage in Purchase Orders
+        let po_rows = client.query("SELECT count(*) FROM purchase_order_lines WHERE product_id = $1", &[&id]).await.map_err(|e| format!("Failed to check PO usage: {}", e))?;
+        if let Some(row) = po_rows.get(0) {
+            let count: i64 = row.get(0);
+            if count > 0 {
+                return Err("Cannot delete product: It is associated with existing Purchase Orders.".to_string());
+            }
+        }
+        
+        // Check for usage in Sales (legacy/direct sales)
+        let sales_rows = client.query("SELECT count(*) FROM sales WHERE product_id = $1", &[&id]).await.map_err(|e| format!("Failed to check Sales usage: {}", e))?;
+        if let Some(row) = sales_rows.get(0) {
+            let count: i64 = row.get(0);
+            if count > 0 {
+                return Err("Cannot delete product: It has associated Sales records.".to_string());
             }
         }
 
@@ -498,29 +545,79 @@ impl Database for PostgresDatabase {
         let mut client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
         let tx = client.transaction().await.map_err(|e| format!("Failed to start transaction: {}", e))?;
 
-        // 1. Check stock
-        let row = tx.query_opt("SELECT current_quantity, unit_price FROM products WHERE id = $1", &[&sale.product_id])
+        // 1. Check stock and details
+        let row = tx.query_opt("SELECT current_quantity, unit_price, item_type::text FROM products WHERE id = $1", &[&sale.product_id])
             .await.map_err(|e| format!("Failed to fetch product: {}", e))?;
 
         if let Some(r) = row {
             let current_qty: i32 = r.get(0);
             let unit_price: f64 = r.get(1);
+            let item_type: String = r.get(2);
 
-            if current_qty < sale.quantity {
-                return Err(format!("Insufficient stock. Available: {}, Requested: {}", current_qty, sale.quantity));
+            if item_type != "goods" {
+                return Err(format!("Cannot sell item of type '{}'. Only 'goods' can be sold directly.", item_type));
             }
 
-            // 2. Deduct stock
-            tx.execute("UPDATE products SET current_quantity = current_quantity - $1 WHERE id = $2", &[&sale.quantity, &sale.product_id])
-                .await.map_err(|e| format!("Failed to update stock: {}", e))?;
+            // Check for BOM (Recipe)
+            let bom_row = tx.query_opt("SELECT id FROM bom_headers WHERE product_id = $1 AND is_active = true", &[&sale.product_id])
+                .await.map_err(|e| format!("Failed to check BOM: {}", e))?;
+
+            let (stock_to_use, make_qty) = if let Some(_) = bom_row {
+                // BOM exists: Hybrid deduction (Use stock first, then make from ingredients)
+                if current_qty >= sale.quantity {
+                    (sale.quantity, 0)
+                } else {
+                    let s = if current_qty > 0 { current_qty } else { 0 };
+                    (s, sale.quantity - s)
+                }
+            } else {
+                // No BOM: Strict stock deduction
+                if current_qty < sale.quantity {
+                    return Err(format!("Insufficient stock. Available: {}, Requested: {}", current_qty, sale.quantity));
+                }
+                (sale.quantity, 0)
+            };
+
+            // Deduct from stock if needed
+            if stock_to_use > 0 {
+                tx.execute("UPDATE products SET current_quantity = current_quantity - $1 WHERE id = $2", &[&stock_to_use, &sale.product_id])
+                    .await.map_err(|e| format!("Failed to update stock: {}", e))?;
+            }
+
+            // Deduct ingredients if needed (Auto-Manufacturing)
+            if make_qty > 0 {
+                if let Some(bom_r) = bom_row {
+                    let bom_id: i32 = bom_r.get(0);
+                    let lines = tx.query("SELECT component_product_id, quantity, wastage_percentage FROM bom_lines WHERE bom_id = $1", &[&bom_id])
+                        .await.map_err(|e| format!("Failed to fetch BOM lines: {}", e))?;
+
+                    for line in lines {
+                        let comp_id: i32 = line.get(0);
+                        let comp_qty_per_unit: f64 = line.get(1);
+                        let wastage: f64 = line.get(2); // percentage
+
+                        // Calculate total needed: make_qty * qty_per_unit * (1 + wastage/100)
+                        let total_needed_f64 = (make_qty as f64) * comp_qty_per_unit * (1.0 + wastage / 100.0);
+                        let total_needed = total_needed_f64.ceil() as i32;
+
+                        // Check component stock
+                        let comp_row = tx.query_one("SELECT current_quantity, name FROM products WHERE id = $1", &[&comp_id])
+                            .await.map_err(|e| format!("Failed to fetch component {}: {}", comp_id, e))?;
+                        let comp_stock: i32 = comp_row.get(0);
+                        let comp_name: String = comp_row.get(1);
+
+                        if comp_stock < total_needed {
+                             return Err(format!("Insufficient ingredient: {} (Required: {}, Available: {})", comp_name, total_needed, comp_stock));
+                        }
+
+                        // Deduct component
+                        tx.execute("UPDATE products SET current_quantity = current_quantity - $1 WHERE id = $2", &[&total_needed, &comp_id])
+                            .await.map_err(|e| format!("Failed to deduct ingredient {}: {}", comp_name, e))?;
+                    }
+                }
+            }
 
             // 3. Record Sale
-            // Calculate total price if not provided or just trust frontend?
-            // User said "put down the number of slabs of that product and then minus the sales number feom the product"
-            // And "profit". Profit = (Price - Cost) * Qty. But we don't have cost yet, just unit_price (selling price?).
-            // Let's assume unit_price is selling price.
-            // For now, insert into sales table.
-            
             let total_price = if sale.total_price > 0.0 { sale.total_price } else { unit_price * sale.quantity as f64 };
             let sale_date = parse_timestamp(sale.sale_date).unwrap_or(chrono::Local::now().naive_local());
 
@@ -1265,7 +1362,9 @@ impl Database for PostgresDatabase {
             println!("postgres.get_tools: Connection error - {}", err);
             err
         })?;
-        let rows = client.query("SELECT id, name, type_name, status, assigned_to_employee_id, purchase_date, condition FROM tools", &[])
+        // Check if product_id column exists (for backward compatibility if migration failed)
+        // But since we control migrations, we assume it's there.
+        let rows = client.query("SELECT id, name, type_name, status, assigned_to_employee_id, purchase_date, condition, product_id FROM tools", &[])
             .await.map_err(|e| {
                 let err = format!("Failed to fetch tools: {}", e);
                 println!("postgres.get_tools: Query error - {}", err);
@@ -1282,6 +1381,7 @@ impl Database for PostgresDatabase {
                 assigned_to_employee_id: row.get(4),
                 purchase_date: format_timestamp(row.get(5)),
                 condition: row.get(6),
+                product_id: row.get(7),
             };
             println!("postgres.get_tools: Found tool - ID: {:?}, Name: '{}', Type: '{}', Status: '{}'", 
                      tool.id, tool.name, tool.type_name, tool.status);
@@ -1302,13 +1402,13 @@ impl Database for PostgresDatabase {
         println!("postgres.add_tool: Parsed purchase_date: {:?}", purchase_date);
         
         let row = client.query_one(
-            "INSERT INTO tools (name, type_name, status, assigned_to_employee_id, purchase_date, condition) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
-            &[&tool.name, &tool.type_name, &tool.status, &tool.assigned_to_employee_id, &purchase_date, &tool.condition]
+            "INSERT INTO tools (name, type_name, status, assigned_to_employee_id, purchase_date, condition, product_id) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id",
+            &[&tool.name, &tool.type_name, &tool.status, &tool.assigned_to_employee_id, &purchase_date, &tool.condition, &tool.product_id]
         ).await.map_err(|e| {
             let err = format!("Failed to add tool: {}", e);
             println!("postgres.add_tool: Database insert error - {}", err);
-            println!("postgres.add_tool: Tool data - name: '{}', type_name: '{}', status: '{}', assigned_to_employee_id: {:?}, purchase_date: {:?}, condition: {:?}", 
-                     tool.name, tool.type_name, tool.status, tool.assigned_to_employee_id, purchase_date, tool.condition);
+            println!("postgres.add_tool: Tool data - name: '{}', type_name: '{}', status: '{}', assigned_to_employee_id: {:?}, purchase_date: {:?}, condition: {:?}, product_id: {:?}", 
+                     tool.name, tool.type_name, tool.status, tool.assigned_to_employee_id, purchase_date, tool.condition, tool.product_id);
             err
         })?;
         
@@ -1322,8 +1422,8 @@ impl Database for PostgresDatabase {
         let purchase_date = parse_timestamp(tool.purchase_date);
         if let Some(id) = tool.id {
             client.execute(
-                "UPDATE tools SET name = $1, type_name = $2, status = $3, assigned_to_employee_id = $4, purchase_date = $5, condition = $6 WHERE id = $7",
-                &[&tool.name, &tool.type_name, &tool.status, &tool.assigned_to_employee_id, &purchase_date, &tool.condition, &id]
+                "UPDATE tools SET name = $1, type_name = $2, status = $3, assigned_to_employee_id = $4, purchase_date = $5, condition = $6, product_id = $7 WHERE id = $8",
+                &[&tool.name, &tool.type_name, &tool.status, &tool.assigned_to_employee_id, &purchase_date, &tool.condition, &tool.product_id, &id]
             ).await.map_err(|e| format!("Failed to update tool: {}", e))?;
             Ok(())
         } else {
@@ -2489,7 +2589,7 @@ impl Database for PostgresDatabase {
             SELECT 
                 p.id, p.name, p.sku, p.current_quantity,
                 COALESCE(s.sold_qty, 0) as sold_last_30,
-                COALESCE(s.sold_qty, 0) / 30.0 as daily_velocity
+                (COALESCE(s.sold_qty, 0)::FLOAT / 30.0) as daily_velocity
             FROM products p
             LEFT JOIN Sales s ON p.id = s.product_id
             ORDER BY daily_velocity DESC
@@ -2532,7 +2632,7 @@ impl Database for PostgresDatabase {
     // Suppliers
     async fn get_suppliers(&self) -> Result<Vec<Supplier>, String> {
         let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
-        let rows = client.query("SELECT id, name, email, phone, contact_person, address, is_active, created_at, updated_at FROM suppliers", &[]).await.map_err(|e| e.to_string())?;
+        let rows = client.query("SELECT id, name, email, phone, contact_person, address, is_active, created_at, updated_at, order_email FROM suppliers", &[]).await.map_err(|e| e.to_string())?;
         let mut suppliers = Vec::new();
         for row in rows {
             suppliers.push(Supplier {
@@ -2545,6 +2645,7 @@ impl Database for PostgresDatabase {
                 is_active: row.get(6),
                 created_at: format_timestamp(row.get(7)),
                 updated_at: format_timestamp(row.get(8)),
+                order_email: row.get(9),
             });
         }
         Ok(suppliers)
@@ -2553,8 +2654,8 @@ impl Database for PostgresDatabase {
     async fn add_supplier(&self, supplier: Supplier) -> Result<i64, String> {
         let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
         let row = client.query_one(
-            "INSERT INTO suppliers (name, email, phone, contact_person, address, is_active) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
-            &[&supplier.name, &supplier.email, &supplier.phone, &supplier.contact_person, &supplier.address, &supplier.is_active]
+            "INSERT INTO suppliers (name, email, phone, contact_person, address, is_active, order_email) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id",
+            &[&supplier.name, &supplier.email, &supplier.phone, &supplier.contact_person, &supplier.address, &supplier.is_active, &supplier.order_email]
         ).await.map_err(|e| e.to_string())?;
         Ok(row.get::<_, i32>(0) as i64)
     }
@@ -2563,8 +2664,8 @@ impl Database for PostgresDatabase {
         let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
         if let Some(id) = supplier.id {
             client.execute(
-                "UPDATE suppliers SET name = $1, email = $2, phone = $3, contact_person = $4, address = $5, is_active = $6, updated_at = CURRENT_TIMESTAMP WHERE id = $7",
-                &[&supplier.name, &supplier.email, &supplier.phone, &supplier.contact_person, &supplier.address, &supplier.is_active, &id]
+                "UPDATE suppliers SET name = $1, email = $2, phone = $3, contact_person = $4, address = $5, is_active = $6, updated_at = CURRENT_TIMESTAMP, order_email = $7 WHERE id = $8",
+                &[&supplier.name, &supplier.email, &supplier.phone, &supplier.contact_person, &supplier.address, &supplier.is_active, &supplier.order_email, &id]
             ).await.map_err(|e| e.to_string())?;
             Ok(())
         } else {
@@ -2574,6 +2675,35 @@ impl Database for PostgresDatabase {
 
     async fn delete_supplier(&self, id: i32) -> Result<(), String> {
         let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
+        
+        // Check for dependencies
+        // 1. Supplier Orders
+        let so_rows = client.query("SELECT count(*) FROM supplier_orders WHERE supplier_id = $1", &[&id]).await.map_err(|e| format!("Failed to check Supplier Order usage: {}", e))?;
+        if let Some(row) = so_rows.get(0) {
+            let count: i64 = row.get(0);
+            if count > 0 {
+                return Err("Cannot delete supplier: Associated with existing Supplier Orders.".to_string());
+            }
+        }
+
+        // 2. Purchase Orders
+        let po_rows = client.query("SELECT count(*) FROM purchase_orders WHERE supplier_id = $1", &[&id]).await.map_err(|e| format!("Failed to check Purchase Order usage: {}", e))?;
+        if let Some(row) = po_rows.get(0) {
+            let count: i64 = row.get(0);
+            if count > 0 {
+                return Err("Cannot delete supplier: Associated with existing Purchase Orders.".to_string());
+            }
+        }
+
+        // 3. Inventory Batches
+        let batch_rows = client.query("SELECT count(*) FROM inventory_batches WHERE supplier_id = $1", &[&id]).await.map_err(|e| format!("Failed to check Inventory Batch usage: {}", e))?;
+        if let Some(row) = batch_rows.get(0) {
+            let count: i64 = row.get(0);
+            if count > 0 {
+                return Err("Cannot delete supplier: Associated with existing Inventory Batches.".to_string());
+            }
+        }
+
         client.execute("DELETE FROM suppliers WHERE id = $1", &[&id]).await.map_err(|e| e.to_string())?;
         Ok(())
     }
@@ -2929,12 +3059,15 @@ impl Database for PostgresDatabase {
 
         let billable_amount = entry.duration_hours * entry.hourly_rate;
         
+        let start_time = parse_timestamp(Some(entry.start_time.clone())).ok_or("Invalid start_time format")?;
+        let end_time = parse_timestamp(entry.end_time.clone());
+
         let row = tx.query_one(
             "INSERT INTO time_entries (client_id, service_id, employee_id, project_id, product_id, start_time, end_time, duration_hours, description, 
              hourly_rate, billable_amount, is_billable, status) 
-             VALUES ($1, $2, $3, $4, $5, $6::timestamp, $7::timestamp, $8, $9, $10, $11, $12, $13) RETURNING id",
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id",
             &[&entry.client_id, &entry.service_id, &entry.employee_id, &entry.project_id, &entry.product_id, 
-              &entry.start_time, &entry.end_time, &entry.duration_hours, 
+              &start_time, &end_time, &entry.duration_hours, 
               &entry.description, &entry.hourly_rate, &billable_amount, &entry.is_billable, &entry.status]
         ).await.map_err(|e| format!("Failed to add time entry: {}", e))?;
         
@@ -2979,13 +3112,16 @@ impl Database for PostgresDatabase {
         let entry_id = entry.id.ok_or("Time entry ID is required for update")?;
         let billable_amount = entry.duration_hours * entry.hourly_rate;
         
+        let start_time = parse_timestamp(Some(entry.start_time.clone())).ok_or("Invalid start_time format")?;
+        let end_time = parse_timestamp(entry.end_time.clone());
+
         client.execute(
             "UPDATE time_entries SET client_id = $1, service_id = $2, employee_id = $3, project_id = $4, product_id = $5, 
-             start_time = $6::timestamp, end_time = $7::timestamp, duration_hours = $8, description = $9, 
+             start_time = $6, end_time = $7, duration_hours = $8, description = $9, 
              hourly_rate = $10, billable_amount = $11, is_billable = $12, status = $13, 
              updated_at = CURRENT_TIMESTAMP WHERE id = $14",
             &[&entry.client_id, &entry.service_id, &entry.employee_id, &entry.project_id, &entry.product_id,
-              &entry.start_time, &entry.end_time, &entry.duration_hours, 
+              &start_time, &end_time, &entry.duration_hours, 
               &entry.description, &entry.hourly_rate, &billable_amount, &entry.is_billable, &entry.status, &entry_id]
         ).await.map_err(|e| format!("Failed to update time entry: {}", e))?;
         Ok(())
@@ -3178,9 +3314,9 @@ impl Database for PostgresDatabase {
         
         client.execute(
             "UPDATE quotes SET client_id = $1, quote_number = $2, title = $3, subtotal = $4, tax_amount = $5, 
-             total_amount = $6, valid_until = $7, status = $8, notes = $9, updated_at = CURRENT_TIMESTAMP WHERE id = $10",
+             total_amount = $6, valid_until = $7, status = $8, notes = $9, is_active = $10, updated_at = CURRENT_TIMESTAMP WHERE id = $11",
             &[&quote.client_id, &quote.quote_number, &quote.title, &quote.subtotal, &quote.tax_amount, 
-              &quote.total_amount, &valid_until, &quote.status, &quote.notes, &id]
+              &quote.total_amount, &valid_until, &quote.status, &quote.notes, &quote.is_active, &id]
         ).await.map_err(|e| format!("Failed to update quote: {}", e))?;
         
         Ok(())
@@ -3521,11 +3657,12 @@ impl Database for PostgresDatabase {
         for line in lines {
             let product_id: i32 = line.get(0);
             let quantity: f64 = line.get(1);
+            let quantity_int = quantity as i32;
             
             // Increment stock
             tx.execute(
                 "UPDATE products SET current_quantity = COALESCE(current_quantity, 0) + $1 WHERE id = $2",
-                &[&quantity, &product_id]
+                &[&quantity_int, &product_id]
             ).await.map_err(|e| format!("Failed to update inventory for product {}: {}", product_id, e))?;
         }
 
@@ -3714,9 +3851,10 @@ impl Database for PostgresDatabase {
                 total_cogs += quantity * cost_price;
 
                 // Decrement stock
+                let quantity_int = quantity as i32;
                 tx.execute(
                     "UPDATE products SET current_quantity = current_quantity - $1 WHERE id = $2",
-                    &[&quantity, &pid]
+                    &[&quantity_int, &pid]
                 ).await.map_err(|e| format!("Failed to update inventory for product {}: {}", pid, e))?;
             } else if let Some(sid) = service_id {
                 // Services typically don't have COGS in the same way, or it's tracked via time entries.

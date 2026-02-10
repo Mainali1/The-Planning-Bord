@@ -70,8 +70,11 @@ pub struct Product {
     pub reorder_quantity: i32,
     pub unit_price: f64,
     pub cost_price: Option<f64>, // Added for ERP (COGS)
+    pub item_type: String, // 'goods', 'ingredients', 'assets'
     pub supplier_name: Option<String>,
     pub is_active: bool,
+    pub created_at: Option<String>,
+    pub updated_at: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -105,6 +108,7 @@ pub struct SalesOrderLine {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Tool {
     pub id: Option<i32>,
+    pub product_id: Option<i32>, // Link to Inventory Product (Asset)
     pub name: String,
     pub type_name: String,
     pub status: String,
@@ -201,6 +205,7 @@ pub struct Supplier {
     pub id: Option<i32>,
     pub name: String,
     pub email: Option<String>,
+    pub order_email: Option<String>,
     pub phone: Option<String>,
     pub contact_person: Option<String>,
     pub address: Option<String>,
@@ -391,7 +396,7 @@ pub struct Client {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TimeEntry {
     pub id: Option<i32>,
-    pub employee_id: i32,
+    pub employee_id: Option<i32>,
     pub client_id: Option<i32>,
     pub project_id: Option<i32>,
     pub service_id: Option<i32>,

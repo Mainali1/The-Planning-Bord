@@ -13,6 +13,9 @@ namespace ThePlanningBord.Models
         [JsonPropertyName("email")]
         public string? Email { get; set; }
 
+        [JsonPropertyName("order_email")]
+        public string? OrderEmail { get; set; }
+
         [JsonPropertyName("phone")]
         public string? Phone { get; set; }
 

@@ -291,12 +291,30 @@
         showModal = true;
     }
 
-    private void ViewOrder(SalesOrder so)
+    private async Task ViewOrder(SalesOrder so)
     {
         editingSo = so;
-        currentLines = so.Lines ?? new List<SalesOrderLine>();
         isViewing = true;
         showModal = true;
+        
+        try
+        {
+            var fullSo = await SalesService.GetSalesOrderAsync(so.Id ?? 0);
+            if (fullSo != null)
+            {
+                editingSo = fullSo;
+                currentLines = fullSo.Lines ?? new List<SalesOrderLine>();
+            }
+            else
+            {
+                currentLines = new List<SalesOrderLine>();
+            }
+        }
+        catch (Exception ex)
+        {
+             NotificationService.ShowError("Failed to load order details: " + ex.Message);
+             currentLines = new List<SalesOrderLine>();
+        }
     }
 
     private void CloseModal()

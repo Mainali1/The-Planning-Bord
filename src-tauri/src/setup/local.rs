@@ -203,26 +203,26 @@ fn start_system_postgres(app: &tauri::AppHandle) -> Result<String, String> {
         } else { "".to_string() }
     } else { "".to_string() };
     let db_password = if db_password.is_empty() {
-        let gen: String = (0..16)
-            .map(|_| rand::thread_rng().gen::<u8>())
+        let gen_pwd: String = (0..16)
+            .map(|_| rand::thread_rng().r#gen::<u8>())
             .map(|b| format!("{:02x}", b))
             .collect();
         let merged = if secret_path.exists() {
             if let Ok(content) = fs::read_to_string(&secret_path) {
                 if let Ok(mut json) = serde_json::from_str::<serde_json::Value>(&content) {
-                    json["db_password"] = serde_json::Value::String(gen.clone());
+                    json["db_password"] = serde_json::Value::String(gen_pwd.clone());
                     if let Ok(out) = serde_json::to_string_pretty(&json) {
                         let _ = fs::write(&secret_path, out);
                     }
                 }
             }
-            gen.clone()
+            gen_pwd.clone()
         } else {
-            let json = serde_json::json!({ "db_password": gen });
+            let json = serde_json::json!({ "db_password": gen_pwd });
             if let Ok(out) = serde_json::to_string_pretty(&json) {
                 let _ = fs::write(&secret_path, out);
             }
-            gen.clone()
+            gen_pwd.clone()
         };
         merged
     } else { db_password };

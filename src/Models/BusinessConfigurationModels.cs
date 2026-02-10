@@ -145,7 +145,7 @@ namespace ThePlanningBord.Models
         public int? Id { get; set; }
 
         [JsonPropertyName("employee_id")]
-        public int EmployeeId { get; set; }
+        public int? EmployeeId { get; set; }
 
         [JsonPropertyName("client_id")]
         public int? ClientId { get; set; }
@@ -176,6 +176,9 @@ namespace ThePlanningBord.Models
 
         [JsonPropertyName("status")]
         public string Status { get; set; } = "draft"; // 'draft', 'submitted', 'approved', 'invoiced'
+
+        [JsonPropertyName("product_id")]
+        public int? ProductId { get; set; }
 
         [JsonPropertyName("created_at")]
         public string? CreatedAt { get; set; }
@@ -257,6 +260,9 @@ namespace ThePlanningBord.Models
 
         [JsonPropertyName("status")]
         public string Status { get; set; } = "draft"; // 'draft', 'sent', 'accepted', 'rejected', 'expired'
+
+        [JsonPropertyName("is_active")]
+        public bool IsActive { get; set; } = true;
 
         [JsonPropertyName("created_at")]
         public string? CreatedAt { get; set; }

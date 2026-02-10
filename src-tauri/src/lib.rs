@@ -1,6 +1,7 @@
 pub mod db;
 pub mod models;
 pub mod setup;
+pub mod email;
 
 use tauri::{State, Manager};
 use tokio::sync::RwLock;
@@ -1744,11 +1745,11 @@ pub fn run() {
             } else {
                 // Generate a secure 32-byte hex secret (256 bits of entropy) using CSPRNG
                 let secret: String = (0..32)
-                    .map(|_| rand::thread_rng().gen::<u8>())
+                    .map(|_| rand::thread_rng().r#gen::<u8>())
                     .map(|b| format!("{:02x}", b))
                     .collect();
                 let db_pwd: String = (0..16)
-                    .map(|_| rand::thread_rng().gen::<u8>())
+                    .map(|_| rand::thread_rng().r#gen::<u8>())
                     .map(|b| format!("{:02x}", b))
                     .collect();
                 let json = serde_json::json!({ "jwt_secret": secret, "db_password": db_pwd });
@@ -1824,7 +1825,8 @@ pub fn run() {
             get_gl_accounts, add_gl_account, get_gl_entries, add_gl_entry,
             get_purchase_orders, get_purchase_order, create_purchase_order, update_purchase_order_status, receive_purchase_order,
             get_integrations, toggle_integration, configure_integration, seed_demo_data, reset_database,
-            save_db_config, ensure_local_db, cleanup_local_db, check_embedded_pg_available, check_postgres_installed, exit_app
+            save_db_config, ensure_local_db, cleanup_local_db, check_embedded_pg_available, check_postgres_installed, exit_app,
+            email::send_email
         ])
         .run(tauri::generate_context!())
         .unwrap_or_else(|e| {
