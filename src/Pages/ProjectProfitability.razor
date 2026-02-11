@@ -17,6 +17,12 @@
         </div>
     </div>
 
+    <div class="mb-4 flex flex-wrap gap-2">
+        <button class="px-3 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700" @onclick="OpenSalesOrders">Sales Orders</button>
+        <button class="px-3 py-2 text-sm bg-purple-600 text-white rounded hover:bg-purple-700" @onclick="OpenTimeTracking">Time Entries</button>
+        <button class="px-3 py-2 text-sm bg-green-600 text-white rounded hover:bg-green-700" @onclick="OpenFinance">Finance</button>
+    </div>
+
     @if (isLoading)
     {
         <div class="flex justify-center items-center h-64">
@@ -139,6 +145,21 @@
     private void GoBack()
     {
         NavigationManager.NavigateTo("/projects");
+    }
+
+    private void OpenSalesOrders()
+    {
+        NavigationManager.NavigateTo($"/sales-orders?projectId={ProjectId}");
+    }
+
+    private void OpenTimeTracking()
+    {
+        NavigationManager.NavigateTo($"/time-tracking?projectId={ProjectId}");
+    }
+
+    private void OpenFinance()
+    {
+        NavigationManager.NavigateTo("/finance");
     }
 
     private string FormatCurrency(double amount)
