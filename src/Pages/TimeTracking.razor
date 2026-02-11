@@ -3,6 +3,7 @@
 @inject IBusinessConfigurationService BusinessConfigurationService
 @inject IClientService ClientService
 @inject ITimeTrackingService TimeTrackingService
+@inject IProjectService ProjectService
 @inject NotificationService NotificationService
 @inject IJSRuntime JSRuntime
 
@@ -18,6 +19,21 @@
             <button @onclick="ShowAddModal" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium">
                 Add Time Entry
             </button>
+        </div>
+
+        <div class="px-4 pb-4 sm:px-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Filter by Project</label>
+                    <select @bind="selectedProjectId" @onchange="OnProjectFilterChanged" class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        <option value="">All Projects</option>
+                        @foreach (var project in projects)
+                        {
+                            <option value="@project.Id">@project.Name</option>
+                        }
+                    </select>
+                </div>
+            </div>
         </div>
 
         @if (isLoading)
@@ -44,6 +60,7 @@
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Project</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hours</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rate</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
@@ -63,6 +80,9 @@
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="text-sm text-gray-900">@GetServiceName(entry.ServiceId)</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm text-gray-900">@GetProjectName(entry.ProjectId)</div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="text-sm text-gray-900">@entry.DurationHours.ToString("F2")</div>
@@ -141,6 +161,16 @@
                             </select>
                         </div>
                         <div>
+                            <label class="block text-sm font-medium text-gray-700">Project (Optional)</label>
+                            <select @bind="currentTimeEntry.ProjectId" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">Select a project</option>
+                                @foreach (var project in projects)
+                                {
+                                    <option value="@project.Id">@project.Name</option>
+                                }
+                            </select>
+                        </div>
+                        <div>
                             <label class="block text-sm font-medium text-gray-700">Duration (Hours)</label>
                             <input @bind="currentTimeEntry.DurationHours" type="number" step="0.25" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
                         </div>
@@ -177,6 +207,11 @@
     private List<TimeEntry> timeEntries = new();
     private List<Client> clients = new();
     private List<Service> services = new();
+    private List<Project> projects = new();
+    [SupplyParameterFromQuery]
+    public int? ProjectId { get; set; }
+
+    private int? selectedProjectId;
     private bool isLoading = true;
     private bool showModal = false;
     private bool isEditing = false;
@@ -184,6 +219,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        selectedProjectId = ProjectId;
         await LoadData();
     }
 
@@ -195,12 +231,14 @@
             var task1 = TimeTrackingService.GetTimeEntriesAsync(employeeId: null, clientId: null, projectId: null);
             var task2 = ClientService.GetClientsAsync();
             var task3 = BusinessConfigurationService.GetServicesAsync();
-            
-            await Task.WhenAll(task1, task2, task3);
-            
+            var task4 = ProjectService.GetProjectsAsync();
+
+            await Task.WhenAll(task1, task2, task3, task4);
+
             timeEntries = await task1;
             clients = await task2;
             services = await task3;
+            projects = await task4;
         }
         catch (Exception ex)
         {
@@ -220,6 +258,16 @@
     private string GetServiceName(int? serviceId)
     {
         return services.FirstOrDefault(s => s.Id == serviceId)?.Name ?? "Unknown";
+    }
+
+    private string GetProjectName(int? projectId)
+    {
+        return projects.FirstOrDefault(p => p.Id == projectId)?.Name ?? "—";
+    }
+
+    private async Task OnProjectFilterChanged(ChangeEventArgs _)
+    {
+        await LoadData();
     }
 
     private void ShowAddModal()
@@ -267,6 +315,11 @@
             {
                 NotificationService.ShowError("Duration must be greater than 0", "Validation Error");
                 return;
+            }
+
+            if (currentTimeEntry.ProjectId == 0)
+            {
+                currentTimeEntry.ProjectId = null;
             }
 
             if (isEditing)

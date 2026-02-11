@@ -6,6 +6,7 @@
 @inject IProjectService ProjectService
 @inject IBusinessConfigurationService BusinessConfigurationService
 @inject NotificationService NotificationService
+@inject NavigationManager NavigationManager
 @using ThePlanningBord.Models
 @using System.Text.Json
 
@@ -13,7 +14,7 @@
 
 <div class="flex flex-col h-full relative">
     <div class="flex justify-between items-center mb-6">
-        <h3 class="text-lg font-medium leading-6 text-gray-900">Sales Orders</h3>
+        <h3 class="text-lg font-medium leading-6 text-gray-900">Sales Orders@(ProjectId.HasValue ? $" (Project #{ProjectId})" : "")</h3>
         <button @onclick="OpenCreateModal" class="flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
             ➕ New Sales Order
         </button>
@@ -37,7 +38,7 @@
                 else if (!salesOrders.Any()) { <tr><td colspan="7" class="px-6 py-4 text-center">No sales orders found.</td></tr> }
                 else
                 {
-                    @foreach (var so in salesOrders)
+                    @foreach (var so in VisibleSalesOrders)
                     {
                         <tr>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">SO-@so.Id</td>
@@ -56,7 +57,7 @@
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                 <button @onclick="() => ViewOrder(so)" class="text-blue-600 hover:text-blue-900 mr-3">View</button>
-                                @if (so.Status?.Equals("Draft", StringComparison.OrdinalIgnoreCase) == true || so.Status?.Equals("Confirmed", StringComparison.OrdinalIgnoreCase) == true)
+                                @if (so.Status?.Equals("Confirmed", StringComparison.OrdinalIgnoreCase) == true)
                                 {
                                     <button @onclick="() => ShipOrder(so)" class="text-green-600 hover:text-green-900 mr-3">Ship</button>
                                 }
@@ -265,6 +266,14 @@
     private List<SalesOrderLine> currentLines = new();
     private SalesOrderLine newLine = new();
     private string lineItemType = "Product";
+
+    [SupplyParameterFromQuery]
+    public int? ProjectId { get; set; }
+
+    private IEnumerable<SalesOrder> VisibleSalesOrders =>
+        salesOrders == null
+            ? Enumerable.Empty<SalesOrder>()
+            : (ProjectId.HasValue ? salesOrders.Where(o => o.ProjectId == ProjectId) : salesOrders);
 
     protected override async Task OnInitializedAsync()
     {

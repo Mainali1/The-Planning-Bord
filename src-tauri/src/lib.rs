@@ -1077,8 +1077,11 @@ async fn get_sales_order(state: State<'_, AppState>, id: i32, token: String) -> 
 }
 
 #[tauri::command]
-async fn create_sales_order(state: State<'_, AppState>, order: SalesOrder, token: String) -> Result<i64, String> {
+async fn create_sales_order(state: State<'_, AppState>, mut order: SalesOrder, token: String) -> Result<i64, String> {
     let user = check_auth(&state, &token, vec!["CEO", "Manager", "Finance"]).await?;
+    // Always stamp creator on backend for integrity.
+    order.created_by_user_id = user.id;
+
     let db = state.db.read().await;
     let id = db.create_sales_order(order.clone()).await?;
     let _ = db.log_activity(user.id, "create".to_string(), "Sales".to_string(), Some("SalesOrder".to_string()), Some(id as i32), Some(format!("Created Sales Order for Client: {:?}", order.client_id)), None, None).await;

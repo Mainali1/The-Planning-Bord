@@ -2,14 +2,14 @@ using Microsoft.JSInterop;
 
 namespace ThePlanningBord.Services
 {
-    public interface INetworkService
+    public interface INetworkService : IDisposable
     {
         Task InitializeAsync();
         Task<bool> IsOnlineAsync();
         event Action<bool>? OnStatusChanged;
     }
 
-    public class NetworkService : INetworkService
+    public class NetworkService : INetworkService, IDisposable
     {
         private readonly IJSRuntime _js;
         private DotNetObjectReference<NetworkService>? _dotNetRef;
@@ -42,6 +42,12 @@ namespace ThePlanningBord.Services
                 _isOnline = isOnline;
                 OnStatusChanged?.Invoke(isOnline);
             }
+        }
+
+        public void Dispose()
+        {
+            _dotNetRef?.Dispose();
+            _dotNetRef = null;
         }
     }
 }
