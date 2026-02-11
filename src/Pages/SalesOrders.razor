@@ -35,7 +35,7 @@
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
                 @if (salesOrders == null) { <tr><td colspan="7" class="px-6 py-4 text-center">Loading...</td></tr> }
-                else if (!VisibleSalesOrders.Any()) { <tr><td colspan="7" class="px-6 py-4 text-center">No sales orders found.</td></tr> }
+                else if (!salesOrders.Any()) { <tr><td colspan="7" class="px-6 py-4 text-center">No sales orders found.</td></tr> }
                 else
                 {
                     @foreach (var so in VisibleSalesOrders)
@@ -113,20 +113,6 @@
                                     {
                                         <option value="@p.Id">@p.Name</option>
                                     }
-                                </select>
-                            }
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Status</label>
-                            @if (isViewing)
-                            {
-                                <div class="mt-1 text-sm text-gray-900">@editingSo.Status</div>
-                            }
-                            else
-                            {
-                                <select @bind="editingSo.Status" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
-                                    <option value="Draft">Draft</option>
-                                    <option value="Confirmed">Confirmed</option>
                                 </select>
                             }
                         </div>

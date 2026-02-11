@@ -228,7 +228,7 @@
         isLoading = true;
         try
         {
-            var task1 = TimeTrackingService.GetTimeEntriesAsync(employeeId: null, clientId: null, projectId: selectedProjectId);
+            var task1 = TimeTrackingService.GetTimeEntriesAsync(employeeId: null, clientId: null, projectId: null);
             var task2 = ClientService.GetClientsAsync();
             var task3 = BusinessConfigurationService.GetServicesAsync();
             var task4 = ProjectService.GetProjectsAsync();
