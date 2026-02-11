@@ -1107,10 +1107,12 @@ impl Database for PostgresDatabase {
         
         // 1. Project Info
         let project_row = client.query_one(
+            "SELECT p.name, c.name FROM projects p JOIN clients c ON p.client_id = c.id WHERE p.id = $1",
             "SELECT p.name, c.company_name FROM projects p LEFT JOIN clients c ON p.client_id = c.id WHERE p.id = $1",
             &[&project_id]
         ).await.map_err(|e| format!("Project not found: {}", e))?;
         let project_name: String = project_row.get(0);
+        let client_name: String = project_row.get(1);
         let client_name: Option<String> = project_row.get(1);
         let client_name = client_name.unwrap_or_else(|| "Unassigned Client".to_string());
 
@@ -3797,7 +3799,7 @@ impl Database for PostgresDatabase {
         let tx = client.transaction().await.map_err(|e| format!("Failed to start transaction: {}", e))?;
 
         let header_row = tx.query_one(
-            "INSERT INTO sales_orders (client_id, project_id, status, order_date, expected_shipment_date, total_amount, notes, created_by_user_id) 
+            1"INSERT INTO sales_orders (client_id, project_id, status, order_date, expected_shipment_date, total_amount, notes, created_by_user_id) 
              VALUES ($1, $2, $3, COALESCE($4::text::timestamp, CURRENT_TIMESTAMP), $5::text::timestamp, $6, $7, $8) RETURNING id",
             &[&so.client_id, &so.project_id, &so.status, &so.order_date, &so.expected_shipment_date, &so.total_amount, &so.notes, &so.created_by_user_id]
         ).await.map_err(|e| format!("Failed to insert SO header: {}", e))?;
