@@ -3,8 +3,10 @@
 @inject ISalesService SalesService
 @inject IClientService ClientService
 @inject IInventoryService InventoryService
+@inject IProjectService ProjectService
 @inject IBusinessConfigurationService BusinessConfigurationService
 @inject NotificationService NotificationService
+@inject NavigationManager NavigationManager
 @using ThePlanningBord.Models
 @using System.Text.Json
 
@@ -12,7 +14,7 @@
 
 <div class="flex flex-col h-full relative">
     <div class="flex justify-between items-center mb-6">
-        <h3 class="text-lg font-medium leading-6 text-gray-900">Sales Orders</h3>
+        <h3 class="text-lg font-medium leading-6 text-gray-900">Sales Orders@(ProjectId.HasValue ? $" (Project #{ProjectId})" : "")</h3>
         <button @onclick="OpenCreateModal" class="flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
             ➕ New Sales Order
         </button>
@@ -25,23 +27,27 @@
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SO #</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Project</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                     <th class="relative px-6 py-3"><span class="sr-only">Actions</span></th>
                 </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
-                @if (salesOrders == null) { <tr><td colspan="6" class="px-6 py-4 text-center">Loading...</td></tr> }
-                else if (!salesOrders.Any()) { <tr><td colspan="6" class="px-6 py-4 text-center">No sales orders found.</td></tr> }
+                @if (salesOrders == null) { <tr><td colspan="7" class="px-6 py-4 text-center">Loading...</td></tr> }
+                else if (!VisibleSalesOrders.Any()) { <tr><td colspan="7" class="px-6 py-4 text-center">No sales orders found.</td></tr> }
                 else
                 {
-                    @foreach (var so in salesOrders)
+                    @foreach (var so in VisibleSalesOrders)
                     {
                         <tr>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">SO-@so.Id</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">@so.OrderDate</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                 @(clients.FirstOrDefault(c => c.Id == so.ClientId)?.CompanyName ?? $"ID: {so.ClientId}")
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                @(projects.FirstOrDefault(p => p.Id == so.ProjectId)?.Name ?? "—")
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">@so.TotalAmount.ToString("C")</td>
                             <td class="px-6 py-4 whitespace-nowrap">
@@ -51,7 +57,7 @@
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                 <button @onclick="() => ViewOrder(so)" class="text-blue-600 hover:text-blue-900 mr-3">View</button>
-                                @if (so.Status?.Equals("Draft", StringComparison.OrdinalIgnoreCase) == true || so.Status?.Equals("Confirmed", StringComparison.OrdinalIgnoreCase) == true)
+                                @if (so.Status?.Equals("Confirmed", StringComparison.OrdinalIgnoreCase) == true)
                                 {
                                     <button @onclick="() => ShipOrder(so)" class="text-green-600 hover:text-green-900 mr-3">Ship</button>
                                 }
@@ -90,6 +96,37 @@
                                     {
                                         <option value="@c.Id">@c.CompanyName</option>
                                     }
+                                </select>
+                            }
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Project (Optional)</label>
+                            @if (isViewing)
+                            {
+                                <div class="mt-1 text-sm text-gray-900">@(projects.FirstOrDefault(p => p.Id == editingSo.ProjectId)?.Name ?? "—")</div>
+                            }
+                            else
+                            {
+                                <select @bind="editingSo.ProjectId" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
+                                    <option value="">-- No Project --</option>
+                                    @foreach (var p in projects)
+                                    {
+                                        <option value="@p.Id">@p.Name</option>
+                                    }
+                                </select>
+                            }
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Status</label>
+                            @if (isViewing)
+                            {
+                                <div class="mt-1 text-sm text-gray-900">@editingSo.Status</div>
+                            }
+                            else
+                            {
+                                <select @bind="editingSo.Status" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
+                                    <option value="Draft">Draft</option>
+                                    <option value="Confirmed">Confirmed</option>
                                 </select>
                             }
                         </div>
@@ -235,6 +272,7 @@
     private List<Client> clients = new();
     private List<Product> products = new();
     private List<Service> services = new();
+    private List<Project> projects = new();
     
     private bool showModal = false;
     private bool isViewing = false;
@@ -242,6 +280,14 @@
     private List<SalesOrderLine> currentLines = new();
     private SalesOrderLine newLine = new();
     private string lineItemType = "Product";
+
+    [SupplyParameterFromQuery]
+    public int? ProjectId { get; set; }
+
+    private IEnumerable<SalesOrder> VisibleSalesOrders =>
+        salesOrders == null
+            ? Enumerable.Empty<SalesOrder>()
+            : (ProjectId.HasValue ? salesOrders.Where(o => o.ProjectId == ProjectId) : salesOrders);
 
     protected override async Task OnInitializedAsync()
     {
@@ -257,6 +303,7 @@
             var pagedProducts = await InventoryService.GetProductsAsync();
             products = pagedProducts.Items;
             services = await BusinessConfigurationService.GetServicesAsync();
+            projects = await ProjectService.GetProjectsAsync();
         }
         catch (Exception ex)
         {
@@ -391,6 +438,7 @@
 
         try
         {
+            if (editingSo.ProjectId == 0) editingSo.ProjectId = null;
             editingSo.Lines = currentLines;
             await SalesService.CreateSalesOrderAsync(editingSo);
             NotificationService.ShowSuccess("Sales Order created successfully.");

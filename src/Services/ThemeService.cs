@@ -2,7 +2,7 @@ using Microsoft.JSInterop;
 
 namespace ThePlanningBord.Services
 {
-    public interface IThemeService
+    public interface IThemeService : IDisposable
     {
         Task InitializeAsync();
         Task SetThemeAsync(string theme);
@@ -10,7 +10,7 @@ namespace ThePlanningBord.Services
         event Action<bool>? SystemThemeChanged;
     }
 
-    public class ThemeService : IThemeService
+    public class ThemeService : IThemeService, IDisposable
     {
         private readonly IJSRuntime _js;
         private DotNetObjectReference<ThemeService>? _dotNetRef;
@@ -42,6 +42,12 @@ namespace ThePlanningBord.Services
         public void OnSystemThemeChanged(bool isDark)
         {
             SystemThemeChanged?.Invoke(isDark);
+        }
+
+        public void Dispose()
+        {
+            _dotNetRef?.Dispose();
+            _dotNetRef = null;
         }
     }
 }
