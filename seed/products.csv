@@ -1,0 +1,42 @@
+SKU,Name,Category,UnitPrice,UnitCost,InventoryQty,ReorderLevel
+PROD-0001,ATX-1000 Workstation,Electronics,1250.00,780.00,120,20
+PROD-0002,ATX-1000 Pro Workstation,Electronics,1850.00,1120.00,60,15
+PROD-0003,ATX-1500 Server Rack,Electronics,4200.00,3000.00,22,5
+PROD-0004,APX-SSD 1TB,Storage,120.00,58.00,450,100
+PROD-0005,APX-SSD 2TB,Storage,200.00,110.00,320,80
+PROD-0006,APX-NB 15" Laptop,Electronics,950.00,610.00,210,40
+PROD-0007,APX-NB 13" Ultrabook,Electronics,1350.00,820.00,90,20
+PROD-0008,ATX-GPU 8GB,Components,420.00,260.00,140,30
+PROD-0009,ATX-GPU 16GB,Components,780.00,460.00,55,10
+PROD-0010,APX-Mon 24" IPS,Peripherals,165.00,95.00,300,60
+PROD-0011,APX-Mon 27" 4K,Peripherals,420.00,240.00,110,25
+PROD-0012,APX-Keyboard Mechanical,Peripherals,70.00,28.00,980,200
+PROD-0013,APX-Mouse Wireless,Peripherals,38.00,12.00,1320,300
+PROD-0014,Office Pro Printer,OfficeEquipment,420.00,240.00,35,8
+PROD-0015,Office Ink Pack (C/M/Y/K),Consumables,45.00,12.00,1500,400
+PROD-0016,Network Switch 24-port,Networking,680.00,400.00,48,10
+PROD-0017,Network Router Enterprise,Networking,980.00,560.00,27,6
+PROD-0018,UPS 3kVA,Power,390.00,210.00,85,20
+PROD-0019,Cable Kit (100m),Accessories,28.00,8.00,2200,400
+PROD-0020,Industrial Sensor A1,Manufacturing,95.00,35.00,760,150
+PROD-0021,Industrial Sensor B2,Manufacturing,165.00,72.00,420,100
+PROD-0022,PLC Controller Basic,Manufacturing,1450.00,880.00,30,6
+PROD-0023,PLC Controller Advanced,Manufacturing,2890.00,1720.00,12,3
+PROD-0024,Label Printer Mobile,Logistics,220.00,120.00,95,25
+PROD-0025,Warehouse Scanner,Logistics,340.00,190.00,130,30
+PROD-0026,POS Terminal, Retail,610.00,360.00,45,10
+PROD-0027,Barcode Labels (roll 1000),Consumables,12.00,2.50,6400,1500
+PROD-0028,Cloud SW License - Basic,Software,95.00,5.00,9999,0
+PROD-0029,Cloud SW License - Pro,Software,350.00,5.00,9999,0
+PROD-0030,ERP Module: Inventory,Software,1250.00,50.00,9999,0
+PROD-0031,ERP Module: Accounting,Software,1850.00,50.00,9999,0
+PROD-0032,ERP Module: HR,Software,950.00,50.00,9999,0
+PROD-0033,Industrial Cable 5m,Manufacturing,9.50,1.80,4100,900
+PROD-0034,Industrial Cable 20m,Manufacturing,28.00,8.00,1900,400
+PROD-0035,Router Spare PSU,Parts,75.00,28.00,690,150
+PROD-0036,Server Rack Rails,Parts,42.00,12.00,860,200
+PROD-0037,Desktop PSU 500W,Components,68.00,28.00,1200,300
+PROD-0038,SSL Certificate 1yr,ServicesAddOn,48.00,1.00,9999,0
+PROD-0039,Extended Warranty 2yr,ServicesAddOn,120.00,10.00,9999,0
+PROD-0040,Data Backup Cartridge,Storage,95.00,30.00,520,120
+

@@ -43,8 +43,6 @@ use argon2::{
 };
 use async_trait::async_trait;
 
-use std::error::Error;
-
 pub struct PostgresDatabase {
     pub pool: Pool,
     pub connection_string: String,
@@ -637,23 +635,28 @@ impl Database for PostgresDatabase {
     // --- Employee Commands ---
     async fn get_employees(&self) -> Result<Vec<Employee>, String> {
         let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
-        let rows = client.query("SELECT id, employee_id, first_name, last_name, email, phone, role, department, position, salary, status, hourly_cost FROM employees", &[]).await.map_err(|e| format!("Failed to fetch employees: {}", e))?;
+        let rows = client.query("SELECT id, employee_id, first_name, last_name, full_name, email, phone, role, department, position, manager_id, format_timestamp(hire_date) as hire_date, salary, hourly_cost, status, format_timestamp(created_at) as created_at, format_timestamp(updated_at) as updated_at FROM employees", &[]).await.map_err(|e| format!("Failed to fetch employees: {}", e))?;
         
         let mut employees = Vec::new();
         for row in rows {
             employees.push(Employee {
-                id: Some(row.get(0)),
-                employee_id: row.get(1),
-                first_name: row.get(2),
-                last_name: row.get(3),
-                email: row.get(4),
-                phone: row.get(5),
-                role: row.get(6),
-                department: row.get(7),
-                position: row.get(8),
-                salary: row.get(9),
-                status: row.get(10),
-                hourly_cost: row.get(11),
+                id: Some(row.get("id")),
+                employee_id: row.get("employee_id"),
+                first_name: row.get("first_name"),
+                last_name: row.get("last_name"),
+                full_name: row.get("full_name"),
+                email: row.get("email"),
+                phone: row.get("phone"),
+                role: row.get("role"),
+                department: row.get("department"),
+                position: row.get("position"),
+                manager_id: row.get("manager_id"),
+                hire_date: row.get("hire_date"),
+                salary: row.get("salary"),
+                hourly_cost: row.get("hourly_cost"),
+                status: row.get("status"),
+                created_at: row.get("created_at"),
+                updated_at: row.get("updated_at"),
             });
         }
         Ok(employees)
@@ -661,7 +664,7 @@ impl Database for PostgresDatabase {
 
     async fn get_employee_by_email(&self, email: String) -> Result<Option<Employee>, String> {
         let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
-        let rows = client.query("SELECT id, employee_id, first_name, last_name, email, phone, role, department, position, salary, status, hourly_cost FROM employees WHERE email = $1", &[&email]).await.map_err(|e| format!("Failed to fetch employee by email: {}", e))?;
+        let rows = client.query("SELECT id, employee_id, first_name, last_name, full_name, email, phone, role, department, position, manager_id, format_timestamp(hire_date) as hire_date, salary, hourly_cost, status, format_timestamp(created_at) as created_at, format_timestamp(updated_at) as updated_at FROM employees WHERE email = $1", &[&email]).await.map_err(|e| format!("Failed to fetch employee by email: {}", e))?;
         
         if rows.is_empty() {
             return Ok(None);
@@ -669,18 +672,23 @@ impl Database for PostgresDatabase {
 
         let row = &rows[0];
         Ok(Some(Employee {
-            id: Some(row.get(0)),
-            employee_id: row.get(1),
-            first_name: row.get(2),
-            last_name: row.get(3),
-            email: row.get(4),
-            phone: row.get(5),
-            role: row.get(6),
-            department: row.get(7),
-            position: row.get(8),
-            salary: row.get(9),
-            status: row.get(10),
-            hourly_cost: row.get(11),
+            id: Some(row.get("id")),
+            employee_id: row.get("employee_id"),
+            first_name: row.get("first_name"),
+            last_name: row.get("last_name"),
+            full_name: row.get("full_name"),
+            email: row.get("email"),
+            phone: row.get("phone"),
+            role: row.get("role"),
+            department: row.get("department"),
+            position: row.get("position"),
+            manager_id: row.get("manager_id"),
+            hire_date: row.get("hire_date"),
+            salary: row.get("salary"),
+            hourly_cost: row.get("hourly_cost"),
+            status: row.get("status"),
+            created_at: row.get("created_at"),
+            updated_at: row.get("updated_at"),
         }))
     }
 
@@ -694,11 +702,11 @@ impl Database for PostgresDatabase {
         }
 
         let row = client.query_one(
-            "INSERT INTO employees (employee_id, first_name, last_name, email, phone, role, department, position, salary, status, hourly_cost)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id",
+            "INSERT INTO employees (employee_id, first_name, last_name, full_name, email, phone, role, department, position, manager_id, hire_date, salary, hourly_cost, status)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, COALESCE($11::text::timestamp, CURRENT_TIMESTAMP), $12, $13, $14) RETURNING id",
             &[
-                &employee.employee_id, &employee.first_name, &employee.last_name, &employee.email, &employee.phone,
-                &employee.role, &employee.department, &employee.position, &employee.salary, &employee.status, &hourly_cost
+                &employee.employee_id, &employee.first_name, &employee.last_name, &employee.full_name, &employee.email, &employee.phone,
+                &employee.role, &employee.department, &employee.position, &employee.manager_id, &employee.hire_date, &employee.salary, &hourly_cost, &employee.status
             ]
         ).await.map_err(|e| {
              if let Some(db_err) = e.as_db_error() {
@@ -725,10 +733,10 @@ impl Database for PostgresDatabase {
         let hourly_cost = employee.hourly_cost.unwrap_or(0.0);
         if let Some(id) = employee.id {
             client.execute(
-                "UPDATE employees SET employee_id = $1, first_name = $2, last_name = $3, email = $4, phone = $5, role = $6, department = $7, position = $8, salary = $9, status = $10, hourly_cost = $11 WHERE id = $12",
+                "UPDATE employees SET employee_id = $1, first_name = $2, last_name = $3, full_name = $4, email = $5, phone = $6, role = $7, department = $8, position = $9, manager_id = $10, hire_date = COALESCE($11::text::timestamp, hire_date), salary = $12, hourly_cost = $13, status = $14, updated_at = CURRENT_TIMESTAMP WHERE id = $15",
                 &[
-                    &employee.employee_id, &employee.first_name, &employee.last_name, &employee.email, &employee.phone,
-                    &employee.role, &employee.department, &employee.position, &employee.salary, &employee.status, &hourly_cost, &id
+                    &employee.employee_id, &employee.first_name, &employee.last_name, &employee.full_name, &employee.email, &employee.phone,
+                    &employee.role, &employee.department, &employee.position, &employee.manager_id, &employee.hire_date, &employee.salary, &hourly_cost, &employee.status, &id
                 ]
             ).await.map_err(|e| format!("Failed to update employee: {}", e))?;
             Ok(())
@@ -1107,12 +1115,10 @@ impl Database for PostgresDatabase {
         
         // 1. Project Info
         let project_row = client.query_one(
-            "SELECT p.name, c.name FROM projects p JOIN clients c ON p.client_id = c.id WHERE p.id = $1",
             "SELECT p.name, c.company_name FROM projects p LEFT JOIN clients c ON p.client_id = c.id WHERE p.id = $1",
             &[&project_id]
         ).await.map_err(|e| format!("Project not found: {}", e))?;
         let project_name: String = project_row.get(0);
-        let client_name: String = project_row.get(1);
         let client_name: Option<String> = project_row.get(1);
         let client_name = client_name.unwrap_or_else(|| "Unassigned Client".to_string());
 
@@ -1930,11 +1936,9 @@ impl Database for PostgresDatabase {
         
         transaction.commit().await.map_err(|e| e.to_string())?;
         
-        // Re-initialize using synchronous init_db
+        // Re-initialize using async init_db
         let conn_str = self.connection_string.clone();
-        tokio::task::spawn_blocking(move || {
-            crate::db::postgres_init::init_db(&conn_str).map_err(|e| e.to_string())
-        }).await.map_err(|e| e.to_string())??;
+        crate::db::postgres_init::init_db(&conn_str).await.map_err(|e| e.to_string())?;
         
         Ok(())
     }
@@ -2824,31 +2828,36 @@ impl Database for PostgresDatabase {
     async fn get_services(&self) -> Result<Vec<Service>, String> {
         let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
         let rows = client.query(
-            "SELECT id, name, description, category, unit_price, billing_type, estimated_hours, is_active, created_at, updated_at 
+            "SELECT id, service_code, name, description, category, unit_price, flat_price, billing_type, estimated_hours, typical_duration, duration_unit, sla_terms, is_active, format_timestamp(created_at) as created_at, format_timestamp(updated_at) as updated_at 
              FROM services WHERE is_active = true ORDER BY name",
             &[]
         ).await.map_err(|e| format!("Failed to fetch services: {}", e))?;
 
         Ok(rows.into_iter().map(|row| Service {
-            id: Some(row.get(0)),
-            name: row.get(1),
-            description: row.get(2),
-            category: row.get(3),
-            unit_price: row.get(4),
-            billing_type: row.get(5),
-            estimated_hours: row.get(6),
-            is_active: row.get(7),
-            created_at: format_timestamp(row.get(8)),
-            updated_at: format_timestamp(row.get(9)),
+            id: Some(row.get("id")),
+            service_code: row.get("service_code"),
+            name: row.get("name"),
+            description: row.get("description"),
+            category: row.get("category"),
+            unit_price: row.get("unit_price"),
+            flat_price: row.get("flat_price"),
+            billing_type: row.get("billing_type"),
+            estimated_hours: row.get("estimated_hours"),
+            typical_duration: row.get("typical_duration"),
+            duration_unit: row.get("duration_unit"),
+            sla_terms: row.get("sla_terms"),
+            is_active: row.get("is_active"),
+            created_at: row.get("created_at"),
+            updated_at: row.get("updated_at"),
         }).collect())
     }
 
     async fn add_service(&self, service: Service) -> Result<i64, String> {
         let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
         let row = client.query_one(
-            "INSERT INTO services (name, description, category, unit_price, billing_type, estimated_hours, is_active) 
-             VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id",
-            &[&service.name, &service.description, &service.category, &service.unit_price, &service.billing_type, &service.estimated_hours, &service.is_active]
+            "INSERT INTO services (service_code, name, description, category, unit_price, flat_price, billing_type, estimated_hours, typical_duration, duration_unit, sla_terms, is_active) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id",
+            &[&service.service_code, &service.name, &service.description, &service.category, &service.unit_price, &service.flat_price, &service.billing_type, &service.estimated_hours, &service.typical_duration, &service.duration_unit, &service.sla_terms, &service.is_active]
         ).await.map_err(|e| format!("Failed to add service: {}", e))?;
         Ok(row.get::<_, i32>(0) as i64)
     }
@@ -2858,9 +2867,9 @@ impl Database for PostgresDatabase {
         let service_id = service.id.ok_or("Service ID is required for update")?;
         
         client.execute(
-            "UPDATE services SET name = $1, description = $2, category = $3, unit_price = $4, billing_type = $5, estimated_hours = $6, 
-             is_active = $7, updated_at = CURRENT_TIMESTAMP WHERE id = $8",
-            &[&service.name, &service.description, &service.category, &service.unit_price, &service.billing_type, &service.estimated_hours, &service.is_active, &service_id]
+            "UPDATE services SET service_code = $1, name = $2, description = $3, category = $4, unit_price = $5, flat_price = $6, billing_type = $7, estimated_hours = $8, 
+             typical_duration = $9, duration_unit = $10, sla_terms = $11, is_active = $12, updated_at = CURRENT_TIMESTAMP WHERE id = $13",
+            &[&service.service_code, &service.name, &service.description, &service.category, &service.unit_price, &service.flat_price, &service.billing_type, &service.estimated_hours, &service.typical_duration, &service.duration_unit, &service.sla_terms, &service.is_active, &service_id]
         ).await.map_err(|e| format!("Failed to update service: {}", e))?;
         Ok(())
     }
@@ -2879,7 +2888,7 @@ impl Database for PostgresDatabase {
     async fn get_clients(&self) -> Result<Vec<Client>, String> {
         let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
         let rows = client.query(
-            "SELECT id, company_name, contact_name, email, phone, address, industry, status, payment_terms, credit_limit, tax_id, notes, is_active, created_at, updated_at 
+            "SELECT id, company_name, contact_name, email, phone, address, industry, status, payment_terms, credit_limit, tax_id, notes, annual_contract_value, primary_products_purchased, is_active, created_at, updated_at 
              FROM clients WHERE is_active = true ORDER BY company_name",
             &[]
         ).await.map_err(|e| format!("Failed to fetch clients: {}", e))?;
@@ -2897,19 +2906,21 @@ impl Database for PostgresDatabase {
             credit_limit: row.get(9),
             tax_id: row.get(10),
             notes: row.get(11),
-            is_active: row.get(12),
-            created_at: format_timestamp(row.get(13)),
-            updated_at: format_timestamp(row.get(14)),
+            annual_contract_value: row.get(12),
+            primary_products_purchased: row.get(13),
+            subscribed_service_ids: None,
+            is_active: row.get(14),
+            created_at: format_timestamp(row.get(15)),
+            updated_at: format_timestamp(row.get(16)),
         }).collect())
     }
 
     async fn add_client(&self, client: Client) -> Result<i64, String> {
-        // println!("DEBUG: add_client called with: {:?}", client);
         let client_conn = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
         let row = client_conn.query_one(
-            "INSERT INTO clients (company_name, contact_name, email, phone, address, industry, status, payment_terms, credit_limit, tax_id, notes, is_active) 
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id",
-            &[&client.company_name, &client.contact_name, &client.email, &client.phone, &client.address, &client.industry, &client.status, &client.payment_terms, &client.credit_limit, &client.tax_id, &client.notes, &client.is_active]
+            "INSERT INTO clients (company_name, contact_name, email, phone, address, industry, status, payment_terms, credit_limit, tax_id, notes, annual_contract_value, primary_products_purchased, is_active) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id",
+            &[&client.company_name, &client.contact_name, &client.email, &client.phone, &client.address, &client.industry, &client.status, &client.payment_terms, &client.credit_limit, &client.tax_id, &client.notes, &client.annual_contract_value, &client.primary_products_purchased, &client.is_active]
         ).await.map_err(|e| {
             if let Some(db_err) = e.as_db_error() {
                 if db_err.code() == &SqlState::UNIQUE_VIOLATION {
@@ -2921,13 +2932,9 @@ impl Database for PostgresDatabase {
                     return "Duplicate client entry detected.".to_string();
                 }
             }
-            let err_msg = format!("Failed to add client: {} (Source: {:?})", e, e.source());
-            eprintln!("ERROR: {}", err_msg);
-            err_msg
+            format!("Failed to add client: {}", e)
         })?;
-        let id: i32 = row.get(0);
-        // println!("DEBUG: add_client success, new ID: {}", id);
-        Ok(id as i64)
+        Ok(row.get::<_, i32>(0) as i64)
     }
 
     async fn update_client(&self, client: Client) -> Result<(), String> {
@@ -2937,8 +2944,8 @@ impl Database for PostgresDatabase {
         client_conn.execute(
             "UPDATE clients SET company_name = $1, contact_name = $2, email = $3, phone = $4, 
              address = $5, industry = $6, status = $7, payment_terms = $8, credit_limit = $9, tax_id = $10, notes = $11, 
-             is_active = $12, updated_at = CURRENT_TIMESTAMP WHERE id = $13",
-            &[&client.company_name, &client.contact_name, &client.email, &client.phone, &client.address, &client.industry, &client.status, &client.payment_terms, &client.credit_limit, &client.tax_id, &client.notes, &client.is_active, &client_id]
+             annual_contract_value = $12, primary_products_purchased = $13, is_active = $14, updated_at = CURRENT_TIMESTAMP WHERE id = $15",
+            &[&client.company_name, &client.contact_name, &client.email, &client.phone, &client.address, &client.industry, &client.status, &client.payment_terms, &client.credit_limit, &client.tax_id, &client.notes, &client.annual_contract_value, &client.primary_products_purchased, &client.is_active, &client_id]
         ).await.map_err(|e| format!("Failed to update client: {}", e))?;
         Ok(())
     }
@@ -2955,7 +2962,7 @@ impl Database for PostgresDatabase {
     async fn get_client_by_id(&self, id: i32) -> Result<Option<Client>, String> {
         let client_conn = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
         let row_opt = client_conn.query_opt(
-            "SELECT id, company_name, contact_name, email, phone, address, industry, status, payment_terms, credit_limit, tax_id, notes, is_active, created_at, updated_at 
+            "SELECT id, company_name, contact_name, email, phone, address, industry, status, payment_terms, credit_limit, tax_id, notes, annual_contract_value, primary_products_purchased, is_active, created_at, updated_at 
              FROM clients WHERE id = $1",
             &[&id]
         ).await.map_err(|e| format!("Failed to fetch client: {}", e))?;
@@ -2974,9 +2981,12 @@ impl Database for PostgresDatabase {
                 credit_limit: row.get(9),
                 tax_id: row.get(10),
                 notes: row.get(11),
-                is_active: row.get(12),
-                created_at: format_timestamp(row.get(13)),
-                updated_at: format_timestamp(row.get(14)),
+                annual_contract_value: row.get(12),
+                primary_products_purchased: row.get(13),
+                subscribed_service_ids: None,
+                is_active: row.get(14),
+                created_at: format_timestamp(row.get(15)),
+                updated_at: format_timestamp(row.get(16)),
             }))
         } else {
             Ok(None)
@@ -3799,7 +3809,7 @@ impl Database for PostgresDatabase {
         let tx = client.transaction().await.map_err(|e| format!("Failed to start transaction: {}", e))?;
 
         let header_row = tx.query_one(
-            1"INSERT INTO sales_orders (client_id, project_id, status, order_date, expected_shipment_date, total_amount, notes, created_by_user_id) 
+            "INSERT INTO sales_orders (client_id, project_id, status, order_date, expected_shipment_date, total_amount, notes, created_by_user_id) 
              VALUES ($1, $2, $3, COALESCE($4::text::timestamp, CURRENT_TIMESTAMP), $5::text::timestamp, $6, $7, $8) RETURNING id",
             &[&so.client_id, &so.project_id, &so.status, &so.order_date, &so.expected_shipment_date, &so.total_amount, &so.notes, &so.created_by_user_id]
         ).await.map_err(|e| format!("Failed to insert SO header: {}", e))?;

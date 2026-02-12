@@ -1,6 +1,7 @@
 @page "/clients"
 @attribute [Authorize(Roles = "CEO,Manager")]
 @inject IClientService ClientService
+@inject IBusinessConfigurationService BusinessConfigurationService
 @inject NotificationService NotificationService
 @inject IJSRuntime JSRuntime
 
@@ -143,6 +144,36 @@
                             <label class="block text-sm font-medium text-gray-700">Credit Limit</label>
                             <input @bind="currentClient.CreditLimit" type="number" step="0.01" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
                         </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Annual Contract Value</label>
+                            <input @bind="currentClient.AnnualContractValue" type="number" step="0.01" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Primary Products Purchased</label>
+                            <input @bind="currentClient.PrimaryProductsPurchased" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Subscribed Services</label>
+                            <div class="mt-2 space-y-2 max-h-40 overflow-y-auto border border-gray-300 rounded-md p-2">
+                                @if (availableServices != null)
+                                {
+                                    @foreach (var service in availableServices)
+                                    {
+                                        <div class="flex items-center">
+                                            <input type="checkbox" id="service-@service.Id" 
+                                                   checked="@(currentClient.SubscribedServiceIds?.Contains(service.Id ?? 0) ?? false)"
+                                                   @onchange="@(e => ToggleService(service.Id ?? 0, e.Value is bool b && b))"
+                                                   class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" />
+                                            <label for="service-@service.Id" class="ml-2 block text-sm text-gray-900">@service.Name</label>
+                                        </div>
+                                    }
+                                }
+                                else
+                                {
+                                    <p class="text-xs text-gray-500">Loading services...</p>
+                                }
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
@@ -160,6 +191,7 @@
 
 @code {
     private List<Client> clients = new();
+    private List<Service>? availableServices;
     private bool isLoading = true;
     private bool showModal = false;
     private bool isEditing = false;
@@ -167,24 +199,78 @@
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadClients();
+        await LoadData();
     }
 
-    private async Task LoadClients()
+    private async Task LoadData()
     {
         isLoading = true;
         try
         {
-            clients = await ClientService.GetClientsAsync();
+            var clientsTask = ClientService.GetClientsAsync();
+            var servicesTask = BusinessConfigurationService.GetServicesAsync();
+            
+            await Task.WhenAll(clientsTask, servicesTask);
+            
+            clients = await clientsTask;
+            availableServices = await servicesTask;
         }
         catch (Exception ex)
         {
-            NotificationService.ShowError($"Failed to load clients: {ex.Message}", "Error");
+            NotificationService.ShowError($"Failed to load data: {ex.Message}", "Error");
         }
         finally
         {
             isLoading = false;
         }
+    }
+
+    private void ToggleService(int serviceId, bool isChecked)
+    {
+        currentClient.SubscribedServiceIds ??= new List<int>();
+        if (isChecked)
+        {
+            if (!currentClient.SubscribedServiceIds.Contains(serviceId))
+            {
+                currentClient.SubscribedServiceIds.Add(serviceId);
+            }
+        }
+        else
+        {
+            currentClient.SubscribedServiceIds.Remove(serviceId);
+        }
+        CalculateAnnualContractValue();
+    }
+
+    private void CalculateAnnualContractValue()
+    {
+        if (currentClient.SubscribedServiceIds == null || availableServices == null)
+        {
+            currentClient.AnnualContractValue = 0;
+            return;
+        }
+
+        double total = 0;
+        foreach (var id in currentClient.SubscribedServiceIds)
+        {
+            var service = availableServices.FirstOrDefault(s => s.Id == id);
+            if (service != null)
+            {
+                if (service.BillingType == "fixed")
+                {
+                    total += service.FlatPrice ?? service.UnitPrice;
+                }
+                else if (service.BillingType == "retainer")
+                {
+                    total += service.UnitPrice * 12; // Monthly retainer
+                }
+                else // hourly
+                {
+                    total += service.UnitPrice * (service.EstimatedHours ?? 0);
+                }
+            }
+        }
+        currentClient.AnnualContractValue = total;
     }
 
     private void ShowAddModal()
@@ -207,7 +293,10 @@
             Industry = client.Industry,
             Status = client.Status,
             PaymentTerms = client.PaymentTerms,
-            CreditLimit = client.CreditLimit
+            CreditLimit = client.CreditLimit,
+            AnnualContractValue = client.AnnualContractValue,
+            PrimaryProductsPurchased = client.PrimaryProductsPurchased,
+            SubscribedServiceIds = client.SubscribedServiceIds != null ? new List<int>(client.SubscribedServiceIds) : new List<int>()
         };
         isEditing = true;
         showModal = true;
@@ -227,7 +316,7 @@
                 await ClientService.AddClientAsync(currentClient);
                 NotificationService.ShowSuccess("Client added successfully", "Success");
             }
-            await LoadClients();
+            await LoadData();
             CloseModal();
         }
         catch (Exception ex)
@@ -244,7 +333,7 @@
             {
                 await ClientService.DeleteClientAsync(client.Id ?? 0);
                 NotificationService.ShowSuccess("Client deleted successfully", "Success");
-                clients = await ClientService.GetClientsAsync();
+                await LoadData();
             }
             catch (Exception ex)
             {

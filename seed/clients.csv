@@ -1,0 +1,31 @@
+ClientID,CompanyName,Industry,ContactName,ContactEmail,AnnualContractValue,ServicesSubscribed,PrimaryProductsPurchased
+CL-0001,GreenFields Agro Ltd.,Agriculture,Sita Gurung,sita.gurung@greenfields.com,42000,Monthly Managed Services;ERP Deployment - Small,Industrial Sensor A1;Label Printer Mobile
+CL-0002,Metro Retailers Pvt. Ltd.,Retail,Ajay Shrestha,ajay.shrestha@metroretail.com,185000,ERP Deployment - Medium;On-site Installation,POS Terminal;Barcode Labels (roll 1000)
+CL-0003,Everest Logistics,Logistics,Nirmal KC,nirmal.kc@everestlog.com,76000,Warehouse Scanner;Monthly Managed Services,Warehouse Scanner;Label Printer Mobile
+CL-0004,Himalaya Pharmaceuticals,Pharma,Dr. Anju Koirala,anju.koirala@himalaya.ph,210000,Cloud Migration - Advanced;Cybersecurity Assessment,Server Rack;APX-SSD 2TB
+CL-0005,SolarTech Energy,Energy,Prakash Adhikari,prakash@solartech.com,120000,ERP Deployment - Enterprise,UPS 3kVA;Network Router Enterprise
+CL-0006,CityBank Finance,Banking,Ramesh Poudel,ramesh.p@citybank.com,420000,Cybersecurity Assessment;Cloud Migration - Advanced,ATX-1500 Server Rack;APX-SSD 2TB
+CL-0007,GreenBuild Constructions,Construction,Kamala Rana,kamala.rana@greenbuild.com,54000,ERP Deployment - Small,Industrial Sensor B2;PLC Controller Basic
+CL-0008,Sunrise Hotels,Hospitality,Neha Shrestha,neha@sunrisehotels.com,68000,Monthly Managed Services;Training: End Users,Office Pro Printer;APX-Mon 27" 4K
+CL-0009,Alpha Manufacturing,Manufacturing,Sudip Thapa,sudip.thapa@alpha-mfg.com,150000,On-site Preventive Maintenance;PLC Controller Advanced,PLC Controller Advanced;Industrial Cable 20m
+CL-0010,BlueWave Software,Software,Meera Acharya,meera.acharya@bluewave.com,56000,ERP Module: HR;Cloud SW License - Pro,ERP Module: HR;Cloud SW License - Pro
+CL-0011,Global Exporters,Trading,Sanjay Singh,sanjay.singh@globalexp.com,91000,ERP Deployment - Medium,Desktop PSU 500W;Server Rack Rails
+CL-0012,Lakeside Realty,RealEstate,Bikash Rai,bikash@lakeside.re,34000,Remote Installation;Helpdesk Tier-1,APX-NB 15" Laptop;APX-Mon 24" IPS
+CL-0013,Precision MedTech,Medical,Dr. Rojina Tamang,rojina@precisionmed.com,220000,Cybersecurity Assessment;Data Migration (per GB),APX-SSD 1TB;Server Rack Rails
+CL-0014,Creative Agency Studio,Media,Sabin Khatri,sabin@creative.studio,18000,Training: End Users;Remote Installation,APX-NB 13" Ultrabook;APX-Mon 24" IPS
+CL-0015,NextGen Autos,Automotive,Pranav Bhandari,pranav@nextgenautos.com,98000,On-site Installation;Network Audit,Industrial Sensor A1;PLC Controller Basic
+CL-0016,Smart Schools Network,Education,Priya Shrestha,priya@smartschools.edu,28000,Remote Installation;ERP Module: Inventory,APX-Mon 24" IPS;Cloud SW License - Basic
+CL-0017,Harvest Co-ops,Agriculture,Binod K.C.,binod.kc@harvestcoop.com,15000,ERP Module: Inventory;Helpdesk Tier-1,Label Printer Mobile;Barcode Labels (roll 1000)
+CL-0018,Stellar Electronics,Electronics,Deepa Lama,deepa.lama@stellarele.com,132000,ERP Deployment - Medium;Custom Integration (API),ATX-GPU 16GB;ATX-1000 Pro Workstation
+CL-0019,Rapid Courier,Logistics,Rajendra B.,rajendra@rapidcourier.com,46000,Warehouse Scanner;Monthly Managed Services,Warehouse Scanner;Barcode Labels
+CL-0020,PharmaPlus Labs,Pharma,Sunita P.,sunita@pharmaplus.com,98000,Data Migration (per GB);On-site Preventive Maintenance,Server Rack;APX-SSD 2TB
+CL-0021,Urban Developers,RealEstate,Arjun Basnet,arjun@urban.dev,65000,ERP Deployment - Small;Consulting: Process Optimization,Office Pro Printer;Network Switch 24-port
+CL-0022,Atlas Foods,Food & Beverage,Maya Tamang,maya@atlasfoods.com,54000,Onboarding & Change Management;ERP Deployment - Small,Label Printer Mobile;Barcode Labels
+CL-0023,Orbit Telecom,Telecom,Prakash Lama,prakash@orbittele.com,250000,Cloud Migration - Advanced;Network Audit,Network Router Enterprise;Network Switch 24-port
+CL-0024,CareWell Clinics,Healthcare,Dr. Binita Shah,binita@carewell.clinic,31000,Helpdesk Tier-2;Remote Installation,APX-NB 15" Laptop;APX-SSD 1TB
+CL-0025,EventWorks,Events,Arman Joshi,arman@eventworks.com,16000,Training: End Users;Remote Installation,APX-Mon 24" IPS;APX-Keyboard Mechanical
+CL-0026,FreshMart Grocery,Retail,Rekha KC,rekha@freshmart.com,29000,POS Terminal;On-site Installation,POS Terminal;Barcode Labels (roll 1000)
+CL-0027,SecureVault Storage,Logistics,Neil K.,neil@securevault.com,47000,Monthly Managed Services;On-site Preventive Maintenance,UPS 3kVA;Data Backup Cartridge
+CL-0028,BlueOcean Shipping,Shipping,Sujata R.,sujata@blueocean.com,88000,ERP Deployment - Medium;Data Migration (per GB),PLC Controller Basic;Warehouse Scanner
+CL-0029,Insight Analytics,Consulting,Raj Koirala,raj@insightanalytics.com,37000,Custom Integration (API);Consulting: Process Optimization,Cloud SW License - Pro;ERP Module: Accounting
+CL-0030,PersonalTech Retail,Electronics,Rita Shrestha,rita@personaltech.com,23000,Remote Installation;Helpdesk Tier-1,APX-NB 13" Ultrabook;APX-Mouse Wireless

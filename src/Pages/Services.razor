@@ -95,39 +95,64 @@
                 <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                     <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">@(isEditing ? "Edit Service" : "Add Service")</h3>
                     <div class="space-y-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Name</label>
-                            <input @bind="currentService.Name" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Service Code</label>
+                                <input @bind="currentService.ServiceCode" placeholder="SVC-001" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Name</label>
+                                <input @bind="currentService.Name" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                            </div>
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700">Description</label>
-                            <textarea @bind="currentService.Description" rows="3" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"></textarea>
+                            <textarea @bind="currentService.Description" rows="2" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"></textarea>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Category</label>
+                                <input @bind="currentService.Category" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Billing Type</label>
+                                <select @bind="currentService.BillingType" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                    <option value="hourly">Hourly</option>
+                                    <option value="fixed">Fixed Price</option>
+                                    <option value="retainer">Retainer</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Unit Price / Rate</label>
+                                <input @bind="currentService.UnitPrice" type="number" step="0.01" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Flat Price (Optional)</label>
+                                <input @bind="currentService.FlatPrice" type="number" step="0.01" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Typical Duration</label>
+                                <input @bind="currentService.TypicalDuration" type="number" step="0.1" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Duration Unit</label>
+                                <select @bind="currentService.DurationUnit" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                    <option value="hours">Hours</option>
+                                    <option value="days">Days</option>
+                                </select>
+                            </div>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">Unit Price ($)</label>
-                            <input @bind="currentService.UnitPrice" type="number" step="0.01" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                            <label class="block text-sm font-medium text-gray-700">SLA Terms</label>
+                            <textarea @bind="currentService.SlaTerms" rows="2" placeholder="e.g. 24h response time, 99.9% uptime" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"></textarea>
                         </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Category</label>
-                            <input @bind="currentService.Category" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Billing Type</label>
-                            <select @bind="currentService.BillingType" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                                <option value="hourly">Hourly</option>
-                                <option value="fixed">Fixed</option>
-                                <option value="retainer">Retainer</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Estimated Hours</label>
-                            <input @bind="currentService.EstimatedHours" type="number" step="0.1" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
-                        </div>
-                        <div>
-                            <label class="flex items-center">
-                                <input @bind="currentService.IsActive" type="checkbox" class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50" />
-                                <span class="ml-2 text-sm text-gray-700">Active</span>
-                            </label>
+                        <div class="flex items-center">
+                            <input @bind="currentService.IsActive" type="checkbox" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" />
+                            <label class="ml-2 block text-sm text-gray-900">Active</label>
                         </div>
                     </div>
                 </div>
@@ -190,12 +215,17 @@
         currentService = new Service
         {
             Id = service.Id,
+            ServiceCode = service.ServiceCode,
             Name = service.Name,
             Description = service.Description,
             UnitPrice = service.UnitPrice,
+            FlatPrice = service.FlatPrice,
             Category = service.Category,
             BillingType = service.BillingType,
             EstimatedHours = service.EstimatedHours,
+            TypicalDuration = service.TypicalDuration,
+            DurationUnit = service.DurationUnit,
+            SlaTerms = service.SlaTerms,
             IsActive = service.IsActive
         };
         isEditing = true;

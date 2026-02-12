@@ -1,0 +1,62 @@
+EmpID,FullName,Role,Department,ManagerID,Email,HireDate,Salary
+EMP-0001,Rajesh Thapa,CEO,Executive,,rajesh.thapa@apextek.com,2016-03-12,210000
+EMP-0002,Anita Sharma,COO,Executive,EMP-0001,anita.sharma@apextek.com,2017-07-02,165000
+EMP-0003,Deepak Khatri,CFO,Finance,EMP-0001,deepak.khatri@apextek.com,2018-01-15,160000
+EMP-0004,Nisha Adhikari,CTO,Engineering,EMP-0001,nisha.adhikari@apextek.com,2019-05-21,175000
+EMP-0005,Ramesh Gurung,Head of Sales,Sales,EMP-0002,ramesh.gurung@apextek.com,2018-11-03,140000
+EMP-0006,Sunita K.C.,Head of HR,HR,EMP-0002,sunita.kc@apextek.com,2019-02-18,120000
+EMP-0007,Prabin Rai,Head of Support,Support,EMP-0002,prabin.rai@apextek.com,2020-08-12,115000
+EMP-0008,Meera Shrestha,Sales Manager,Sales,EMP-0005,meera.shrestha@apextek.com,2020-03-04,98000
+EMP-0009,Bikash Lama,Account Manager,Sales,EMP-0005,bikash.lama@apextek.com,2021-06-30,83000
+EMP-0010,Sangeeta Rana,Senior Engineer,Engineering,EMP-0004,sangeeta.rana@apextek.com,2019-09-10,112000
+EMP-0011,Arjun Bista,Senior Engineer,Engineering,EMP-0004,arjun.bista@apextek.com,2018-12-01,110000
+EMP-0012,Mina Thapa,DevOps Engineer,Engineering,EMP-0004,mina.thapa@apextek.com,2020-02-14,98000
+EMP-0013,Sudip Bhattarai,Software Engineer,Engineering,EMP-0004,sudip.bhattarai@apextek.com,2021-09-18,82000
+EMP-0014,Rekha KC,QA Engineer,Engineering,EMP-0004,rekha.kc@apextek.com,2021-11-05,78000
+EMP-0015,Rajiv Shrestha,Integration Engineer,Engineering,EMP-0004,rajiv.shrestha@apextek.com,2022-04-22,86000
+EMP-0016,Paras K.C.,Network Engineer,Engineering,EMP-0004,paras.kc@apextek.com,2018-06-11,90000
+EMP-0017,Geeta Magar,Product Manager,Product,EMP-0004,geeta.magar@apextek.com,2017-10-02,115000
+EMP-0018,Harish Joshi,Implementation Lead,Implementation,EMP-0007,harish.joshi@apextek.com,2019-03-28,98000
+EMP-0019,Lila Adhikari,Implementation Engineer,Implementation,EMP-0018,lila.adhikari@apextek.com,2020-10-16,72000
+EMP-0020,Raj Kumar,Support Engineer,Support,EMP-0007,raj.kumar@apextek.com,2021-01-04,64000
+EMP-0021,Nisha Rai,Support Engineer,Support,EMP-0007,nisha.rai@apextek.com,2021-04-19,64000
+EMP-0022,Kamal Thapa,Helpdesk Supervisor,Support,EMP-0007,kamal.thapa@apextek.com,2019-12-12,71000
+EMP-0023,Priya Shrestha,HR Specialist,HR,EMP-0006,priya.shrestha@apextek.com,2020-07-03,62000
+EMP-0024,Anil Adhikari,Finance Manager,Finance,EMP-0003,anil.adhikari@apextek.com,2018-09-08,98000
+EMP-0025,Sunil Rana,Accountant,Finance,EMP-0024,sunil.rana@apextek.com,2019-11-29,56000
+EMP-0026,Divya K.C.,Procurement Manager,SupplyChain,EMP-0002,divya.kc@apextek.com,2017-05-14,92000
+EMP-0027,Madan Sharma,Warehouse Lead,Logistics,EMP-0026,madan.sharma@apextek.com,2018-08-21,58000
+EMP-0028,Pratik Gurung,Warehouse Assistant,Logistics,EMP-0027,pratik.gurung@apextek.com,2021-02-09,36000
+EMP-0029,Niraj Bhandari,Logistics Coordinator,Logistics,EMP-0027,niraj.bhandari@apextek.com,2020-05-27,42000
+EMP-0030,Kiran Acharya,Sales Executive,Sales,EMP-0005,kiran.acharya@apextek.com,2022-01-10,52000
+EMP-0031,Rita Shrestha,Sales Executive,Sales,EMP-0005,rita.shrestha@apextek.com,2022-03-11,50000
+EMP-0032,Sabin Khatri,Marketing Lead,Marketing,EMP-0002,sabin.khatri@apextek.com,2019-01-20,88000
+EMP-0033,Anupa Lama,Content Specialist,Marketing,EMP-0032,anupa.lama@apextek.com,2020-06-15,46000
+EMP-0034,Dev Raj,Field Technician,FieldServices,EMP-0018,dev.raj@apextek.com,2019-10-01,44000
+EMP-0035,Reema Thapa,Field Technician,FieldServices,EMP-0018,reema.thapa@apextek.com,2020-11-12,43000
+EMP-0036,Nitin Sharma,Security Analyst,Security,EMP-0004,nitin.sharma@apextek.com,2018-02-24,90000
+EMP-0037,Shova K.C.,UI/UX Designer,Product,EMP-0017,shova.kc@apextek.com,2021-08-09,68000
+EMP-0038,Arun Pandey,Database Admin,Engineering,EMP-0004,arun.pandey@apextek.com,2017-03-14,98000
+EMP-0039,Maya Tamang,Account Executive,Sales,EMP-0005,maya.tamang@apextek.com,2022-06-01,47000
+EMP-0040,Binod K.C.,Junior Engineer,Engineering,EMP-0010,binod.kc@apextek.com,2022-09-19,42000
+EMP-0041,Pranav Bhandari,Consultant,Consulting,EMP-0002,pranav.bhandari@apextek.com,2016-11-30,130000
+EMP-0042,Sunita P.,Consultant,Consulting,EMP-0002,sunita.p@apextek.com,2017-12-05,118000
+EMP-0043,Neil K.,Sales Ops Analyst,Sales,EMP-0005,neil.k@apextek.com,2020-01-07,61000
+EMP-0044,Meera Acharya,Business Analyst,Product,EMP-0017,meera.acharya@apextek.com,2019-06-18,72000
+EMP-0045,Prakash Lama,Network Architect,Networking,EMP-0004,prakash.lama@apextek.com,2016-09-22,125000
+EMP-0046,Sujata R.,Senior Project Manager,PMO,EMP-0002,sujata.r@apextek.com,2017-04-26,128000
+EMP-0047,Arman Joshi,Trainer,Training,EMP-0032,arman.joshi@apextek.com,2021-05-15,52000
+EMP-0048,Neha Shrestha,Client Success Manager,ClientSuccess,EMP-0005,neha.shrestha@apextek.com,2018-10-30,86000
+EMP-0049,Dr. Binita Shah,Healthcare Consultant,Consulting,EMP-0002,binita.shah@apextek.com,2020-12-01,97000
+EMP-0050,Rajendra B.,Logistics Specialist,Logistics,EMP-0027,rajendra.b@apextek.com,2019-07-09,54000
+EMP-0051,Sujata R.,(duplicate-name placeholder) Sales Engineer,Sales,EMP-0005,sujata.sales@apextek.com,2022-02-02,65000
+EMP-0052,Prakash Adhikari,Business Dev Manager,Sales,EMP-0005,prakash.adhikari@apextek.com,2017-08-19,92000
+EMP-0053,Maya Tamang,Account Manager,Sales,EMP-0005,maya.tamang@apextek.com,2020-03-01,76000
+EMP-0054,Binita Joshi,Office Manager,Ops,EMP-0002,binita.joshi@apextek.com,2016-12-12,62000
+EMP-0055,Rajiv Sharma,Technical Writer,Product,EMP-0017,rajiv.sharma@apextek.com,2021-01-20,52000
+EMP-0056,Pratik Gurung,Junior Warehouse,Logistics,EMP-0027,pratik.gurung2@apextek.com,2023-01-05,34000
+EMP-0057,Rita Shrestha,Channel Sales Lead,Sales,EMP-0005,rita.channel@apextek.com,2019-06-01,88000
+EMP-0058,Kamal Thapa,QA Lead,Engineering,EMP-0004,kamal.thapa@apextek.com,2016-04-19,98000
+EMP-0059,Niraj Bhandari,Operations Coordinator,Operations,EMP-0002,niraj.bhandari2@apextek.com,2022-11-11,45000
+EMP-0060,Dev Raj,Field Supervisor,FieldServices,EMP-0018,dev.supervisor@apextek.com,2020-09-12,54000
+

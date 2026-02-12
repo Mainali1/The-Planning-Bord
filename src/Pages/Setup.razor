@@ -84,6 +84,13 @@
                         <div>
                             <label class="block text-sm font-medium text-gray-700">Database Type</label>
                             <div class="mt-2 space-y-4 sm:flex sm:items-center sm:space-y-0 sm:space-x-10">
+                                @if (embeddedAvailable)
+                                {
+                                    <div class="flex items-center">
+                                        <input id="embedded" name="dbType" type="radio" checked="@(dbConfig.DbType == DbType.Embedded)" @onchange="@(() => SetDbType(DbType.Embedded))" class="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300">
+                                        <label for="embedded" class="ml-3 block text-sm font-medium text-gray-700"> Embedded (Bundled) </label>
+                                    </div>
+                                }
                                 <div class="flex items-center">
                                     <input id="local" name="dbType" type="radio" checked="@(dbConfig.DbType == DbType.Local)" @onchange="@(() => SetDbType(DbType.Local))" class="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300">
                                     <label for="local" class="ml-3 block text-sm font-medium text-gray-700"> Local Server </label>
@@ -393,7 +400,12 @@
     protected override async Task OnInitializedAsync()
     {
         embeddedAvailable = await SystemService.CheckEmbeddedPostgresAsync();
-        if (!embeddedAvailable)
+        if (embeddedAvailable)
+        {
+            dbConfig.DbType = DbType.Embedded;
+            dbConfig.ConnectionString = "embedded";
+        }
+        else
         {
             // Check if system postgres is installed
             bool pgInstalled = await SystemService.CheckPostgresInstalledAsync();
@@ -459,11 +471,14 @@
         {
              dbConfig.ConnectionString = "postgres://postgres:password@localhost:5432/planningbord";
         }
+        else if (type == DbType.Embedded)
+        {
+             dbConfig.ConnectionString = "embedded";
+        }
         else
         {
             dbConfig.ConnectionString = "";
         }
-        // No await here as it's void, but we could save state if we change signature or rely on SaveDbAndNext
     }
     
     private async Task SaveDbAndNext()
@@ -475,14 +490,14 @@
         
         try
         {
-            if (dbConfig.DbType == DbType.Local)
+            if (dbConfig.DbType == DbType.Local || dbConfig.DbType == DbType.Embedded)
             {
-                // Ensure local DB
-                progressMessage = "Initializing local database...";
+                // Ensure local or embedded DB
+                progressMessage = dbConfig.DbType == DbType.Embedded ? "Initializing embedded database..." : "Initializing local database...";
                 progressPercent = 50;
                 StateHasChanged();
                 
-                var conn = await SystemService.EnsureLocalDbAsync(string.IsNullOrEmpty(dbConfig.ConnectionString) ? null : dbConfig.ConnectionString);
+                var conn = await SystemService.EnsureLocalDbAsync(string.IsNullOrEmpty(dbConfig.ConnectionString) || dbConfig.ConnectionString == "embedded" ? null : dbConfig.ConnectionString);
                 dbConfig.ConnectionString = conn;
             }
             else

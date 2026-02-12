@@ -25,7 +25,7 @@
             <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">Filter by Project</label>
-                    <select @bind="selectedProjectId" @onchange="OnProjectFilterChanged" class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    <select @bind="selectedProjectId" @bind:after="OnProjectFilterChanged" class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                         <option value="">All Projects</option>
                         @foreach (var project in projects)
                         {
@@ -265,7 +265,7 @@
         return projects.FirstOrDefault(p => p.Id == projectId)?.Name ?? "—";
     }
 
-    private async Task OnProjectFilterChanged(ChangeEventArgs _)
+    private async Task OnProjectFilterChanged()
     {
         await LoadData();
     }

@@ -103,12 +103,7 @@ async fn login(state: State<'_, AppState>, username: String, password_plain: Str
 async fn verify_connection(connection_string: String) -> Result<bool, String> {
     let conn = add_connect_timeout(&connection_string);
     // Attempt to connect/init. init_db handles basic connection check.
-    // Wrap blocking call
-    let conn_clone = conn.clone();
-    tauri::async_runtime::spawn_blocking(move || {
-        db::postgres_init::init_db(&conn_clone)
-    }).await
-    .map_err(|e| format!("Task failed: {}", e))?
+    db::postgres_init::init_db(&conn).await
     .map_err(|e| format!("Connection failed: {:?}", e))?;
     
     Ok(true)
@@ -1496,27 +1491,32 @@ async fn save_db_config(app: tauri::AppHandle, state: State<'_, AppState>, confi
     let mut cfg = config.clone();
     if let db::config::DbType::Local = cfg.db_type {
         let input = if cfg.connection_string.trim().is_empty() { None } else { Some(cfg.connection_string.clone()) };
-        // ensure_local_db is async, wait for it? No, it's in setup::local, which is sync IO.
-        // We should wrap it.
-        let handle = app.clone();
-        let conn = tauri::async_runtime::spawn_blocking(move || setup::local::ensure_local_db(&handle, input))
-            .await
-            .map_err(|e| e.to_string())??;
+        let conn = setup::local::ensure_local_db(&app, input).await
+            .map_err(|e| e.to_string())?;
         cfg.connection_string = conn;
     }
     cfg.connection_string = add_connect_timeout(&cfg.connection_string);
     cfg.save(&app_dir)?;
 
     let new_db: Box<dyn Database + Send + Sync> = match cfg.db_type {
+        db::config::DbType::Embedded => {
+            println!("Initializing Embedded DB...");
+            let conn = setup::embedded::start_embedded_postgres(&app).await.map_err(|e| e.to_string())?;
+            cfg.connection_string = conn.clone();
+            
+            let conn_clone = conn.clone();
+            db::postgres_init::init_db(&conn_clone).await
+            .map_err(|e| format!("Init DB failed: {:?}", e))?;
+
+            let pg_db = PostgresDatabase::new(&conn).map_err(|e| e.to_string())?;
+            Box::new(pg_db)
+        }
         db::config::DbType::Local | db::config::DbType::Cloud => {
              let conn = add_connect_timeout(&cfg.connection_string);
              println!("Initializing DB connection to: {}", conn);
              
              let conn_clone = conn.clone();
-             tauri::async_runtime::spawn_blocking(move || {
-                db::postgres_init::init_db(&conn_clone)
-             }).await
-             .map_err(|e| format!("Task failed: {}", e))?
+             db::postgres_init::init_db(&conn_clone).await
              .map_err(|e| format!("Init DB failed: {:?}", e))?;
 
              let pg_db = PostgresDatabase::new(&conn).map_err(|e| e.to_string())?;
@@ -1531,10 +1531,7 @@ async fn save_db_config(app: tauri::AppHandle, state: State<'_, AppState>, confi
 
 #[tauri::command]
 async fn ensure_local_db(app: tauri::AppHandle, connection_string: Option<String>) -> Result<String, String> {
-    let handle = app.clone();
-    tauri::async_runtime::spawn_blocking(move || setup::local::ensure_local_db(&handle, connection_string))
-        .await
-        .map_err(|e| e.to_string())?
+    setup::local::ensure_local_db(&app, connection_string).await
 }
 
 #[tauri::command]
@@ -1682,54 +1679,111 @@ pub fn run() {
             let db: Box<dyn Database + Send + Sync>;
             
             // Check if config exists
-            if let Some(config) = DbConfig::load(&app_data_dir) {
+            if let Some(mut config) = DbConfig::load(&app_data_dir) {
                 println!("Loaded DB config: {:?}", config);
-                 // For local DB, we just use the config. If it fails, the UI should handle setup.
-                 // We do NOT block startup to provision DB, as it causes timeouts.
-                 let conn = add_connect_timeout(&config.connection_string);
-                 match db::postgres_init::init_db(&conn) {
-                     Ok(()) => {
-                         match PostgresDatabase::new(&conn) {
-                            Ok(pg_db) => { db = Box::new(pg_db); }
-                            Err(e) => {
-                                println!("Postgres connect error: {}", e);
-                                println!("Critical Error: Failed to connect to configured Postgres database. Application is in Error State.");
-                                db = Box::new(crate::db::NoOpDatabase);
-                            }
+                 
+                 let conn = if config.db_type == db::config::DbType::Embedded {
+                    println!("Starting embedded Postgres...");
+                    let handle = app.handle().clone();
+                    match tauri::async_runtime::block_on(async move {
+                        setup::embedded::start_embedded_postgres(&handle).await
+                    }) {
+                        Ok(c) => {
+                            config.connection_string = c.clone();
+                            let _ = config.save(&app_data_dir);
+                            c
+                        }
+                        Err(e) => {
+                            println!("Failed to start embedded Postgres: {}", e);
+                            add_connect_timeout(&config.connection_string)
                         }
                     }
+                 } else {
+                    add_connect_timeout(&config.connection_string)
+                 };
+
+                let conn_clone = conn.clone();
+                if let Err(e) = tauri::async_runtime::block_on(async move {
+                    db::postgres_init::init_db(&conn_clone).await
+                }) {
+                    println!("Postgres init error: {:?}", e);
+                    println!("Critical Error: Failed to initialize Postgres database. Application is in Error State.");
+                }
+
+                match PostgresDatabase::new(&conn) {
+                    Ok(pg_db) => { db = Box::new(pg_db); }
                     Err(e) => {
-                        println!("Postgres init error: {:?}", e);
-                        println!("Critical Error: Failed to initialize Postgres database. Application is in Error State.");
+                        println!("Postgres connect error: {}", e);
+                        println!("Critical Error: Failed to connect to configured Postgres database. Application is in Error State.");
                         db = Box::new(crate::db::NoOpDatabase);
                     }
-                 }
+                }
+            } else if let Ok(pg_url) = std::env::var("DATABASE_URL") {
+                println!("Connecting to PostgreSQL via env var...");
+                let conn = add_connect_timeout(&pg_url);
+                let conn_clone = conn.clone();
+                tauri::async_runtime::block_on(async move {
+                    if let Err(e) = db::postgres_init::init_db(&conn_clone).await {
+                        println!("Postgres init error: {:?}", e);
+                        println!("Critical Error: Failed to initialize Postgres (env var). Application is in Error State.");
+                    }
+                });
+
+                match PostgresDatabase::new(&conn) {
+                    Ok(pg_db) => { db = Box::new(pg_db); }
+                    Err(e) => {
+                        println!("Postgres connect error: {:?}", e);
+                        println!("Critical Error: Failed to connect to Postgres (env var). Application is in Error State.");
+                        db = Box::new(crate::db::NoOpDatabase);
+                    }
+                }
             } else {
-                 // Check for Postgres env var as fallback
-                 if let Ok(pg_url) = std::env::var("DATABASE_URL") {
-                    println!("Connecting to PostgreSQL via env var...");
-                    let conn = add_connect_timeout(&pg_url);
-                    match db::postgres_init::init_db(&conn) {
-                        Ok(()) => {
+                println!("No DB config found. Checking for embedded database...");
+                
+                // Auto-initialize embedded database if available
+                if setup::embedded::embedded_available(app.handle()) {
+                    println!("Embedded binaries found! Auto-initializing...");
+                    let handle = app.handle().clone();
+                    match tauri::async_runtime::block_on(async move {
+                        setup::embedded::start_embedded_postgres(&handle).await
+                    }) {
+                        Ok(conn) => {
+                            println!("Embedded Postgres auto-started successfully.");
+                             // Create and save a default config for the next run
+                             let auto_config = DbConfig {
+                                 db_type: db::config::DbType::Embedded,
+                                 connection_string: conn.clone(),
+                             };
+                            let _ = auto_config.save(&app_data_dir);
+                            
+                            // Initialize the database schema
+                            let conn_clone = conn.clone();
+                            tauri::async_runtime::block_on(async move {
+                                if let Err(e) = db::postgres_init::init_db(&conn_clone).await {
+                                    println!("Postgres schema init error after auto-start: {:?}", e);
+                                }
+                            });
+
                             match PostgresDatabase::new(&conn) {
-                                Ok(pg_db) => { db = Box::new(pg_db); }
+                                Ok(pg_db) => { 
+                                    db = Box::new(pg_db); 
+                                    println!("Auto-initialization complete.");
+                                }
                                 Err(e) => {
-                                    println!("Postgres connect error: {:?}", e);
-                                    println!("Critical Error: Failed to connect to Postgres (env var). Application is in Error State.");
+                                    println!("Postgres connect error after auto-start: {}", e);
                                     db = Box::new(crate::db::NoOpDatabase);
                                 }
                             }
                         }
                         Err(e) => {
-                            println!("Postgres init error: {:?}", e);
-                            println!("Critical Error: Failed to initialize Postgres (env var). Application is in Error State.");
+                            println!("Failed to auto-start embedded Postgres: {}", e);
                             db = Box::new(crate::db::NoOpDatabase);
                         }
                     }
-                 } else {
-                    println!("No DB config found. Starting in Setup Mode (NoOpDatabase).");
+                } else {
+                    println!("No embedded binaries found. Starting in Setup Mode (NoOpDatabase).");
                     db = Box::new(crate::db::NoOpDatabase);
-                 }
+                }
             }
 
             // Load or Generate JWT Secret

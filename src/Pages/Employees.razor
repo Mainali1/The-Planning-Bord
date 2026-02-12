@@ -132,17 +132,65 @@
                             <input type="text" @bind="newEmployee.LastName" placeholder="Last Name" class="block w-full border-gray-300 rounded-md shadow-sm" />
                         </div>
                         <input type="email" @bind="newEmployee.Email" placeholder="Email" class="block w-full border-gray-300 rounded-md shadow-sm" />
-                        <select @bind="newEmployee.Role" class="block w-full border-gray-300 rounded-md shadow-sm">
-                            <option value="Employee">Employee</option>
-                            <option value="Manager">Manager</option>
-                            <option value="CEO">CEO</option>
-                            <option value="Technical">Technical</option>
-                        </select>
-                        <select @bind="newEmployee.Status" class="block w-full border-gray-300 rounded-md shadow-sm">
-                            <option value="active">Active</option>
-                            <option value="inactive">Inactive</option>
-                            <option value="on_leave">On Leave</option>
-                        </select>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Role</label>
+                                <select @bind="newEmployee.Role" class="block w-full border-gray-300 rounded-md shadow-sm">
+                                    <option value="Employee">Employee</option>
+                                    <option value="Manager">Manager</option>
+                                    <option value="CEO">CEO</option>
+                                    <option value="Technical">Technical</option>
+                                    <option value="HR">HR</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Status</label>
+                                <select @bind="newEmployee.Status" class="block w-full border-gray-300 rounded-md shadow-sm">
+                                    <option value="active">Active</option>
+                                    <option value="inactive">Inactive</option>
+                                    <option value="on_leave">On Leave</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Department</label>
+                                <input type="text" @bind="newEmployee.Department" placeholder="Department" class="block w-full border-gray-300 rounded-md shadow-sm" />
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Position</label>
+                                <input type="text" @bind="newEmployee.Position" placeholder="Position" class="block w-full border-gray-300 rounded-md shadow-sm" />
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Manager</label>
+                                <select @bind="newEmployee.ManagerId" class="block w-full border-gray-300 rounded-md shadow-sm">
+                                    <option value="">None</option>
+                                    @if (employees != null)
+                                    {
+                                        @foreach (var emp in employees.Where(e => e.Id != newEmployee.Id))
+                                        {
+                                            <option value="@emp.Id">@emp.FirstName @emp.LastName</option>
+                                        }
+                                    }
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Hire Date</label>
+                                <input type="date" @bind="HireDateBind" class="block w-full border-gray-300 rounded-md shadow-sm" />
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Salary (Annual)</label>
+                                <input type="number" @bind="newEmployee.Salary" placeholder="Salary" class="block w-full border-gray-300 rounded-md shadow-sm" />
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Hourly Cost</label>
+                                <input type="number" step="0.01" @bind="newEmployee.HourlyCost" placeholder="Hourly Cost" class="block w-full border-gray-300 rounded-md shadow-sm" />
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
@@ -251,6 +299,12 @@
     private Employee newEmployee = new Employee();
     private Employee? employeeToDelete;
     private string searchTerm = "";
+
+    private DateTime? HireDateBind
+    {
+        get => string.IsNullOrEmpty(newEmployee.HireDate) ? null : DateTime.TryParse(newEmployee.HireDate, out var dt) ? dt : null;
+        set => newEmployee.HireDate = value?.ToString("yyyy-MM-dd");
+    }
 
     // Invite fields
     private string inviteName = "";
@@ -392,7 +446,23 @@
 
     private void EditEmployee(Employee e)
     {
-        newEmployee = new Employee { Id = e.Id, FirstName = e.FirstName, LastName = e.LastName, Email = e.Email, Phone = e.Phone, Role = e.Role, Department = e.Department, Position = e.Position, Salary = e.Salary, Status = e.Status };
+        newEmployee = new Employee 
+        { 
+            Id = e.Id, 
+            EmployeeId = e.EmployeeId,
+            FirstName = e.FirstName, 
+            LastName = e.LastName, 
+            Email = e.Email, 
+            Phone = e.Phone, 
+            Role = e.Role, 
+            Department = e.Department, 
+            Position = e.Position, 
+            ManagerId = e.ManagerId,
+            HireDate = e.HireDate,
+            Salary = e.Salary, 
+            HourlyCost = e.HourlyCost,
+            Status = e.Status 
+        };
         showAddModal = true;
     }
 

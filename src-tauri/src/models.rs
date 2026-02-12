@@ -363,12 +363,17 @@ pub struct BusinessConfiguration {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Service {
     pub id: Option<i32>,
+    pub service_code: String,
     pub name: String,
     pub description: Option<String>,
     pub category: String,
     pub unit_price: f64,
+    pub flat_price: Option<f64>,
     pub billing_type: String,
     pub estimated_hours: Option<f64>,
+    pub typical_duration: Option<f64>,
+    pub duration_unit: Option<String>, // 'days' or 'hours'
+    pub sla_terms: Option<String>,
     pub is_active: bool,
     pub created_at: Option<String>,
     pub updated_at: Option<String>,
@@ -388,6 +393,9 @@ pub struct Client {
     pub credit_limit: Option<f64>,
     pub tax_id: Option<String>,
     pub notes: Option<String>,
+    pub annual_contract_value: Option<f64>,
+    pub primary_products_purchased: Option<String>,
+    pub subscribed_service_ids: Option<Vec<i32>>,
     pub is_active: bool,
     pub created_at: Option<String>,
     pub updated_at: Option<String>,
@@ -468,14 +476,19 @@ pub struct Employee {
     pub employee_id: Option<String>,
     pub first_name: String,
     pub last_name: String,
+    pub full_name: Option<String>,
     pub email: Option<String>,
     pub phone: Option<String>,
     pub role: String,
     pub department: Option<String>,
     pub position: Option<String>,
+    pub manager_id: Option<i32>,
+    pub hire_date: Option<String>,
     pub salary: Option<f64>,
     pub hourly_cost: Option<f64>, // Added for Project Profitability
     pub status: String,
+    pub created_at: Option<String>,
+    pub updated_at: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
