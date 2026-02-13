@@ -15,7 +15,7 @@
 <PageTitle>Reports - The Planning Bord</PageTitle>
 
 <div class="flex justify-between items-center mb-6 print:hidden">
-    <h1 class="text-2xl font-bold text-gray-900">Advanced Reporting</h1>
+    <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Advanced Reporting</h1>
     <div class="space-x-2">
         <button @onclick="ExportPdf" class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">📄 Export PDF</button>
         <button @onclick="ExportExcel" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">📊 Export Excel</button>
@@ -23,27 +23,27 @@
 </div>
 
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-    <div class="bg-white p-6 rounded-lg shadow border-l-4 border-green-500">
-        <div class="text-gray-500 text-sm font-medium">Total Revenue</div>
-        <div class="mt-2 text-3xl font-bold text-gray-900">@summary.TotalRevenue.ToString("C")</div>
+    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow border-l-4 border-green-500">
+        <div class="text-gray-500 dark:text-gray-400 text-sm font-medium">Total Revenue</div>
+        <div class="mt-2 text-3xl font-bold text-gray-900 dark:text-white">@summary.TotalRevenue.ToString("C")</div>
     </div>
-    <div class="bg-white p-6 rounded-lg shadow border-l-4 border-red-500">
-        <div class="text-gray-500 text-sm font-medium">Total Expenses</div>
-        <div class="mt-2 text-3xl font-bold text-gray-900">@summary.TotalExpenses.ToString("C")</div>
+    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow border-l-4 border-red-500">
+        <div class="text-gray-500 dark:text-gray-400 text-sm font-medium">Total Expenses</div>
+        <div class="mt-2 text-3xl font-bold text-gray-900 dark:text-white">@summary.TotalExpenses.ToString("C")</div>
     </div>
-    <div class="bg-white p-6 rounded-lg shadow border-l-4 border-blue-500">
-        <div class="text-gray-500 text-sm font-medium">Net Profit</div>
+    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow border-l-4 border-blue-500">
+        <div class="text-gray-500 dark:text-gray-400 text-sm font-medium">Net Profit</div>
         <div class="mt-2 text-3xl font-bold @(summary.NetProfit >= 0 ? "text-green-600" : "text-red-600")">@summary.NetProfit.ToString("C")</div>
     </div>
-    <div class="bg-white p-6 rounded-lg shadow border-l-4 border-yellow-500">
-        <div class="text-gray-500 text-sm font-medium">Inventory Value</div>
-        <div class="mt-2 text-3xl font-bold text-gray-900">@summary.InventoryValue.ToString("C")</div>
+    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow border-l-4 border-yellow-500">
+        <div class="text-gray-500 dark:text-gray-400 text-sm font-medium">Inventory Value</div>
+        <div class="mt-2 text-3xl font-bold text-gray-900 dark:text-white">@summary.InventoryValue.ToString("C")</div>
     </div>
 </div>
 
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-    <div class="bg-white p-6 rounded-lg shadow">
-        <h3 class="text-lg font-medium text-gray-900 mb-4">Monthly Cashflow</h3>
+    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+        <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Monthly Cashflow</h3>
         <div class="h-64 flex items-end space-x-2">
             @if (cashflow != null && cashflow.Any())
             {
@@ -55,7 +55,7 @@
                     var height = (point.Value / maxVal) * 100;
                     <div class="flex-1 flex flex-col items-center group relative">
                         <div class="w-full bg-blue-500 rounded-t hover:bg-blue-600 transition-all duration-300" style="height: @height%"></div>
-                        <div class="text-xs text-gray-500 mt-1 transform -rotate-45 origin-top-left">@point.Label</div>
+                        <div class="text-xs text-gray-500 dark:text-gray-400 mt-1 transform -rotate-45 origin-top-left">@point.Label</div>
                         
                         <!-- Tooltip -->
                         <div class="absolute bottom-full mb-2 hidden group-hover:block bg-gray-800 text-white text-xs rounded py-1 px-2 z-10 whitespace-nowrap">
@@ -66,28 +66,28 @@
             }
             else
             {
-                <div class="w-full h-full flex items-center justify-center text-gray-400">No Data Available</div>
+                <div class="w-full h-full flex items-center justify-center text-gray-400 dark:text-gray-500">No Data Available</div>
             }
         </div>
     </div>
 
-    <div class="bg-white p-6 rounded-lg shadow">
-        <h3 class="text-lg font-medium text-gray-900 mb-4">Operational Stats</h3>
-        <ul class="divide-y divide-gray-200">
+    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+        <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Operational Stats</h3>
+        <ul class="divide-y divide-gray-200 dark:divide-gray-700">
             <li class="py-3 flex justify-between">
-                <span class="text-gray-600">Active Employees</span>
-                <span class="font-medium">@summary.ActiveEmployees</span>
+                <span class="text-gray-600 dark:text-gray-400">Active Employees</span>
+                <span class="font-medium dark:text-gray-300">@summary.ActiveEmployees</span>
             </li>
             <li class="py-3 flex justify-between">
-                <span class="text-gray-600">Total Sales Count</span>
-                <span class="font-medium">@summary.TotalSalesCount</span>
+                <span class="text-gray-600 dark:text-gray-400">Total Sales Count</span>
+                <span class="font-medium dark:text-gray-300">@summary.TotalSalesCount</span>
             </li>
             <li class="py-3 flex justify-between">
-                <span class="text-gray-600">Pending Tasks</span>
-                <span class="font-medium">@summary.PendingTasks</span>
+                <span class="text-gray-600 dark:text-gray-400">Pending Tasks</span>
+                <span class="font-medium dark:text-gray-300">@summary.PendingTasks</span>
             </li>
             <li class="py-3 flex justify-between">
-                <span class="text-gray-600">System Status</span>
+                <span class="text-gray-600 dark:text-gray-400">System Status</span>
                 <span class="font-medium text-green-600">Online</span>
             </li>
         </ul>

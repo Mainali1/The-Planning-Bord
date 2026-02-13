@@ -6,8 +6,8 @@
 <div class="flex flex-col h-full space-y-6">
     <!-- Header -->
     <div class="flex justify-between items-center">
-        <h3 class="text-lg font-medium leading-6 text-gray-900">Inventory Velocity & Reorder Analysis</h3>
-        <button @onclick="LoadData" class="flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+        <h3 class="text-lg font-medium leading-6 text-gray-900 dark:text-gray-100">Inventory Velocity & Reorder Analysis</h3>
+        <button @onclick="LoadData" class="flex items-center justify-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
             🔄 Refresh Analysis
         </button>
     </div>
@@ -15,22 +15,22 @@
     @if (isLoading)
     {
         <div class="flex-1 flex items-center justify-center">
-            <p class="text-gray-500">Loading analysis data...</p>
+            <p class="text-gray-500 dark:text-gray-400">Loading analysis data...</p>
         </div>
     }
     else if (!reports.Any())
     {
-        <div class="bg-yellow-50 p-4 rounded-md">
+        <div class="bg-yellow-50 dark:bg-yellow-900/30 p-4 rounded-md border border-yellow-200 dark:border-yellow-800/50">
             <div class="flex">
                 <div class="flex-shrink-0">
                     <!-- Heroicon name: solid/exclamation -->
-                    <svg class="h-5 w-5 text-yellow-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <svg class="h-5 w-5 text-yellow-400 dark:text-yellow-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                         <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
                     </svg>
                 </div>
                 <div class="ml-3">
-                    <h3 class="text-sm font-medium text-yellow-800">No Sales Data Found</h3>
-                    <div class="mt-2 text-sm text-yellow-700">
+                    <h3 class="text-sm font-medium text-yellow-800 dark:text-yellow-200">No Sales Data Found</h3>
+                    <div class="mt-2 text-sm text-yellow-700 dark:text-yellow-300">
                         <p>Velocity analysis requires sales history. Once sales are recorded, this report will show reorder recommendations.</p>
                     </div>
                 </div>
@@ -42,47 +42,47 @@
         <!-- Charts Section -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <!-- Top Selling Chart -->
-            <div class="bg-white p-6 rounded-lg shadow">
-                <h4 class="text-base font-medium text-gray-900 mb-4">Top Selling Products (30 Days)</h4>
-                <div class="h-64 flex items-end space-x-4 px-2">
-                    @{
-                        var topSelling = reports.OrderByDescending(r => r.TotalSoldLast30Days).Take(10).ToList();
-                        var maxSold = topSelling.Max(r => r.TotalSoldLast30Days);
-                        if (maxSold == 0) maxSold = 1;
-                    }
-                    @foreach (var item in topSelling)
-                    {
-                        var height = (item.TotalSoldLast30Days / maxSold) * 100;
-                        <div class="flex-1 flex flex-col items-center group relative h-full justify-end">
-                            <div class="w-full bg-blue-500 rounded-t hover:bg-blue-600 transition-all duration-300 relative" style="height: @height%">
-                                <div class="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-xs py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
-                                    @item.ProductName: @item.TotalSoldLast30Days sold
+            <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                <h4 class="text-base font-medium text-gray-900 dark:text-gray-100 mb-4">Top Selling Products (30 Days)</h4>
+                <div class="overflow-x-auto">
+                    <div class="h-64 flex items-end space-x-4 px-2">
+                        @{
+                            var topSelling = reports.OrderByDescending(r => r.TotalSoldLast30Days).Take(10).ToList();
+                            var maxSold = topSelling.Max(r => r.TotalSoldLast30Days);
+                            if (maxSold == 0) maxSold = 1;
+                        }
+                        @foreach (var item in topSelling)
+                        {
+                            var height = (item.TotalSoldLast30Days / maxSold) * 100;
+                            <div class="w-20 flex-shrink-0 flex flex-col items-center group relative h-full justify-end">
+                                <div class="w-full bg-blue-500 dark:bg-blue-600 rounded-t hover:bg-blue-600 dark:hover:bg-blue-500 transition-all duration-300 relative" style="height: @height%">
+                                    <div class="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-900 dark:bg-gray-700 text-white text-xs py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 shadow-lg">
+                                        @item.ProductName: @item.TotalSoldLast30Days sold
+                                    </div>
+                                </div>
+                                <div class="text-xs text-gray-500 dark:text-gray-400 mt-2 w-full text-center break-words" title="@item.ProductName">
+                                    @item.ProductName
                                 </div>
                             </div>
-                            <div class="text-xs text-gray-500 mt-2 truncate w-full text-center" title="@item.ProductName">
-                                @(item.ProductName.Length > 10 ? item.ProductName.Substring(0, 8) + "..." : item.ProductName)
-                            </div>
-                        </div>
-                    }
+                        }
+                    </div>
                 </div>
             </div>
 
             <!-- Reorder Urgency Chart -->
-            <div class="bg-white p-6 rounded-lg shadow">
-                <h4 class="text-base font-medium text-gray-900 mb-4">Reorder Recommendations</h4>
+            <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                <h4 class="text-base font-medium text-gray-900 dark:text-gray-100 mb-4">Reorder Recommendations</h4>
                 <div class="flex items-center justify-center h-64">
                     @{
                         var reorderCount = reports.Count(r => r.RecommendedReorderQty > 0);
-                        var healthyCount = reports.Count(r => r.RecommendedReorderQty <= 0);
                         var total = reports.Count;
-                        var reorderPct = total > 0 ? (double)reorderCount / total * 100 : 0;
                     }
                     <div class="text-center">
-                        <div class="text-5xl font-bold @(reorderCount > 0 ? "text-red-600" : "text-green-600")">
+                        <div class="text-5xl font-bold @(reorderCount > 0 ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400")">
                             @reorderCount
                         </div>
-                        <div class="text-gray-500 mt-1">Products need reordering</div>
-                        <div class="mt-4 text-sm text-gray-400">
+                        <div class="text-gray-500 dark:text-gray-400 mt-1">Products need reordering</div>
+                        <div class="mt-4 text-sm text-gray-400 dark:text-gray-500">
                             Out of @total total tracked products
                         </div>
                     </div>
@@ -91,48 +91,48 @@
         </div>
 
         <!-- Detailed Table -->
-        <div class="bg-white shadow rounded-lg overflow-hidden flex-1">
-            <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
-                <h3 class="text-lg leading-6 font-medium text-gray-900">Detailed Velocity Report</h3>
+        <div class="bg-white dark:bg-gray-800 shadow-sm rounded-lg overflow-hidden flex-1 border border-gray-200 dark:border-gray-700">
+            <div class="px-4 py-5 sm:px-6 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+                <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-gray-100">Detailed Velocity Report</h3>
             </div>
             <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead class="bg-gray-50 dark:bg-gray-900/50">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sold (30d)</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Avg Daily</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Days Cover</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rec. Order</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Product</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Stock</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Sold (30d)</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Avg Daily</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Days Cover</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Rec. Order</th>
                         </tr>
                     </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
+                    <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                         @foreach (var r in reports.OrderByDescending(x => x.RecommendedReorderQty))
                         {
-                            <tr class="@(r.RecommendedReorderQty > 0 ? "bg-red-50" : "") hover:bg-gray-50">
+                            <tr class="@(r.RecommendedReorderQty > 0 ? "bg-red-50 dark:bg-red-900/20" : "") hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="text-sm font-medium text-gray-900">@r.ProductName</div>
-                                    <div class="text-sm text-gray-500">@r.Sku</div>
+                                    <div class="text-sm font-medium text-gray-900 dark:text-gray-100">@r.ProductName</div>
+                                    <div class="text-sm text-gray-500 dark:text-gray-400">@r.Sku</div>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">@r.CurrentQuantity</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">@r.TotalSoldLast30Days</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">@r.AvgDailySales.ToString("F2")</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    @if(r.EstimatedDaysStock > 365) { <span class="text-green-600">> 1 Year</span> }
-                                    else if(r.EstimatedDaysStock < 7) { <span class="text-red-600 font-bold">@r.EstimatedDaysStock.ToString("F0") days</span> }
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-200">@r.CurrentQuantity</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-200">@r.TotalSoldLast30Days</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-200">@r.AvgDailySales.ToString("F2")</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-200">
+                                    @if(r.EstimatedDaysStock > 365) { <span class="text-green-600 dark:text-green-400">> 1 Year</span> }
+                                    else if(r.EstimatedDaysStock < 7) { <span class="text-red-600 dark:text-red-400 font-bold">@r.EstimatedDaysStock.ToString("F0") days</span> }
                                     else { <span>@r.EstimatedDaysStock.ToString("F0") days</span> }
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     @if(r.RecommendedReorderQty > 0)
                                     {
-                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-200">
                                             +@r.RecommendedReorderQty.ToString("F0")
                                         </span>
                                     }
                                     else
                                     {
-                                        <span class="text-gray-400 text-sm">-</span>
+                                        <span class="text-gray-400 dark:text-gray-500 text-sm">-</span>
                                     }
                                 </td>
                             </tr>

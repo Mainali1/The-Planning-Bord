@@ -13,7 +13,7 @@
 
 <div class="p-6">
     <div class="mb-4 flex items-center justify-between">
-        <h1 class="text-2xl font-bold text-gray-800">Projects</h1>
+        <h1 class="text-2xl font-bold text-gray-800 dark:text-white">Projects</h1>
         <div class="flex items-center space-x-2">
             <div class="inline-flex rounded-md shadow-sm" role="group">
                 <button type="button" class="@GetTabButtonClass("overview", "left")" @onclick="ShowOverview">Overview</button>
@@ -32,12 +32,12 @@
     {
         @if (projects == null)
         {
-            <p>Loading projects...</p>
+            <p class="dark:text-gray-400">Loading projects...</p>
         }
         else if (!projects.Any())
         {
-            <div class="text-center py-10 bg-white rounded-lg shadow">
-                <p class="text-gray-500">No projects found. Start by creating one!</p>
+            <div class="text-center py-10 bg-white dark:bg-gray-800 rounded-lg shadow">
+                <p class="text-gray-500 dark:text-gray-400">No projects found. Start by creating one!</p>
             </div>
         }
         else
@@ -45,31 +45,31 @@
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 @foreach (var project in projects)
                 {
-                    <div class="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow cursor-pointer flex flex-col h-full border border-gray-100" @onclick="() => SelectProject(project.Id)">
+                    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow hover:shadow-md dark:hover:shadow-lg transition-shadow cursor-pointer flex flex-col h-full border border-gray-100 dark:border-gray-700" @onclick="() => SelectProject(project.Id)">
                         <div class="flex justify-between items-start mb-3">
-                            <h3 class="text-xl font-semibold text-gray-800 break-words flex-1 pr-2">@project.Name</h3>
+                            <h3 class="text-xl font-semibold text-gray-800 dark:text-white break-words flex-1 pr-2">@project.Name</h3>
                             <!-- Role check removed for development -->
                             <div class="flex items-center space-x-1 -mt-1 -mr-2">
-                                <button class="text-gray-400 hover:text-green-500 transition-colors p-1.5 rounded-full hover:bg-green-50" @onclick:stopPropagation @onclick="() => ViewProfitability(project.Id)" title="Project Profitability">
+                                <button class="text-gray-400 hover:text-green-500 transition-colors p-1.5 rounded-full hover:bg-green-50 dark:hover:bg-green-900" @onclick:stopPropagation @onclick="() => ViewProfitability(project.Id)" title="Project Profitability">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                     </svg>
                                 </button>
-                                <button class="text-gray-400 hover:text-blue-500 transition-colors p-1.5 rounded-full hover:bg-blue-50" @onclick:stopPropagation @onclick="() => EditProject(project)" title="Edit Project">
+                                <button class="text-gray-400 hover:text-blue-500 transition-colors p-1.5 rounded-full hover:bg-blue-50 dark:hover:bg-blue-900" @onclick:stopPropagation @onclick="() => EditProject(project)" title="Edit Project">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                                         <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
                                     </svg>
                                 </button>
-                                <button class="text-gray-400 hover:text-red-500 transition-colors p-1.5 rounded-full hover:bg-red-50" @onclick:stopPropagation @onclick="() => QuickDeleteProject(project.Id)" title="Delete Project">
+                                <button class="text-gray-400 hover:text-red-500 transition-colors p-1.5 rounded-full hover:bg-red-50 dark:hover:bg-red-900" @onclick:stopPropagation @onclick="() => QuickDeleteProject(project.Id)" title="Delete Project">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                                         <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
                                     </svg>
                                 </button>
                             </div>
                         </div>
-                        <p class="text-gray-600 mb-6 flex-grow line-clamp-3 text-sm leading-relaxed">@project.Description</p>
-                        <div class="flex justify-between items-center text-sm text-gray-500 mb-4">
-                            <span>Status: <span class="font-medium text-blue-600">@project.Status</span></span>
+                        <p class="text-gray-600 dark:text-gray-400 mb-6 flex-grow line-clamp-3 text-sm leading-relaxed">@project.Description</p>
+                        <div class="flex justify-between items-center text-sm text-gray-500 dark:text-gray-400 mb-4">
+                            <span>Status: <span class="font-medium text-blue-600 dark:text-blue-400">@project.Status</span></span>
                             <span>@project.StartDate</span>
                         </div>
 
@@ -82,14 +82,14 @@
                                     var emp = employees?.FirstOrDefault(e => e.Id == assign.EmployeeId);
                                     if (emp != null)
                                     {
-                                        <div class="inline-block h-8 w-8 rounded-full ring-2 ring-white bg-gray-200 flex items-center justify-center text-xs font-medium text-gray-600" title="@emp.FirstName @emp.LastName (@assign.Role)">
+                                        <div class="inline-block h-8 w-8 rounded-full ring-2 ring-white dark:ring-gray-800 bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-xs font-medium text-gray-600 dark:text-gray-300" title="@emp.FirstName @emp.LastName (@assign.Role)">
                                             @GetInitials(emp.FirstName, emp.LastName)
                                         </div>
                                     }
                                 }
                                 @if (projectAssignmentsMap[project.Id.Value].Count > 5)
                                 {
-                                    <div class="inline-block h-8 w-8 rounded-full ring-2 ring-white bg-gray-100 flex items-center justify-center text-xs font-medium text-gray-500">
+                                    <div class="inline-block h-8 w-8 rounded-full ring-2 ring-white dark:ring-gray-800 bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-xs font-medium text-gray-500 dark:text-gray-400">
                                         +@(projectAssignmentsMap[project.Id.Value].Count - 5)
                                     </div>
                                 }
@@ -102,9 +102,9 @@
     }
     else if (activeTab == "timeline")
     {
-        <div class="bg-white p-6 rounded-lg shadow">
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow border border-gray-200 dark:border-gray-700">
             <div class="flex flex-wrap items-center gap-4 mb-6">
-                <select class="px-3 py-2 border rounded-md bg-white shadow-sm focus:ring-blue-500 focus:border-blue-500" value="@selectedProjectId" @onchange="OnProjectChanged">
+                <select class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus:ring-blue-500 focus:border-blue-500" value="@selectedProjectId" @onchange="OnProjectChanged">
                     @if (projects != null && projects.Any())
                     {
                         @foreach (var p in projects)
@@ -113,90 +113,142 @@
                         }
                     }
                 </select>
-                <select class="px-3 py-2 border rounded-md bg-white shadow-sm focus:ring-blue-500 focus:border-blue-500" value="@selectedProjectStatus" @onchange="OnProjectStatusChanged">
+                <select class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus:ring-blue-500 focus:border-blue-500" value="@selectedProjectStatus" @onchange="OnProjectStatusChanged">
                     @foreach (var s in projectStatusOptions)
                     {
                         <option value="@s">@s</option>
                     }
                 </select>
-                <button class="px-3 py-2 border rounded-md text-sm hover:bg-gray-50 transition-colors" @onclick="ReloadTasks">Reload Tasks</button>
-                <button class="px-3 py-2 bg-green-600 text-white rounded-md text-sm hover:bg-green-700 shadow-sm transition-colors" @onclick="OpenAddTaskModal">
-                    + Add Task
-                </button>
+                <button class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" @onclick="ReloadTasks">Reload</button>
+                <div class="flex space-x-2 ml-auto">
+                    <button class="px-3 py-2 bg-purple-600 text-white rounded-md text-sm hover:bg-purple-700 dark:bg-purple-500 dark:hover:bg-purple-600 shadow-sm transition-colors" @onclick="OpenAddPhaseModal">
+                        + Phase
+                    </button>
+                    <button class="px-3 py-2 bg-yellow-600 text-white rounded-md text-sm hover:bg-yellow-700 dark:bg-yellow-500 dark:hover:bg-yellow-600 shadow-sm transition-colors" @onclick="OpenAddMilestoneModal">
+                        + Milestone
+                    </button>
+                    <button class="px-3 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 shadow-sm transition-colors" @onclick="OpenAddTaskModal">
+                        + Task
+                    </button>
+                </div>
             </div>
-            @if (projectTasks == null)
+            @if (projectTasks == null || projectTimeline == null)
             {
-                <p>Loading tasks...</p>
+                <p class="dark:text-gray-400">Loading project timeline...</p>
             }
-            else if (!projectTasks.Any())
+            else if (!projectTasks.Any() && !projectTimeline.Phases.Any() && !projectTimeline.Milestones.Any())
             {
-                <p class="text-gray-500">No tasks for the selected project.</p>
+                <p class="text-gray-500 dark:text-gray-400 text-center py-10">No data for the selected project. Start by adding a phase, milestone, or task.</p>
             }
             else
             {
-                <div class="mb-2 text-sm text-gray-600">From @minDate.ToString("yyyy-MM-dd") to @maxDate.ToString("yyyy-MM-dd") (@totalDays days)</div>
-                <div class="flex items-center space-x-4 mb-2 text-xs">
-                    <div class="inline-flex items-center space-x-1"><span class="inline-block w-3 h-3 bg-blue-500 rounded"></span><span>Task</span></div>
-                    <div class="inline-flex items-center space-x-1"><span class="inline-block w-3 h-3 bg-yellow-500" style="transform: rotate(45deg)"></span><span>Milestone</span></div>
-                    <div class="inline-flex items-center space-x-1"><span class="inline-block w-3 h-3 bg-red-600 rounded"></span><span>Critical</span></div>
+                <div class="mb-4 text-sm text-gray-600 dark:text-gray-400 flex justify-between items-center">
+                    <div class="bg-white dark:bg-gray-800 px-3 py-1 rounded-full border border-gray-200 dark:border-gray-700 shadow-sm">From <span class="font-medium">@minDate.ToString("yyyy-MM-dd")</span> to <span class="font-medium">@maxDate.ToString("yyyy-MM-dd")</span> (@totalDays days)</div>
+                    <div class="flex items-center space-x-4 text-xs">
+                        <div class="inline-flex items-center space-x-1.5 bg-white dark:bg-gray-800 px-2 py-1 rounded-full border border-gray-100 dark:border-gray-700 shadow-sm"><span class="inline-block w-2.5 h-2.5 bg-blue-500 rounded-sm"></span><span class="text-gray-600 dark:text-gray-400">Task</span></div>
+                        <div class="inline-flex items-center space-x-1.5 bg-white dark:bg-gray-800 px-2 py-1 rounded-full border border-gray-100 dark:border-gray-700 shadow-sm"><span class="inline-block w-2.5 h-2.5 bg-purple-500 rounded-sm"></span><span class="text-gray-600 dark:text-gray-400">Phase</span></div>
+                        <div class="inline-flex items-center space-x-1.5 bg-white dark:bg-gray-800 px-2 py-1 rounded-full border border-gray-100 dark:border-gray-700 shadow-sm"><span class="inline-block w-2.5 h-2.5 bg-yellow-500" style="transform: rotate(45deg)"></span><span class="text-gray-600 dark:text-gray-400">Milestone</span></div>
+                        <div class="inline-flex items-center space-x-1.5 bg-white dark:bg-gray-800 px-2 py-1 rounded-full border border-gray-100 dark:border-gray-700 shadow-sm"><span class="inline-block w-2.5 h-2.5 bg-red-600 rounded-sm"></span><span class="text-gray-600 dark:text-gray-400">Critical</span></div>
+                    </div>
                 </div>
-                <div class="relative border rounded overflow-auto" style="height:@(projectTasks.Count * rowHeight + 40)px; width:@(timelineWidthPx)px" @onmousemove="OnTimelineMouseMove" @onmouseup="OnTimelineMouseUp">
-                    @foreach (var gl in gridLines)
-                    {
-                        <div class="absolute top-0" style="left:@gl.pct%; height:100%; width:1px; background-color:#eee"></div>
-                        <div class="absolute text-[10px] text-gray-500" style="left:calc(@gl.pct% + 2px); top:0;">@gl.label</div>
-                    }
-                    <svg class="absolute top-0 left-0 w-full h-full pointer-events-none" style="z-index: 0;" viewBox="0 0 100 @(projectTasks.Count * rowHeight + 40)" preserveAspectRatio="none">
-                        <defs>
-                            <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto" markerUnits="userSpaceOnUse">
-                                <polygon points="0 0, 10 3.5, 0 7" fill="#9CA3AF" />
-                            </marker>
-                        </defs>
-                        @foreach (var line in dependencyLines)
-                        {
-                            <path d="@line.Path" stroke="#9CA3AF" stroke-width="1.5" vector-effect="non-scaling-stroke" fill="none" marker-end="url(#arrowhead)" />
-                        }
-                    </svg>
 
-                    @for (int i = 0; i < projectTasks.Count; i++)
-                    {
-                        var t = projectTasks[i];
-                        var pos = GetBarPosition(t);
-                        var isMilestone = t.StartDate == t.DueDate;
+                <div class="relative border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900/50 overflow-auto" style="height:500px;" @onmousemove="OnTimelineMouseMove" @onmouseup="OnTimelineMouseUp">
+                    <div style="width:@(timelineWidthPx)px; position: relative; min-height: 100%;">
+                        @foreach (var gl in gridLines)
+                        {
+                            <div class="absolute top-0 bg-gray-200/50 dark:bg-gray-700/50 border-l border-gray-400/20 dark:border-gray-600/20" style="left:@gl.pct%; height:100%; width:1px; z-index: 0;"></div>
+                            <div class="absolute text-[10px] text-gray-400 dark:text-gray-500 font-medium z-10" style="left:calc(@gl.pct% + 4px); top:4px;">@gl.label</div>
+                        }
                         
-                        <div class="absolute left-0 right-0" style="top:@(i * rowHeight + 20)px; height:@(rowHeight)px; z-index: 1;">
-                            @if (isMilestone)
+                        <!-- Phases (Background) -->
+                        <div class="pt-8 relative" style="z-index: 5;">
+                            @foreach (var phase in projectTimeline.Phases.OrderBy(p => p.SortOrder))
                             {
-                                <div class="absolute bg-yellow-500 transform rotate-45" 
-                                     style="left:@pos.left%; width:@(rowHeight-12)px; height:@(rowHeight-12)px; top:6px;"
-                                     title="@t.Name: @t.StartDate">
-                                </div>
-                                <span class="absolute text-xs text-gray-700 truncate ml-2" style="left:calc(@pos.left% + 24px); top:6px;">@t.Name</span>
-                            }
-                            else
-                            {
-                                <div class="absolute @(IsCritical(t) ? "bg-red-600" : "bg-blue-500") rounded text-white text-xs flex items-center justify-between px-2 overflow-hidden cursor-move hover:bg-blue-600 transition-colors shadow-sm" 
-                                     style="left:@pos.left%; width:@pos.width%; height:@(rowHeight-8)px; top:4px;"
-                                     title="@t.Name (@t.StartDate - @t.DueDate)" 
-                                     @onmousedown="@(() => StartDrag(t, DragMode.Move))"
-                                     @ondblclick="@(() => OpenEditTask(t))">
-                                    <span class="truncate select-none pointer-events-none">@t.Name</span>
-                                    <div class="absolute left-0 top-0 h-full w-2 cursor-ew-resize z-10 hover:bg-white/20" @onmousedown="@(() => StartDrag(t, DragMode.ResizeLeft))" @onmousedown:stopPropagation></div>
-                                    <div class="absolute right-0 top-0 h-full w-2 cursor-ew-resize z-10 hover:bg-white/20" @onmousedown="@(() => StartDrag(t, DragMode.ResizeRight))" @onmousedown:stopPropagation></div>
+                                var pos = GetPhasePosition(phase);
+                                <div class="relative mb-2 px-2" style="height: 32px;">
+                                    <div class="absolute rounded-md flex items-center px-3 text-xs font-semibold text-white shadow-sm cursor-pointer hover:brightness-110 transition-all border border-black/10 dark:border-white/10"
+                                         style="left:@pos.left%; width:@pos.width%; height:24px; background-color:@(string.IsNullOrEmpty(phase.Color) ? "#8b5cf6" : phase.Color)"
+                                         @onclick="() => EditPhase(phase)"
+                                         title="@phase.Name (@phase.StartDate to @phase.EndDate)">
+                                        <span class="truncate">@phase.Name</span>
+                                    </div>
                                 </div>
                             }
                         </div>
-                    }
+
+                        <!-- Milestones -->
+                        <div class="relative h-8 border-b border-gray-200 dark:border-gray-700 mb-4" style="z-index: 20;">
+                            @foreach (var milestone in projectTimeline.Milestones)
+                            {
+                                var pos = GetMilestonePosition(milestone);
+                                <div class="absolute cursor-pointer group" style="left:@pos.left%; top: 4px;" @onclick="() => EditMilestone(milestone)">
+                                    <div class="w-4 h-4 bg-yellow-500 transform rotate-45 border-2 border-white dark:border-gray-800 shadow-sm group-hover:bg-yellow-400 transition-colors"></div>
+                                    <div class="absolute left-6 top-[-4px] whitespace-nowrap bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-2 py-1 rounded shadow-md text-[10px] font-bold border border-gray-200 dark:border-gray-700 opacity-0 group-hover:opacity-100 transition-opacity z-50">
+                                        @milestone.Name (@milestone.Date)
+                                    </div>
+                                    @if (milestone.IsCritical)
+                                    {
+                                        <div class="absolute -top-1 -right-1 w-2 h-2 bg-red-600 rounded-full border border-white dark:border-gray-800 shadow-sm"></div>
+                                    }
+                                </div>
+                            }
+                        </div>
+
+                        <!-- Tasks (Gantt) -->
+                        <div class="relative" style="z-index: 10;">
+                            <svg class="absolute top-0 left-0 w-full h-full pointer-events-none" style="z-index: 0;">
+                                <defs>
+                                    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto" markerUnits="userSpaceOnUse">
+                                        <polygon points="0 0, 10 3.5, 0 7" class="fill-gray-400 dark:fill-gray-500" />
+                                    </marker>
+                                </defs>
+                                @foreach (var line in dependencyLines)
+                                {
+                                    <path d="@line.Path" stroke-width="1.5" vector-effect="non-scaling-stroke" fill="none" marker-end="url(#arrowhead)" class="stroke-gray-400 dark:stroke-gray-500 opacity-60 dark:opacity-40" />
+                                }
+                            </svg>
+
+                            @for (int i = 0; i < projectTasks.Count; i++)
+                            {
+                                var t = projectTasks[i];
+                                var pos = GetBarPosition(t);
+                                var isMilestoneTask = t.StartDate == t.DueDate;
+                                
+                                <div class="relative" style="height:@(rowHeight)px;">
+                                    @if (isMilestoneTask)
+                                    {
+                                        <div class="absolute bg-yellow-500 transform rotate-45 border border-white dark:border-gray-800 shadow-sm" 
+                                             style="left:@pos.left%; width:16px; height:16px; top:12px; z-index: 15;"
+                                             title="@t.Name: @t.StartDate">
+                                        </div>
+                                        <span class="absolute text-[11px] text-gray-600 dark:text-gray-400 truncate ml-6" style="left:@pos.left%; top:12px;">@t.Name</span>
+                                    }
+                                    else
+                                    {
+                                        <div class="absolute @(IsCritical(t) ? "bg-red-600" : "bg-blue-500") rounded-md text-white text-[11px] flex items-center justify-between px-2 overflow-hidden cursor-move hover:brightness-110 transition-all shadow-sm border border-black/10 dark:border-white/10" 
+                                             style="left:@pos.left%; width:@pos.width%; height:28px; top:6px; z-index: 10;"
+                                             title="@t.Name (@t.StartDate - @t.DueDate)" 
+                                             @onmousedown="@(() => StartDrag(t, DragMode.Move))"
+                                             @ondblclick="@(() => OpenEditTask(t))">
+                                            <span class="truncate select-none pointer-events-none font-medium">@t.Name</span>
+                                            <div class="absolute left-0 top-0 h-full w-2 cursor-ew-resize z-20 hover:bg-white/20" @onmousedown="@(() => StartDrag(t, DragMode.ResizeLeft))" @onmousedown:stopPropagation></div>
+                                            <div class="absolute right-0 top-0 h-full w-2 cursor-ew-resize z-20 hover:bg-white/20" @onmousedown="@(() => StartDrag(t, DragMode.ResizeRight))" @onmousedown:stopPropagation></div>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
                 </div>
             }
         </div>
     }
     else if (activeTab == "tasks")
     {
-        <div class="bg-white p-6 rounded-lg shadow">
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow border border-gray-200 dark:border-gray-700">
             <div class="flex justify-between items-center mb-6">
                 <div class="flex items-center space-x-3">
-                    <select class="px-3 py-2 border rounded-md" value="@selectedProjectId" @onchange="OnProjectChanged">
+                    <select class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus:ring-blue-500 focus:border-blue-500" value="@selectedProjectId" @onchange="OnProjectChanged">
                         @if (projects != null && projects.Any())
                         {
                             @foreach (var p in projects)
@@ -205,76 +257,76 @@
                             }
                         }
                     </select>
-                    <h2 class="text-xl font-bold text-gray-800">Project Tasks</h2>
+                    <h2 class="text-xl font-bold text-gray-800 dark:text-white">Project Tasks</h2>
                 </div>
-                <button class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700" @onclick="OpenAddTaskModal">
+                <button class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 shadow-sm transition-colors" @onclick="OpenAddTaskModal">
                     + Add Task
                 </button>
             </div>
 
             @if (projectTasks == null)
             {
-                <p>Loading tasks...</p>
+                <p class="dark:text-gray-400">Loading tasks...</p>
             }
             else if (!projectTasks.Any())
             {
-                <div class="text-center py-10 bg-gray-50 rounded-lg">
-                    <p class="text-gray-500">No tasks found for this project.</p>
+                <div class="text-center py-10 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <p class="text-gray-500 dark:text-gray-400">No tasks found for this project.</p>
                 </div>
             }
             else
             {
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
+                <div class="overflow-x-auto border border-gray-200 dark:border-gray-700 rounded-lg">
+                    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                        <thead class="bg-gray-50 dark:bg-gray-900/50">
                             <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Task</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assigned To</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
-                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Task</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Description</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Assigned To</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Priority</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Due Date</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
                             </tr>
                         </thead>
-                        <tbody class="bg-white divide-y divide-gray-200">
+                        <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                             @foreach (var task in projectTasks)
                             {
                                 var assignee = employees?.FirstOrDefault(e => e.Id == task.AssignedTo);
-                                <tr>
+                                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                                     <td class="px-6 py-4 whitespace-nowrap">
-                                        <div class="text-sm font-medium text-gray-900">@task.Name</div>
+                                        <div class="text-sm font-medium text-gray-900 dark:text-white">@task.Name</div>
                                     </td>
                                     <td class="px-6 py-4">
-                                        <div class="text-sm text-gray-500 line-clamp-2" title="@task.Description">@task.Description</div>
+                                        <div class="text-sm text-gray-500 dark:text-gray-400 line-clamp-2" title="@task.Description">@task.Description</div>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap">
-                                        <div class="text-sm text-gray-900">@(assignee?.FirstName ?? "Unassigned") @(assignee?.LastName ?? "")</div>
+                                        <div class="text-sm text-gray-900 dark:text-white">@(assignee?.FirstName ?? "Unassigned") @(assignee?.LastName ?? "")</div>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap">
                                         <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                            @(task.Priority == "critical" ? "bg-red-100 text-red-800" : 
-                                              task.Priority == "high" ? "bg-orange-100 text-orange-800" : 
-                                              task.Priority == "medium" ? "bg-yellow-100 text-yellow-800" : 
-                                              "bg-green-100 text-green-800")">
+                                            @(task.Priority == "critical" ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400" : 
+                                              task.Priority == "high" ? "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400" : 
+                                              task.Priority == "medium" ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400" : 
+                                              "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400")">
                                             @task.Priority
                                         </span>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap">
                                         <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                            @(task.Status == "done" ? "bg-green-100 text-green-800" : 
-                                              task.Status == "in_progress" ? "bg-blue-100 text-blue-800" : 
-                                              task.Status == "review" ? "bg-purple-100 text-purple-800" : 
-                                              "bg-gray-100 text-gray-800")">
+                                            @(task.Status == "done" ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" : 
+                                              task.Status == "in_progress" ? "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400" : 
+                                              task.Status == "review" ? "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400" : 
+                                              "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300")">
                                             @task.Status
                                         </span>
                                     </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                                         @Parse(task.DueDate).ToString("yyyy-MM-dd")
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                        <button @onclick="() => OpenEditTask(task)" class="text-indigo-600 hover:text-indigo-900 mr-4">Edit</button>
-                                        <button @onclick="() => ConfirmDeleteTask(task)" class="text-red-600 hover:text-red-900">Delete</button>
+                                        <button @onclick="() => OpenEditTask(task)" class="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300 mr-4 transition-colors">Edit</button>
+                                        <button @onclick="() => ConfirmDeleteTask(task)" class="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300 transition-colors">Delete</button>
                                     </td>
                                 </tr>
                             }
@@ -286,10 +338,10 @@
     }
     else if (activeTab == "team")
     {
-        <div class="bg-white p-6 rounded-lg shadow">
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow border border-gray-200 dark:border-gray-700">
             <div class="flex justify-between items-center mb-6">
                 <div class="flex items-center space-x-3">
-                    <select class="px-3 py-2 border rounded-md" value="@selectedProjectId" @onchange="OnProjectChanged">
+                    <select class="px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white" value="@selectedProjectId" @onchange="OnProjectChanged">
                         @if (projects != null && projects.Any())
                         {
                             @foreach (var p in projects)
@@ -298,21 +350,21 @@
                             }
                         }
                     </select>
-                    <h2 class="text-xl font-bold text-gray-800">Project Team</h2>
+                    <h2 class="text-xl font-bold text-gray-800 dark:text-white">Project Team</h2>
                 </div>
-                <button class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700" @onclick="OpenAddMemberModal" aria-label="Assign Employee">
+                <button class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 shadow-sm transition-colors" @onclick="OpenAddMemberModal" aria-label="Assign Employee">
                     + Assign Employee
                 </button>
             </div>
 
             @if (projectAssignments == null)
             {
-                <p>Loading team members...</p>
+                <p class="dark:text-gray-400">Loading team members...</p>
             }
             else if (!projectAssignments.Any())
             {
-                <div class="text-center py-10 bg-gray-50 rounded-lg">
-                    <p class="text-gray-500">No team members assigned to this project.</p>
+                <div class="text-center py-10 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <p class="text-gray-500 dark:text-gray-400">No team members assigned to this project.</p>
                 </div>
             }
             else
@@ -321,14 +373,14 @@
                     @foreach (var assignment in projectAssignments)
                     {
                         var emp = employees?.FirstOrDefault(e => e.Id == assignment.EmployeeId);
-                        <div class="border rounded-lg p-4 flex justify-between items-center">
+                        <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 flex justify-between items-center hover:shadow-md dark:hover:shadow-lg transition-all">
                             <div>
-                                <h4 class="font-medium text-gray-900">@(emp?.FirstName ?? "Unknown") @(emp?.LastName ?? "Employee")</h4>
-                                <p class="text-sm text-gray-500">@assignment.Role</p>
-                                <p class="text-xs text-gray-400">Assigned: @assignment.AssignedAt</p>
+                                <h4 class="font-medium text-gray-900 dark:text-white">@(emp?.FirstName ?? "Unknown") @(emp?.LastName ?? "Employee")</h4>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">@assignment.Role</p>
+                                <p class="text-xs text-gray-400 dark:text-gray-500">Assigned: @assignment.AssignedAt</p>
                             </div>
                             <!-- Role check removed for development -->
-                            <button class="text-red-500 hover:text-red-700 p-2" @onclick="() => RemoveMember(assignment)">
+                            <button class="text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 p-2 transition-colors" @onclick="() => RemoveMember(assignment)">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                                     <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
                                 </svg>
@@ -343,19 +395,22 @@
 
 @if (showModal)
 {
-    <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
-        <div class="relative w-full max-w-lg bg-white rounded-lg shadow-xl overflow-hidden">
-            <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
-                <h3 class="text-xl font-semibold text-gray-800">@((newProject.Id.HasValue ? "Edit" : "Add New")) Project</h3>
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto" aria-labelledby="modal-title-project" role="dialog" aria-modal="true">
+        <div class="fixed inset-0 transition-opacity" aria-hidden="true" @onclick="CloseModal">
+            <div class="absolute inset-0 bg-gray-500/75 dark:bg-gray-900/80"></div>
+        </div>
+        <div class="relative w-full max-w-lg bg-white dark:bg-gray-800 rounded-lg shadow-xl overflow-hidden border border-gray-200 dark:border-gray-700 transform transition-all">
+            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
+                <h3 class="text-xl font-semibold text-gray-800 dark:text-white" id="modal-title-project">@((newProject.Id.HasValue ? "Edit" : "Add New")) Project</h3>
             </div>
             <div class="p-6 space-y-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Project Name</label>
-                    <input @bind="newProject.Name" placeholder="Project Name" class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 px-4 py-2 border" />
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Project Name</label>
+                    <input @bind="newProject.Name" placeholder="Project Name" class="w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 px-4 py-2 border bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Client</label>
-                    <select @bind="newProject.ClientId" class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 px-4 py-2 border">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Client</label>
+                    <select @bind="newProject.ClientId" class="w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 px-4 py-2 border bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
                         <option value="">Select Client...</option>
                         @if (clients != null)
                         {
@@ -367,17 +422,17 @@
                     </select>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                    <textarea @bind="newProject.Description" placeholder="Description" rows="3" class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 px-4 py-2 border"></textarea>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+                    <textarea @bind="newProject.Description" placeholder="Description" rows="3" class="w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 px-4 py-2 border bg-white dark:bg-gray-700 text-gray-900 dark:text-white"></textarea>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
-                        <input value="@newProject.StartDate" type="date" class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 px-4 py-2 border" @onchange="OnStartDateChanged" />
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Start Date</label>
+                        <input value="@newProject.StartDate" type="date" class="w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 px-4 py-2 border bg-white dark:bg-gray-700 text-gray-900 dark:text-white" @onchange="OnStartDateChanged" />
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                        <select @bind="newProject.Status" class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 px-4 py-2 border">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
+                        <select @bind="newProject.Status" class="w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 px-4 py-2 border bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
                             <option value="planning">Planning</option>
                             <option value="active">Active</option>
                             <option value="on_hold">On Hold</option>
@@ -387,8 +442,8 @@
                     </div>
                 </div>
             </div>
-            <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-3">
-                <button @onclick="CloseModal" disabled="@isLoading" class="px-4 py-2 bg-white text-gray-700 border border-gray-300 font-medium rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 shadow-sm transition-colors">Cancel</button>
+            <div class="px-6 py-4 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-200 dark:border-gray-700 flex justify-end space-x-3">
+                <button @onclick="CloseModal" disabled="@isLoading" class="px-4 py-2 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 font-medium rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 shadow-sm transition-colors">Cancel</button>
                 <button @onclick="AddProject" disabled="@isLoading" class="px-4 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 shadow-sm transition-colors flex items-center">
                     @if (isLoading)
                     {
@@ -406,11 +461,14 @@
 
 @if (showTaskModal)
 {
-    <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
-        <div class="relative w-full max-w-3xl bg-white rounded-lg shadow-xl overflow-hidden my-8">
-            <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
-                <h3 class="text-xl font-semibold text-gray-800">@((newTask.Id.HasValue ? "Edit" : "Add")) Task</h3>
-                <button @onclick="CloseTaskModal" class="text-gray-400 hover:text-gray-500 transition-colors">
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto" aria-labelledby="modal-title-task" role="dialog" aria-modal="true">
+        <div class="fixed inset-0 transition-opacity" aria-hidden="true" @onclick="CloseTaskModal">
+            <div class="absolute inset-0 bg-gray-500/75 dark:bg-gray-900/80"></div>
+        </div>
+        <div class="relative w-full max-w-3xl bg-white dark:bg-gray-800 rounded-lg shadow-xl overflow-hidden my-8 border border-gray-200 dark:border-gray-700 transform transition-all">
+            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-900/50">
+                <h3 class="text-xl font-semibold text-gray-800 dark:text-white" id="modal-title-task">@((newTask.Id.HasValue ? "Edit" : "Add")) Task</h3>
+                <button @onclick="CloseTaskModal" class="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300 transition-colors">
                     <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                     </svg>
@@ -419,30 +477,30 @@
             <div class="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
                 <div class="space-y-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Task Name</label>
-                        <input @bind="newTask.Name" placeholder="Enter task name" class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 px-4 py-2 border" />
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Task Name</label>
+                        <input @bind="newTask.Name" placeholder="Enter task name" class="w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 px-4 py-2 border bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
                     </div>
                     
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                        <textarea @bind="newTask.Description" rows="3" placeholder="Enter task description" class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 px-4 py-2 border"></textarea>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+                        <textarea @bind="newTask.Description" rows="3" placeholder="Enter task description" class="w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 px-4 py-2 border bg-white dark:bg-gray-700 text-gray-900 dark:text-white"></textarea>
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
-                            <input type="date" value="@newTask.StartDate" class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 px-4 py-2 border" @onchange="OnTaskStartChanged" />
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Start Date</label>
+                            <input type="date" value="@newTask.StartDate" class="w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 px-4 py-2 border bg-white dark:bg-gray-700 text-gray-900 dark:text-white" @onchange="OnTaskStartChanged" />
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
-                            <input type="date" value="@newTask.DueDate" class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 px-4 py-2 border" @onchange="OnTaskDueChanged" />
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Due Date</label>
+                            <input type="date" value="@newTask.DueDate" class="w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 px-4 py-2 border bg-white dark:bg-gray-700 text-gray-900 dark:text-white" @onchange="OnTaskDueChanged" />
                         </div>
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Assigned To</label>
-                            <select @bind="newTask.AssignedTo" class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 px-4 py-2 border">
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Assigned To</label>
+                            <select @bind="newTask.AssignedTo" class="w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 px-4 py-2 border bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
                                 <option value="">Assign to...</option>
                                 @if (employees != null)
                                 {
@@ -457,8 +515,8 @@
                             </select>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Priority</label>
-                            <select @bind="newTask.Priority" class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 px-4 py-2 border">
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Priority</label>
+                            <select @bind="newTask.Priority" class="w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 px-4 py-2 border bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
                                 <option value="low">Low</option>
                                 <option value="medium">Medium</option>
                                 <option value="high">High</option>
@@ -466,8 +524,8 @@
                             </select>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                            <select @bind="newTask.Status" class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 px-4 py-2 border">
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
+                            <select @bind="newTask.Status" class="w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 px-4 py-2 border bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
                                 <option value="todo">To Do</option>
                                 <option value="in_progress">In Progress</option>
                                 <option value="review">Review</option>
@@ -476,32 +534,32 @@
                         </div>
                     </div>
                     
-                    <div class="border-t border-gray-200 pt-6 mt-6">
+                    <div class="border-t border-gray-200 dark:border-gray-700 pt-6 mt-6">
                         <label class="flex items-center space-x-3 mb-4 cursor-pointer">
-                            <input type="checkbox" @bind="isMilestone" class="rounded text-blue-600 focus:ring-blue-500 h-5 w-5 border-gray-300" />
-                            <span class="text-sm font-medium text-gray-700">Mark as Milestone</span>
+                            <input type="checkbox" @bind="isMilestone" class="rounded text-blue-600 focus:ring-blue-500 h-5 w-5 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700" />
+                            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Mark as Milestone</span>
                         </label>
                         
                         @if (!isMilestone)
                         {
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Dependencies (Select tasks that must be completed first)</label>
-                                <div class="max-h-48 overflow-y-auto border border-gray-300 rounded-md p-3 bg-gray-50">
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Dependencies (Select tasks that must be completed first)</label>
+                                <div class="max-h-48 overflow-y-auto border border-gray-300 dark:border-gray-600 rounded-md p-3 bg-gray-50 dark:bg-gray-900/50">
                                     @if (projectTasks != null && projectTasks.Any(t => t.Id != newTask.Id))
                                     {
                                         <div class="space-y-2">
                                             @foreach (var t in projectTasks.Where(t => t.Id != newTask.Id))
                                             {
-                                                <label class="flex items-center space-x-3 p-2 hover:bg-white rounded cursor-pointer transition-colors">
-                                                    <input type="checkbox" checked="@selectedPredecessorIds.Contains(t.Id ?? 0)" @onchange="(e) => TogglePredecessor(t.Id ?? 0, e)" class="rounded text-blue-600 focus:ring-blue-500 h-4 w-4 border-gray-300" />
-                                                    <span class="text-sm text-gray-700">@t.Name</span>
+                                                <label class="flex items-center space-x-3 p-2 hover:bg-white dark:hover:bg-gray-800 rounded cursor-pointer transition-colors">
+                                                    <input type="checkbox" checked="@selectedPredecessorIds.Contains(t.Id ?? 0)" @onchange="(e) => TogglePredecessor(t.Id ?? 0, e)" class="rounded text-blue-600 focus:ring-blue-500 h-4 w-4 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700" />
+                                                    <span class="text-sm text-gray-700 dark:text-gray-300">@t.Name</span>
                                                 </label>
                                             }
                                         </div>
                                     }
                                     else
                                     {
-                                        <p class="text-sm text-gray-500 italic">No other tasks available for dependency.</p>
+                                        <p class="text-sm text-gray-500 dark:text-gray-400 italic">No other tasks available for dependency.</p>
                                     }
                                 </div>
                             </div>
@@ -509,8 +567,8 @@
                     </div>
                 </div>
             </div>
-            <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-3">
-                <button @onclick="CloseTaskModal" class="px-4 py-2 bg-white text-gray-700 border border-gray-300 font-medium rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 shadow-sm transition-colors">Cancel</button>
+            <div class="px-6 py-4 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-200 dark:border-gray-700 flex justify-end space-x-3">
+                <button @onclick="CloseTaskModal" class="px-4 py-2 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 font-medium rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 shadow-sm transition-colors">Cancel</button>
                 <button @onclick="SaveTask" class="px-4 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 shadow-sm transition-colors">Save Task</button>
             </div>
         </div>
@@ -519,21 +577,24 @@
 
 @if (showDeleteConfirmModal)
 {
-    <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="deleteProjectTitle">
-        <div class="relative w-full max-w-md bg-white rounded-lg shadow-xl overflow-hidden">
-            <div class="px-6 py-4 bg-red-50 border-b border-red-100 flex items-center">
-                <div class="flex-shrink-0 bg-red-100 rounded-full p-2 mr-3" aria-hidden="true">
-                    <svg class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto" aria-labelledby="modal-title-delete-project" role="dialog" aria-modal="true">
+        <div class="fixed inset-0 transition-opacity" aria-hidden="true" @onclick="() => showDeleteConfirmModal = false">
+            <div class="absolute inset-0 bg-gray-500/75 dark:bg-gray-900/80"></div>
+        </div>
+        <div class="relative w-full max-w-md bg-white dark:bg-gray-800 rounded-lg shadow-xl overflow-hidden border border-gray-200 dark:border-gray-700 transform transition-all">
+            <div class="px-6 py-4 bg-red-50 dark:bg-red-900/30 border-b border-red-100 dark:border-red-800 flex items-center">
+                <div class="flex-shrink-0 bg-red-100 dark:bg-red-900/50 rounded-full p-2 mr-3" aria-hidden="true">
+                    <svg class="h-6 w-6 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
                 </div>
-                <h3 id="deleteProjectTitle" class="text-lg font-semibold text-red-800">Delete Project</h3>
+                <h3 id="modal-title-delete-project" class="text-lg font-semibold text-red-800 dark:text-red-200">Delete Project</h3>
             </div>
             <div class="p-6">
-                <p class="text-gray-600 mb-4">Are you sure you want to delete this project? This action cannot be undone and will permanently remove all associated tasks and team assignments.</p>
+                <p class="text-gray-600 dark:text-gray-300 mb-4">Are you sure you want to delete this project? This action cannot be undone and will permanently remove all associated tasks and team assignments.</p>
             </div>
-            <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-3">
-                <button @onclick="() => showDeleteConfirmModal = false" class="px-4 py-2 bg-white text-gray-700 border border-gray-300 font-medium rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 shadow-sm transition-colors">Cancel</button>
+            <div class="px-6 py-4 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-200 dark:border-gray-700 flex justify-end space-x-3">
+                <button @onclick="() => showDeleteConfirmModal = false" class="px-4 py-2 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 font-medium rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 shadow-sm transition-colors">Cancel</button>
                 <button @onclick="DeleteProject" class="px-4 py-2 bg-red-600 text-white font-medium rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 shadow-sm transition-colors" aria-label="Confirm delete project">Delete Project</button>
             </div>
         </div>
@@ -542,21 +603,24 @@
 
 @if (showTaskDeleteConfirmModal)
 {
-    <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
-        <div class="relative w-full max-w-md bg-white rounded-lg shadow-xl overflow-hidden">
-            <div class="px-6 py-4 bg-red-50 border-b border-red-100 flex items-center">
-                <div class="flex-shrink-0 bg-red-100 rounded-full p-2 mr-3">
-                    <svg class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto" aria-labelledby="modal-title-delete-task" role="dialog" aria-modal="true">
+        <div class="fixed inset-0 transition-opacity" aria-hidden="true" @onclick="() => showTaskDeleteConfirmModal = false">
+            <div class="absolute inset-0 bg-gray-500/75 dark:bg-gray-900/80"></div>
+        </div>
+        <div class="relative w-full max-w-md bg-white dark:bg-gray-800 rounded-lg shadow-xl overflow-hidden border border-gray-200 dark:border-gray-700 transform transition-all">
+            <div class="px-6 py-4 bg-red-50 dark:bg-red-900/30 border-b border-red-100 dark:border-red-800 flex items-center">
+                <div class="flex-shrink-0 bg-red-100 dark:bg-red-900/50 rounded-full p-2 mr-3">
+                    <svg class="h-6 w-6 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
                 </div>
-                <h3 class="text-lg font-semibold text-red-800">Delete Task</h3>
+                <h3 class="text-lg font-semibold text-red-800 dark:text-red-200" id="modal-title-delete-task">Delete Task</h3>
             </div>
             <div class="p-6">
-                <p class="text-gray-600 mb-4">Are you sure you want to delete this task?</p>
+                <p class="text-gray-600 dark:text-gray-300 mb-4">Are you sure you want to delete this task?</p>
             </div>
-            <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-3">
-                <button @onclick="() => showTaskDeleteConfirmModal = false" class="px-4 py-2 bg-white text-gray-700 border border-gray-300 font-medium rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 shadow-sm transition-colors">Cancel</button>
+            <div class="px-6 py-4 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-200 dark:border-gray-700 flex justify-end space-x-3">
+                <button @onclick="() => showTaskDeleteConfirmModal = false" class="px-4 py-2 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 font-medium rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 shadow-sm transition-colors">Cancel</button>
                 <button @onclick="DeleteTask" class="px-4 py-2 bg-red-600 text-white font-medium rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 shadow-sm transition-colors">Delete</button>
             </div>
         </div>
@@ -565,11 +629,14 @@
 
 @if (showAddMemberModal)
 {
-    <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
-        <div class="relative w-full max-w-md bg-white rounded-lg shadow-xl overflow-hidden">
-            <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
-                <h3 class="text-lg font-semibold text-gray-800">Add Team Member</h3>
-                <button @onclick="CloseAddMemberModal" class="text-gray-400 hover:text-gray-500 transition-colors">
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto" aria-labelledby="modal-title-add-member" role="dialog" aria-modal="true">
+        <div class="fixed inset-0 transition-opacity" aria-hidden="true" @onclick="CloseAddMemberModal">
+            <div class="absolute inset-0 bg-gray-500/75 dark:bg-gray-900/80"></div>
+        </div>
+        <div class="relative w-full max-w-md bg-white dark:bg-gray-800 rounded-lg shadow-xl overflow-hidden border border-gray-200 dark:border-gray-700 transform transition-all">
+            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-900/50">
+                <h3 class="text-lg font-semibold text-gray-800 dark:text-white" id="modal-title-add-member">Add Team Member</h3>
+                <button @onclick="CloseAddMemberModal" class="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300 transition-colors">
                     <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                     </svg>
@@ -577,8 +644,8 @@
             </div>
             <div class="p-6 space-y-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Employee</label>
-                    <select @bind="newMemberEmployeeId" class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 px-4 py-2 border">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Employee</label>
+                    <select @bind="newMemberEmployeeId" class="w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 px-4 py-2 border bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors">
                         <option value="0">Select Employee...</option>
                         @if (employees != null)
                         {
@@ -590,8 +657,8 @@
                     </select>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Role</label>
-                    <select @bind="newMemberRole" class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 px-4 py-2 border">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Role</label>
+                    <select @bind="newMemberRole" class="w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 px-4 py-2 border bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors">
                         <option value="member">Member</option>
                         <option value="lead">Project Lead</option>
                         <option value="manager">Manager</option>
@@ -599,9 +666,125 @@
                     </select>
                 </div>
             </div>
-            <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-3">
-                <button @onclick="CloseAddMemberModal" class="px-4 py-2 bg-white text-gray-700 border border-gray-300 font-medium rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 shadow-sm transition-colors">Cancel</button>
-                <button @onclick="AddMember" class="px-4 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 shadow-sm transition-colors">Add Member</button>
+            <div class="px-6 py-4 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-200 dark:border-gray-700 flex justify-end space-x-3">
+                <button @onclick="CloseAddMemberModal" class="px-4 py-2 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 font-medium rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 shadow-sm transition-colors">Cancel</button>
+                <button @onclick="AddMember" class="px-4 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 shadow-sm transition-colors dark:bg-blue-500 dark:hover:bg-blue-600">Add Member</button>
+            </div>
+        </div>
+    </div>
+}
+
+@if (showPhaseModal)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto" aria-labelledby="modal-title-phase" role="dialog" aria-modal="true">
+        <div class="fixed inset-0 transition-opacity" aria-hidden="true" @onclick="() => showPhaseModal = false">
+            <div class="absolute inset-0 bg-gray-500/75 dark:bg-gray-900/80"></div>
+        </div>
+        <div class="relative w-full max-w-md bg-white dark:bg-gray-800 rounded-lg shadow-xl overflow-hidden border border-gray-200 dark:border-gray-700 transform transition-all">
+            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-900/50">
+                <h3 class="text-lg font-semibold text-gray-800 dark:text-white" id="modal-title-phase">@(isEditingPhase ? "Edit Phase" : "Add Phase")</h3>
+                <button @onclick="() => showPhaseModal = false" class="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300 transition-colors">
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <div class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>
+                    <input @bind="newPhase.Name" class="w-full border border-gray-300 dark:border-gray-600 rounded-md px-4 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-blue-500 focus:border-blue-500 transition-colors" placeholder="Phase name..." />
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+                    <textarea @bind="newPhase.Description" class="w-full border border-gray-300 dark:border-gray-600 rounded-md px-4 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-blue-500 focus:border-blue-500 transition-colors" rows="2"></textarea>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Start Date</label>
+                        <input type="date" @bind="newPhase.StartDateValue" class="w-full border border-gray-300 dark:border-gray-600 rounded-md px-4 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-blue-500 focus:border-blue-500 transition-colors" />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">End Date</label>
+                        <input type="date" @bind="newPhase.EndDateValue" class="w-full border border-gray-300 dark:border-gray-600 rounded-md px-4 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-blue-500 focus:border-blue-500 transition-colors" />
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
+                    <select @bind="newPhase.Status" class="w-full border border-gray-300 dark:border-gray-600 rounded-md px-4 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-blue-500 focus:border-blue-500 transition-colors">
+                        <option value="planned">Planned</option>
+                        <option value="active">Active</option>
+                        <option value="completed">Completed</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Color</label>
+                    <input type="color" @bind="newPhase.Color" class="w-full h-10 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700" />
+                </div>
+            </div>
+            <div class="px-6 py-4 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                @if (isEditingPhase)
+                {
+                    <button @onclick="() => DeletePhase(newPhase.Id)" class="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 text-sm font-medium transition-colors">Delete Phase</button>
+                }
+                else
+                {
+                    <div></div>
+                }
+                <div class="flex space-x-3">
+                    <button @onclick="() => showPhaseModal = false" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">Cancel</button>
+                    <button @onclick="SavePhase" class="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 dark:bg-purple-500 dark:hover:bg-purple-600 transition-colors">Save Phase</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (showMilestoneModal)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto" aria-labelledby="modal-title-milestone" role="dialog" aria-modal="true">
+        <div class="fixed inset-0 transition-opacity" aria-hidden="true" @onclick="() => showMilestoneModal = false">
+            <div class="absolute inset-0 bg-gray-500/75 dark:bg-gray-900/80"></div>
+        </div>
+        <div class="relative w-full max-w-md bg-white dark:bg-gray-800 rounded-lg shadow-xl overflow-hidden border border-gray-200 dark:border-gray-700 transform transition-all">
+            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-900/50">
+                <h3 class="text-lg font-semibold text-gray-800 dark:text-white" id="modal-title-milestone">@(isEditingMilestone ? "Edit Milestone" : "Add Milestone")</h3>
+                <button @onclick="() => showMilestoneModal = false" class="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300 transition-colors">
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <div class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>
+                    <input @bind="newMilestone.Name" class="w-full border border-gray-300 dark:border-gray-600 rounded-md px-4 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-blue-500 focus:border-blue-500 transition-colors" placeholder="Milestone name..." />
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+                    <textarea @bind="newMilestone.Description" class="w-full border border-gray-300 dark:border-gray-600 rounded-md px-4 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-blue-500 focus:border-blue-500 transition-colors" rows="2"></textarea>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date</label>
+                    <input type="date" @bind="newMilestone.DateValue" class="w-full border border-gray-300 dark:border-gray-600 rounded-md px-4 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-blue-500 focus:border-blue-500 transition-colors" />
+                </div>
+                <div class="flex items-center space-x-2">
+                    <input type="checkbox" @bind="newMilestone.IsCritical" id="isCritical" class="rounded text-blue-600 focus:ring-blue-500 h-4 w-4 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 transition-colors" />
+                    <label for="isCritical" class="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">Critical Milestone</label>
+                </div>
+            </div>
+            <div class="px-6 py-4 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                @if (isEditingMilestone)
+                {
+                    <button @onclick="() => DeleteMilestone(newMilestone.Id)" class="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 text-sm font-medium transition-colors">Delete Milestone</button>
+                }
+                else
+                {
+                    <div></div>
+                }
+                <div class="flex space-x-3">
+                    <button @onclick="() => showMilestoneModal = false" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">Cancel</button>
+                    <button @onclick="SaveMilestone" class="px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 dark:bg-yellow-500 dark:hover:bg-yellow-600 transition-colors">Save Milestone</button>
+                </div>
             </div>
         </div>
     </div>
@@ -619,6 +802,15 @@
     private ProjectTask? taskToDelete;
     private Project newProject = new();
     private string activeTab = "overview";
+
+    // Timeline Phases & Milestones
+    private ProjectTimeline? projectTimeline;
+    private bool showPhaseModal = false;
+    private bool showMilestoneModal = false;
+    private ProjectPhase newPhase = new();
+    private ProjectMilestone newMilestone = new();
+    private bool isEditingPhase = false;
+    private bool isEditingMilestone = false;
 
     private int rowHeight = 48;
     private int? selectedProjectId;
@@ -987,6 +1179,8 @@
             try
             {
                 projectTasks = await ProjectService.GetProjectTasksAsync(selectedProjectId.Value);
+                projectTimeline = await ProjectService.GetProjectTimelineAsync(selectedProjectId.Value);
+                
                 var sp = projects?.FirstOrDefault(p => p.Id == selectedProjectId);
                 if (sp != null) selectedProjectStatus = sp.Status ?? "planning";
                 ComputeRange();
@@ -1006,9 +1200,161 @@
             }
             catch (Exception)
             {
-                NotificationService.ShowError("Failed to load tasks.");
+                NotificationService.ShowError("Failed to load project data.");
                 projectTasks = new List<ProjectTask>();
             }
+        }
+    }
+
+    // Phase Management
+    private void OpenAddPhaseModal()
+    {
+        if (!selectedProjectId.HasValue) return;
+        newPhase = new ProjectPhase 
+        { 
+            ProjectId = selectedProjectId.Value,
+            StartDate = DateTime.Now.ToString("yyyy-MM-dd"),
+            EndDate = DateTime.Now.AddMonths(1).ToString("yyyy-MM-dd"),
+            Status = "planned",
+            SortOrder = (projectTimeline?.Phases.Count ?? 0) + 1
+        };
+        isEditingPhase = false;
+        showPhaseModal = true;
+    }
+
+    private void EditPhase(ProjectPhase phase)
+    {
+        newPhase = new ProjectPhase
+        {
+            Id = phase.Id,
+            ProjectId = phase.ProjectId,
+            Name = phase.Name,
+            Description = phase.Description,
+            StartDate = phase.StartDate,
+            EndDate = phase.EndDate,
+            Status = phase.Status,
+            Color = phase.Color,
+            SortOrder = phase.SortOrder
+        };
+        isEditingPhase = true;
+        showPhaseModal = true;
+    }
+
+    private async Task SavePhase()
+    {
+        if (string.IsNullOrWhiteSpace(newPhase.Name))
+        {
+            NotificationService.ShowError("Phase name is required.");
+            return;
+        }
+
+        try
+        {
+            if (newPhase.Id.HasValue)
+            {
+                await ProjectService.UpdateProjectPhaseAsync(newPhase);
+                NotificationService.ShowSuccess("Phase updated successfully.");
+            }
+            else
+            {
+                await ProjectService.AddProjectPhaseAsync(newPhase);
+                NotificationService.ShowSuccess("Phase added successfully.");
+            }
+            showPhaseModal = false;
+            await ReloadTasks();
+        }
+        catch (Exception ex)
+        {
+            NotificationService.ShowError($"Failed to save phase: {ex.Message}");
+        }
+    }
+
+    private async Task DeletePhase(int? id)
+    {
+        if (!id.HasValue) return;
+        try
+        {
+            await ProjectService.DeleteProjectPhaseAsync(id.Value);
+            NotificationService.ShowSuccess("Phase deleted successfully.");
+            await ReloadTasks();
+        }
+        catch (Exception ex)
+        {
+            NotificationService.ShowError($"Failed to delete phase: {ex.Message}");
+        }
+    }
+
+    // Milestone Management
+    private void OpenAddMilestoneModal()
+    {
+        if (!selectedProjectId.HasValue) return;
+        newMilestone = new ProjectMilestone
+        {
+            ProjectId = selectedProjectId.Value,
+            Date = DateTime.Now.ToString("yyyy-MM-dd"),
+            Status = "pending"
+        };
+        isEditingMilestone = false;
+        showMilestoneModal = true;
+    }
+
+    private void EditMilestone(ProjectMilestone milestone)
+    {
+        newMilestone = new ProjectMilestone
+        {
+            Id = milestone.Id,
+            ProjectId = milestone.ProjectId,
+            Name = milestone.Name,
+            Description = milestone.Description,
+            Date = milestone.Date,
+            Status = milestone.Status,
+            IsCritical = milestone.IsCritical
+        };
+        isEditingMilestone = true;
+        showMilestoneModal = true;
+    }
+
+    private async Task SaveMilestone()
+    {
+        if (string.IsNullOrWhiteSpace(newMilestone.Name))
+        {
+            NotificationService.ShowError("Milestone name is required.");
+            return;
+        }
+
+        try
+        {
+            if (newMilestone.Id.HasValue)
+            {
+                await ProjectService.UpdateProjectMilestoneAsync(newMilestone);
+                NotificationService.ShowSuccess("Milestone updated successfully.");
+            }
+            else
+            {
+                await ProjectService.AddProjectMilestoneAsync(newMilestone);
+                NotificationService.ShowSuccess("Milestone added successfully.");
+            }
+            showMilestoneModal = false;
+            await ReloadTasks();
+        }
+        catch (Exception ex)
+        {
+            NotificationService.ShowError($"Failed to save milestone: {ex.Message}");
+        }
+    }
+
+    private async Task DeleteMilestone(int? id)
+    {
+        if (!id.HasValue) return;
+        try
+        {
+            await ProjectService.DeleteProjectMilestoneAsync(id.Value);
+            NotificationService.ShowSuccess("Milestone deleted successfully.");
+            await ReloadTasks();
+        }
+        catch (Exception ex)
+        {
+            NotificationService.ShowError($"Failed to delete milestone: {ex.Message}");
         }
     }
 
@@ -1375,17 +1721,37 @@
     {
         try
         {
-            if (projectTasks == null || !projectTasks.Any())
+            var dates = new List<DateTime>();
+            
+            if (projectTasks != null && projectTasks.Any())
+            {
+                dates.AddRange(projectTasks.Select(t => Parse(t.StartDate)));
+                dates.AddRange(projectTasks.Select(t => Parse(string.IsNullOrWhiteSpace(t.DueDate) ? t.StartDate : t.DueDate)));
+            }
+            
+            if (projectTimeline != null)
+            {
+                if (projectTimeline.Phases != null && projectTimeline.Phases.Any())
+                {
+                    dates.AddRange(projectTimeline.Phases.Select(p => Parse(p.StartDate)));
+                    dates.AddRange(projectTimeline.Phases.Select(p => Parse(p.EndDate)));
+                }
+                if (projectTimeline.Milestones != null && projectTimeline.Milestones.Any())
+                {
+                    dates.AddRange(projectTimeline.Milestones.Select(m => Parse(m.Date)));
+                }
+            }
+
+            if (!dates.Any())
             {
                 minDate = DateTime.Today;
                 maxDate = DateTime.Today.AddDays(1);
                 totalDays = 1;
                 return;
             }
-            var starts = projectTasks.Select(t => Parse(t.StartDate));
-            var ends = projectTasks.Select(t => Parse(string.IsNullOrWhiteSpace(t.DueDate) ? t.StartDate : t.DueDate));
-            minDate = starts.Min();
-            maxDate = ends.Max();
+
+            minDate = dates.Min();
+            maxDate = dates.Max();
             if (maxDate < minDate) maxDate = minDate;
             totalDays = (maxDate - minDate).TotalDays + 1;
             if (totalDays <= 0) totalDays = 1;
@@ -1416,6 +1782,37 @@
         catch
         {
             return ("0%", "10%");
+        }
+    }
+
+    private (string left, string width) GetPhasePosition(ProjectPhase p)
+    {
+        try
+        {
+            var start = Parse(p.StartDate);
+            var end = Parse(p.EndDate);
+            if (end < start) end = start;
+            var leftPct = ((start - minDate).TotalDays / totalDays) * 100.0;
+            var widthPct = (((end - start).TotalDays + 1) / totalDays) * 100.0;
+            return (leftPct.ToString("0.##") + "%", widthPct.ToString("0.##") + "%");
+        }
+        catch
+        {
+            return ("0%", "10%");
+        }
+    }
+
+    private (string left, string top) GetMilestonePosition(ProjectMilestone m)
+    {
+        try
+        {
+            var date = Parse(m.Date);
+            var leftPct = ((date - minDate).TotalDays / totalDays) * 100.0;
+            return (leftPct.ToString("0.##") + "%", "0");
+        }
+        catch
+        {
+            return ("0%", "0");
         }
     }
     

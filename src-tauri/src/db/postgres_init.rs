@@ -430,6 +430,38 @@ pub async fn init_db(connection_string: &str) -> Result<(), Error> {
         &[],
     ).await?;
 
+    client.execute(
+        "CREATE TABLE IF NOT EXISTS project_phases (
+            id SERIAL PRIMARY KEY,
+            project_id INTEGER REFERENCES projects(id) ON DELETE CASCADE,
+            name TEXT NOT NULL,
+            description TEXT,
+            start_date TIMESTAMP NOT NULL,
+            end_date TIMESTAMP NOT NULL,
+            status TEXT DEFAULT 'planned',
+            color TEXT,
+            sort_order INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )",
+        &[],
+    ).await?;
+
+    client.execute(
+        "CREATE TABLE IF NOT EXISTS project_milestones (
+            id SERIAL PRIMARY KEY,
+            project_id INTEGER REFERENCES projects(id) ON DELETE CASCADE,
+            name TEXT NOT NULL,
+            description TEXT,
+            date TIMESTAMP NOT NULL,
+            status TEXT DEFAULT 'pending',
+            is_critical BOOLEAN DEFAULT FALSE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )",
+        &[],
+    ).await?;
+
     // 8. Complaints & Feedback
     client.execute(
         "CREATE TABLE IF NOT EXISTS complaints (

@@ -6,6 +6,7 @@ namespace ThePlanningBord.Services
     public interface IFinanceService
     {
         Task<List<Payment>> GetPaymentsAsync();
+        Task<FinanceOverview> GetFinanceOverviewAsync();
         Task<long> AddPaymentAsync(Payment payment);
         Task UpdatePaymentAsync(Payment payment);
         Task DeletePaymentAsync(int id);
@@ -38,6 +39,12 @@ namespace ThePlanningBord.Services
         {
             var token = await _userService.GetTokenAsync();
             return await _tauri.InvokeAsync<List<Payment>>("get_payments", new { token });
+        }
+
+        public async Task<FinanceOverview> GetFinanceOverviewAsync()
+        {
+            var token = await _userService.GetTokenAsync();
+            return await _tauri.InvokeAsync<FinanceOverview>("get_finance_overview", new { token });
         }
 
         public async Task<long> AddPaymentAsync(Payment payment)

@@ -581,6 +581,11 @@ impl Database for PostgresDatabase {
             if stock_to_use > 0 {
                 tx.execute("UPDATE products SET current_quantity = current_quantity - $1 WHERE id = $2", &[&stock_to_use, &sale.product_id])
                     .await.map_err(|e| format!("Failed to update stock: {}", e))?;
+                
+                tx.execute(
+                    "INSERT INTO inventory_logs (product_id, quantity_changed, change_type, notes) VALUES ($1, $2, 'sale', $3)",
+                    &[&sale.product_id, &(-stock_to_use), &format!("Direct Sale (from stock)")]
+                ).await.map_err(|e| format!("Failed to log direct sale: {}", e))?;
             }
 
             // Deduct ingredients if needed (Auto-Manufacturing)
@@ -612,7 +617,19 @@ impl Database for PostgresDatabase {
                         // Deduct component
                         tx.execute("UPDATE products SET current_quantity = current_quantity - $1 WHERE id = $2", &[&total_needed, &comp_id])
                             .await.map_err(|e| format!("Failed to deduct ingredient {}: {}", comp_name, e))?;
+
+                        // Log ingredient usage
+                        tx.execute(
+                            "INSERT INTO inventory_logs (product_id, quantity_changed, change_type, notes) VALUES ($1, $2, 'production_out', $3)",
+                            &[&comp_id, &(-total_needed), &format!("Auto-manufactured direct sale for product #{}", sale.product_id)]
+                        ).await.map_err(|e| format!("Failed to log ingredient usage: {}", e))?;
                     }
+
+                    // Log the "sale" part of the auto-manufactured quantity
+                    tx.execute(
+                        "INSERT INTO inventory_logs (product_id, quantity_changed, change_type, notes) VALUES ($1, $2, 'sale', $3)",
+                        &[&sale.product_id, &(-make_qty), &format!("Direct Sale (auto-manufactured)")]
+                    ).await.map_err(|e| format!("Failed to log direct sale (auto): {}", e))?;
                 }
             }
 
@@ -1181,6 +1198,126 @@ impl Database for PostgresDatabase {
         })
     }
 
+    async fn get_project_timeline(&self, project_id: i32) -> Result<ProjectTimeline, String> {
+        let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
+        
+        // Fetch project name
+        let project_row = client.query_one("SELECT name FROM projects WHERE id = $1", &[&project_id])
+            .await.map_err(|e| format!("Project not found: {}", e))?;
+        let project_name: String = project_row.get(0);
+
+        // Fetch phases
+        let phase_rows = client.query(
+            "SELECT id, project_id, name, description, start_date, end_date, status, color, sort_order FROM project_phases WHERE project_id = $1 ORDER BY sort_order, start_date",
+            &[&project_id]
+        ).await.map_err(|e| format!("Failed to fetch phases: {}", e))?;
+        
+        let mut phases = Vec::new();
+        for row in phase_rows {
+            phases.push(ProjectPhase {
+                id: Some(row.get(0)),
+                project_id: row.get(1),
+                name: row.get(2),
+                description: row.get(3),
+                start_date: format_timestamp(row.get(4)).unwrap_or_default(),
+                end_date: format_timestamp(row.get(5)).unwrap_or_default(),
+                status: row.get(6),
+                color: row.get(7),
+                sort_order: row.get(8),
+            });
+        }
+
+        // Fetch milestones
+        let milestone_rows = client.query(
+            "SELECT id, project_id, name, description, date, status, is_critical FROM project_milestones WHERE project_id = $1 ORDER BY date",
+            &[&project_id]
+        ).await.map_err(|e| format!("Failed to fetch milestones: {}", e))?;
+        
+        let mut milestones = Vec::new();
+        for row in milestone_rows {
+            milestones.push(ProjectMilestone {
+                id: Some(row.get(0)),
+                project_id: row.get(1),
+                name: row.get(2),
+                description: row.get(3),
+                date: format_timestamp(row.get(4)).unwrap_or_default(),
+                status: row.get(5),
+                is_critical: row.get(6),
+            });
+        }
+
+        Ok(ProjectTimeline {
+            project_id,
+            project_name,
+            phases,
+            milestones,
+        })
+    }
+
+    async fn add_project_phase(&self, phase: ProjectPhase) -> Result<i32, String> {
+        let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
+        let start_date = parse_timestamp(Some(phase.start_date));
+        let end_date = parse_timestamp(Some(phase.end_date));
+        
+        let row = client.query_one(
+            "INSERT INTO project_phases (project_id, name, description, start_date, end_date, status, color, sort_order) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
+            &[&phase.project_id, &phase.name, &phase.description, &start_date, &end_date, &phase.status, &phase.color, &phase.sort_order]
+        ).await.map_err(|e| format!("Failed to add project phase: {}", e))?;
+        
+        Ok(row.get(0))
+    }
+
+    async fn update_project_phase(&self, phase: ProjectPhase) -> Result<(), String> {
+        let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
+        let start_date = parse_timestamp(Some(phase.start_date));
+        let end_date = parse_timestamp(Some(phase.end_date));
+        let id = phase.id.ok_or("Phase ID is required for update")?;
+        
+        client.execute(
+            "UPDATE project_phases SET project_id = $1, name = $2, description = $3, start_date = $4, end_date = $5, status = $6, color = $7, sort_order = $8, updated_at = CURRENT_TIMESTAMP WHERE id = $9",
+            &[&phase.project_id, &phase.name, &phase.description, &start_date, &end_date, &phase.status, &phase.color, &phase.sort_order, &id]
+        ).await.map_err(|e| format!("Failed to update project phase: {}", e))?;
+        
+        Ok(())
+    }
+
+    async fn delete_project_phase(&self, id: i32) -> Result<(), String> {
+        let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
+        client.execute("DELETE FROM project_phases WHERE id = $1", &[&id]).await.map_err(|e| e.to_string())?;
+        Ok(())
+    }
+
+    async fn add_project_milestone(&self, milestone: ProjectMilestone) -> Result<i32, String> {
+        let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
+        let date = parse_timestamp(Some(milestone.date));
+        
+        let row = client.query_one(
+            "INSERT INTO project_milestones (project_id, name, description, date, status, is_critical) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
+            &[&milestone.project_id, &milestone.name, &milestone.description, &date, &milestone.status, &milestone.is_critical]
+        ).await.map_err(|e| format!("Failed to add project milestone: {}", e))?;
+        
+        Ok(row.get(0))
+    }
+
+    async fn update_project_milestone(&self, milestone: ProjectMilestone) -> Result<(), String> {
+        let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
+        let date = parse_timestamp(Some(milestone.date));
+        let id = milestone.id.ok_or("Milestone ID is required for update")?;
+        
+        client.execute(
+            "UPDATE project_milestones SET project_id = $1, name = $2, description = $3, date = $4, status = $5, is_critical = $6, updated_at = CURRENT_TIMESTAMP WHERE id = $7",
+            &[&milestone.project_id, &milestone.name, &milestone.description, &date, &milestone.status, &milestone.is_critical, &id]
+        ).await.map_err(|e| format!("Failed to update project milestone: {}", e))?;
+        
+        Ok(())
+    }
+
+    async fn delete_project_milestone(&self, id: i32) -> Result<(), String> {
+        let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
+        client.execute("DELETE FROM project_milestones WHERE id = $1", &[&id]).await.map_err(|e| e.to_string())?;
+        Ok(())
+    }
+
     // --- Dashboard & Reports ---
     async fn get_dashboard_stats(&self) -> Result<DashboardStats, String> {
         let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
@@ -1245,6 +1382,72 @@ impl Database for PostgresDatabase {
         })
     }
 
+    async fn get_finance_overview(&self) -> Result<FinanceOverview, String> {
+        let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
+        
+        let total_revenue: f64 = client.query_one(
+            "SELECT (COALESCE(SUM(amount), 0.0) + (SELECT COALESCE(SUM(total_price), 0.0) FROM sales))::float8 FROM payments WHERE payment_type = 'income' AND status = 'completed'", 
+            &[]
+        ).await.map_err(|e| format!("Failed to fetch total revenue: {}", e))?.get(0);
+
+        let total_expenses: f64 = client.query_one(
+            "SELECT COALESCE(SUM(amount), 0.0)::float8 FROM payments WHERE payment_type = 'expense' AND status = 'completed'", 
+            &[]
+        ).await.map_err(|e| format!("Failed to fetch total expenses: {}", e))?.get(0);
+
+        let outstanding_invoices: f64 = client.query_one(
+            "SELECT COALESCE(SUM(total_amount), 0.0)::float8 FROM invoices WHERE status != 'paid' AND status != 'cancelled'", 
+            &[]
+        ).await.map_err(|e| format!("Failed to fetch outstanding invoices: {}", e))?.get(0);
+
+        // Monthly revenue trend (last 6 months)
+        let trend_rows = client.query(
+            "SELECT TO_CHAR(date, 'Mon') as month, SUM(amount)::float8 as value 
+             FROM (
+                SELECT date, amount FROM payments WHERE payment_type = 'income' AND status = 'completed'
+                UNION ALL
+                SELECT sale_date as date, total_price as amount FROM sales
+             ) combined
+             WHERE date >= CURRENT_DATE - INTERVAL '6 months'
+             GROUP BY TO_CHAR(date, 'Mon'), EXTRACT(MONTH FROM date)
+             ORDER BY EXTRACT(MONTH FROM date)",
+            &[]
+        ).await.map_err(|e| format!("Failed to fetch revenue trend: {}", e))?;
+
+        let mut revenue_trend = Vec::new();
+        for row in trend_rows {
+            revenue_trend.push(ChartDataPoint {
+                label: row.get(0),
+                value: row.get::<usize, f64>(1),
+            });
+        }
+
+        // Expense allocation by category (payment_method as proxy)
+        let allocation_rows = client.query(
+            "SELECT COALESCE(payment_method, 'Other'), SUM(amount)::float8 as value 
+             FROM payments 
+             WHERE payment_type = 'expense' AND status = 'completed'
+             GROUP BY payment_method",
+            &[]
+        ).await.map_err(|e| format!("Failed to fetch expense allocation: {}", e))?;
+
+        let mut expense_allocation = Vec::new();
+        for row in allocation_rows {
+            expense_allocation.push(ChartDataPoint {
+                label: row.get(0),
+                value: row.get::<usize, f64>(1),
+            });
+        }
+
+        Ok(FinanceOverview {
+            net_income: total_revenue - total_expenses,
+            total_revenue,
+            outstanding_invoices,
+            revenue_trend,
+            expense_allocation,
+        })
+    }
+
     async fn get_report_summary(&self) -> Result<ReportSummary, String> {
         let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
         
@@ -1286,11 +1489,11 @@ impl Database for PostgresDatabase {
         let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
         
         let rows = client.query("
-            SELECT TO_CHAR(d, 'Mon') as month, SUM(amount) as total, MIN(d) as sort_date
+            SELECT TO_CHAR(d, 'Mon') as month, SUM(amount)::float8 as total, MIN(d) as sort_date
             FROM (
                 SELECT sale_date as d, total_price as amount FROM sales WHERE sale_date >= NOW() - INTERVAL '6 months'
                 UNION ALL
-                SELECT payment_date as d, amount FROM payments WHERE payment_type = 'income' AND status = 'completed' AND payment_date >= NOW() - INTERVAL '6 months'
+                SELECT date as d, amount FROM payments WHERE payment_type = 'income' AND status = 'completed' AND date >= NOW() - INTERVAL '6 months'
             ) as combined
             GROUP BY 1
             ORDER BY 3
@@ -1300,7 +1503,7 @@ impl Database for PostgresDatabase {
         for row in rows {
             points.push(ChartDataPoint {
                 label: row.get(0),
-                value: row.get(1),
+                value: row.get::<usize, f64>(1),
             });
         }
         Ok(points)
@@ -1365,21 +1568,34 @@ impl Database for PostgresDatabase {
     }
 
     // --- Tools ---
-    async fn get_tools(&self) -> Result<Vec<Tool>, String> {
-        println!("postgres.get_tools: Fetching all tools from database");
+    async fn get_tools(&self, search: Option<String>, page: Option<i32>, page_size: Option<i32>) -> Result<serde_json::Value, String> {
+        println!("postgres.get_tools: Fetching tools from database with search: {:?}, page: {:?}, size: {:?}", search, page, page_size);
         let client = self.pool.get().await.map_err(|e| {
             let err = format!("Failed to get db connection: {}", e);
             println!("postgres.get_tools: Connection error - {}", err);
             err
         })?;
-        // Check if product_id column exists (for backward compatibility if migration failed)
-        // But since we control migrations, we assume it's there.
-        let rows = client.query("SELECT id, name, type_name, status, assigned_to_employee_id, purchase_date, condition, product_id FROM tools", &[])
-            .await.map_err(|e| {
-                let err = format!("Failed to fetch tools: {}", e);
-                println!("postgres.get_tools: Query error - {}", err);
-                err
-            })?;
+
+        let search_term = search.unwrap_or_default();
+        let limit = page_size.unwrap_or(50) as i64;
+        let offset = ((page.unwrap_or(1) - 1) as i64) * limit;
+        let search_pattern = format!("%{}%", search_term);
+
+        // Count total
+        let total: i64 = client.query_one(
+            "SELECT COUNT(*) FROM tools WHERE name ILIKE $1 OR type_name ILIKE $1",
+            &[&search_pattern]
+        ).await.map_err(|e| format!("Failed to count tools: {}", e))?.get(0);
+
+        let rows = client.query(
+            "SELECT id, name, type_name, status, assigned_to_employee_id, purchase_date, condition, product_id FROM tools WHERE name ILIKE $1 OR type_name ILIKE $1 LIMIT $2 OFFSET $3", 
+            &[&search_pattern, &limit, &offset]
+        ).await.map_err(|e| {
+            let err = format!("Failed to fetch tools: {}", e);
+            println!("postgres.get_tools: Query error - {}", err);
+            err
+        })?;
+
         println!("postgres.get_tools: Found {} tool rows", rows.len());
         let mut tools = Vec::new();
         for row in rows {
@@ -1393,12 +1609,15 @@ impl Database for PostgresDatabase {
                 condition: row.get(6),
                 product_id: row.get(7),
             };
-            println!("postgres.get_tools: Found tool - ID: {:?}, Name: '{}', Type: '{}', Status: '{}'", 
-                     tool.id, tool.name, tool.type_name, tool.status);
             tools.push(tool);
         }
-        println!("postgres.get_tools: Returning {} tools", tools.len());
-        Ok(tools)
+
+        Ok(serde_json::json!({
+            "items": tools,
+            "total": total,
+            "page": page.unwrap_or(1),
+            "page_size": limit
+        }))
     }
 
     async fn add_tool(&self, tool: Tool) -> Result<i64, String> {
@@ -4125,6 +4344,12 @@ impl Database for PostgresDatabase {
                     "UPDATE products SET current_quantity = current_quantity - $1 WHERE id = $2",
                     &[&quantity_int, &pid]
                 ).await.map_err(|e| format!("Failed to update inventory for product {}: {}", pid, e))?;
+
+                // Log movement to inventory_logs for Velocity Report
+                tx.execute(
+                    "INSERT INTO inventory_logs (product_id, change_type, quantity_changed, notes) VALUES ($1, 'sale', $2, $3)",
+                    &[&pid, &-quantity_int, &format!("Sales Order #{} shipment", id)]
+                ).await.map_err(|e| format!("Failed to log inventory for product {}: {}", pid, e))?;
             } else if let Some(sid) = service_id {
                 // Services typically don't have COGS in the same way, or it's tracked via time entries.
                 // For now, we assume 0 COGS for services in this shipment context, 

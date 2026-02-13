@@ -14,15 +14,15 @@
 
 <div class="flex justify-between items-center mb-6">
     <div>
-        <h1 class="text-2xl font-bold text-gray-900">Dashboard</h1>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
         <AuthorizeView>
             <Authorized>
-                <p class="text-gray-600 mt-1">Welcome back, <span class="font-medium text-gray-900">@context.User.Identity?.Name</span> <span class="text-sm bg-blue-100 text-blue-800 py-0.5 px-2 rounded-full ml-2">@context.User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value</span></p>
+                <p class="text-gray-600 dark:text-gray-400 mt-1">Welcome back, <span class="font-medium text-gray-900 dark:text-white">@context.User.Identity?.Name</span> <span class="text-sm bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-100 py-0.5 px-2 rounded-full ml-2">@context.User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value</span></p>
             </Authorized>
         </AuthorizeView>
     </div>
     <div class="flex space-x-2">
-        <button @onclick="ToggleEditMode" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-2 px-4 rounded inline-flex items-center">
+        <button @onclick="ToggleEditMode" class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold py-2 px-4 rounded inline-flex items-center">
             <span>@(editMode ? "Done" : "Customize Layout")</span>
         </button>
         <a href="reports" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded inline-flex items-center">
@@ -33,102 +33,102 @@
 
 <div class="grid grid-cols-1 gap-6 mb-6 lg:grid-cols-4">
     @if ((businessType == "product-only" || businessType == "both") && ShowWidget("products")) {
-    <div class="w-full px-4 py-5 bg-white rounded-lg shadow relative group">
-        <div class="text-sm font-medium text-gray-500 truncate">Total Products</div>
-        <div class="mt-1 text-3xl font-semibold text-gray-900">@stats.TotalProducts</div>
+    <div class="w-full px-4 py-5 bg-white dark:bg-gray-800 rounded-lg shadow relative group">
+        <div class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Total Products</div>
+        <div class="mt-1 text-3xl font-semibold text-gray-900 dark:text-white">@stats.TotalProducts</div>
         @if(editMode) { <button @onclick='() => ToggleWidget("products")' class="absolute top-2 right-2 text-red-500">Hide</button> }
     </div>
     }
     @if ((businessType == "product-only" || businessType == "both") && ShowWidget("lowstock")) {
-    <div class="w-full px-4 py-5 bg-white rounded-lg shadow relative group">
-        <div class="text-sm font-medium text-gray-500 truncate">Low Stock Items</div>
-        <div class="mt-1 text-3xl font-semibold text-red-600">@stats.LowStockItems</div>
+    <div class="w-full px-4 py-5 bg-white dark:bg-gray-800 rounded-lg shadow relative group">
+        <div class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Low Stock Items</div>
+        <div class="mt-1 text-3xl font-semibold text-red-600 dark:text-red-400">@stats.LowStockItems</div>
         @if(editMode) { <button @onclick='() => ToggleWidget("lowstock")' class="absolute top-2 right-2 text-red-500">Hide</button> }
     </div>
     }
     <AuthorizeView Roles="CEO,Manager">
         @if (ShowWidget("employees")) {
-        <div class="w-full px-4 py-5 bg-white rounded-lg shadow relative group">
-            <div class="text-sm font-medium text-gray-500 truncate">Active Employees</div>
-            <div class="mt-1 text-3xl font-semibold text-gray-900">@stats.TotalEmployees</div>
+        <div class="w-full px-4 py-5 bg-white dark:bg-gray-800 rounded-lg shadow relative group">
+            <div class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Active Employees</div>
+            <div class="mt-1 text-3xl font-semibold text-gray-900 dark:text-white">@stats.TotalEmployees</div>
             @if(editMode) { <button @onclick='() => ToggleWidget("employees")' class="absolute top-2 right-2 text-red-500">Hide</button> }
         </div>
         }
         @if (ShowWidget("revenue")) {
-        <div class="w-full px-4 py-5 bg-white rounded-lg shadow relative group">
-            <div class="text-sm font-medium text-gray-500 truncate">Est. Revenue</div>
-            <div class="mt-1 text-3xl font-semibold text-green-600">@stats.TotalRevenue.ToString("C")</div>
+        <div class="w-full px-4 py-5 bg-white dark:bg-gray-800 rounded-lg shadow relative group">
+            <div class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Est. Revenue</div>
+            <div class="mt-1 text-3xl font-semibold text-green-600 dark:text-green-400">@stats.TotalRevenue.ToString("C")</div>
             @if(editMode) { <button @onclick='() => ToggleWidget("revenue")' class="absolute top-2 right-2 text-red-500">Hide</button> }
         </div>
         }
         @if (ShowWidget("profit")) {
-        <div class="w-full px-4 py-5 bg-white rounded-lg shadow relative group">
-            <div class="text-sm font-medium text-gray-500 truncate">Net Profit</div>
-            <div class="mt-1 text-3xl font-semibold text-green-600">@stats.NetProfit.ToString("C")</div>
+        <div class="w-full px-4 py-5 bg-white dark:bg-gray-800 rounded-lg shadow relative group">
+            <div class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Net Profit</div>
+            <div class="mt-1 text-3xl font-semibold text-green-600 dark:text-green-400">@stats.NetProfit.ToString("C")</div>
             @if(editMode) { <button @onclick='() => ToggleWidget("profit")' class="absolute top-2 right-2 text-red-500">Hide</button> }
         </div>
         }
         @if (ShowWidget("sales")) {
-        <div class="w-full px-4 py-5 bg-white rounded-lg shadow relative group">
-            <div class="text-sm font-medium text-gray-500 truncate">Total Sales Count</div>
-            <div class="mt-1 text-3xl font-semibold text-purple-600">@stats.TotalSales</div>
+        <div class="w-full px-4 py-5 bg-white dark:bg-gray-800 rounded-lg shadow relative group">
+            <div class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Total Sales Count</div>
+            <div class="mt-1 text-3xl font-semibold text-purple-600 dark:text-purple-400">@stats.TotalSales</div>
             @if(editMode) { <button @onclick='() => ToggleWidget("sales")' class="absolute top-2 right-2 text-red-500">Hide</button> }
         </div>
         }
         @if ((businessType == "product-only" || businessType == "both") && ShowWidget("turnover")) {
-        <div class="w-full px-4 py-5 bg-white rounded-lg shadow relative group">
-            <div class="text-sm font-medium text-gray-500 truncate">Inventory Turnover</div>
-            <div class="mt-1 text-3xl font-semibold text-blue-600">@inventoryTurnover.ToString("0.0")x</div>
-            <div class="text-xs text-green-500">▲ 12% vs last month</div>
+        <div class="w-full px-4 py-5 bg-white dark:bg-gray-800 rounded-lg shadow relative group">
+            <div class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Inventory Turnover</div>
+            <div class="mt-1 text-3xl font-semibold text-blue-600 dark:text-blue-400">@inventoryTurnover.ToString("0.0")x</div>
+            <div class="text-xs text-green-500 dark:text-green-400">▲ 12% vs last month</div>
             @if(editMode) { <button @onclick='() => ToggleWidget("turnover")' class="absolute top-2 right-2 text-red-500">Hide</button> }
         </div>
         }
         @if ((businessType == "service-only" || businessType == "both") && ShowWidget("services")) {
-        <div class="w-full px-4 py-5 bg-white rounded-lg shadow relative group">
-            <div class="text-sm font-medium text-gray-500 truncate">Active Services</div>
-            <div class="mt-1 text-3xl font-semibold text-purple-600">@stats.TotalServices</div>
+        <div class="w-full px-4 py-5 bg-white dark:bg-gray-800 rounded-lg shadow relative group">
+            <div class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Active Services</div>
+            <div class="mt-1 text-3xl font-semibold text-purple-600 dark:text-purple-400">@stats.TotalServices</div>
             @if(editMode) { <button @onclick='() => ToggleWidget("services")' class="absolute top-2 right-2 text-red-500">Hide</button> }
         </div>
         }
         @if ((businessType == "service-only" || businessType == "both") && ShowWidget("clients")) {
-        <div class="w-full px-4 py-5 bg-white rounded-lg shadow relative group">
-            <div class="text-sm font-medium text-gray-500 truncate">Total Clients</div>
-            <div class="mt-1 text-3xl font-semibold text-cyan-600">@stats.TotalClients</div>
+        <div class="w-full px-4 py-5 bg-white dark:bg-gray-800 rounded-lg shadow relative group">
+            <div class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Total Clients</div>
+            <div class="mt-1 text-3xl font-semibold text-cyan-600 dark:text-cyan-400">@stats.TotalClients</div>
             @if(editMode) { <button @onclick='() => ToggleWidget("clients")' class="absolute top-2 right-2 text-red-500">Hide</button> }
         </div>
         }
         @if ((businessType == "service-only" || businessType == "both") && ShowWidget("billable")) {
-        <div class="w-full px-4 py-5 bg-white rounded-lg shadow relative group">
-            <div class="text-sm font-medium text-gray-500 truncate">Billable Hours</div>
-            <div class="mt-1 text-3xl font-semibold text-orange-600">@stats.BillableHours.ToString("F1")</div>
+        <div class="w-full px-4 py-5 bg-white dark:bg-gray-800 rounded-lg shadow relative group">
+            <div class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Billable Hours</div>
+            <div class="mt-1 text-3xl font-semibold text-orange-600 dark:text-orange-400">@stats.BillableHours.ToString("F1")</div>
             @if(editMode) { <button @onclick='() => ToggleWidget("billable")' class="absolute top-2 right-2 text-red-500">Hide</button> }
         </div>
         }
         @if ((businessType == "service-only" || businessType == "both") && ShowWidget("utilization")) {
-        <div class="w-full px-4 py-5 bg-white rounded-lg shadow relative group">
-            <div class="text-sm font-medium text-gray-500 truncate">Billable Utilization</div>
-            <div class="mt-1 text-3xl font-semibold text-blue-500">@stats.BillableUtilization.ToString("P1")</div>
+        <div class="w-full px-4 py-5 bg-white dark:bg-gray-800 rounded-lg shadow relative group">
+            <div class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Billable Utilization</div>
+            <div class="mt-1 text-3xl font-semibold text-blue-500 dark:text-blue-400">@stats.BillableUtilization.ToString("P1")</div>
             @if(editMode) { <button @onclick='() => ToggleWidget("utilization")' class="absolute top-2 right-2 text-red-500">Hide</button> }
         </div>
         }
         @if ((businessType == "service-only" || businessType == "both") && ShowWidget("margin")) {
-        <div class="w-full px-4 py-5 bg-white rounded-lg shadow relative group">
-            <div class="text-sm font-medium text-gray-500 truncate">Avg. Project Margin</div>
-            <div class="mt-1 text-3xl font-semibold text-green-500">@stats.AverageProjectMargin.ToString("P1")</div>
+        <div class="w-full px-4 py-5 bg-white dark:bg-gray-800 rounded-lg shadow relative group">
+            <div class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Avg. Project Margin</div>
+            <div class="mt-1 text-3xl font-semibold text-green-500 dark:text-green-400">@stats.AverageProjectMargin.ToString("P1")</div>
             @if(editMode) { <button @onclick='() => ToggleWidget("margin")' class="absolute top-2 right-2 text-red-500">Hide</button> }
         </div>
         }
         @if ((businessType == "service-only" || businessType == "both") && ShowWidget("availability")) {
-        <div class="w-full px-4 py-5 bg-white rounded-lg shadow relative group">
-            <div class="text-sm font-medium text-gray-500 truncate">Resource Availability</div>
-            <div class="mt-1 text-3xl font-semibold text-indigo-500">@stats.ResourceAvailabilityRate.ToString("P1")</div>
+        <div class="w-full px-4 py-5 bg-white dark:bg-gray-800 rounded-lg shadow relative group">
+            <div class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Resource Availability</div>
+            <div class="mt-1 text-3xl font-semibold text-indigo-500 dark:text-indigo-400">@stats.ResourceAvailabilityRate.ToString("P1")</div>
             @if(editMode) { <button @onclick='() => ToggleWidget("availability")' class="absolute top-2 right-2 text-red-500">Hide</button> }
         </div>
         }
         @if ((businessType == "service-only" || businessType == "both") && ShowWidget("contracts")) {
-        <div class="w-full px-4 py-5 bg-white rounded-lg shadow relative group">
-            <div class="text-sm font-medium text-gray-500 truncate">Expiring Contracts</div>
-            <div class="mt-1 text-3xl font-semibold text-red-500">@stats.ContractsExpiringSoon</div>
+        <div class="w-full px-4 py-5 bg-white dark:bg-gray-800 rounded-lg shadow relative group">
+            <div class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Expiring Contracts</div>
+            <div class="mt-1 text-3xl font-semibold text-red-500 dark:text-red-400">@stats.ContractsExpiringSoon</div>
             @if(editMode) { <button @onclick='() => ToggleWidget("contracts")' class="absolute top-2 right-2 text-red-500">Hide</button> }
         </div>
         }
@@ -178,8 +178,8 @@
 }
 
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-    <div class="bg-white shadow rounded-lg p-6">
-        <h3 class="text-lg font-medium leading-6 text-gray-900 mb-4">Quick Actions</h3>
+    <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+        <h3 class="text-lg font-medium leading-6 text-gray-900 dark:text-white mb-4">Quick Actions</h3>
         <div class="grid grid-cols-2 gap-4">
             @if (businessType == "product-only" || businessType == "both")
             {
@@ -220,8 +220,8 @@
         </div>
     </div>
 
-    <div class="bg-white shadow rounded-lg p-6">
-        <h3 class="text-lg font-medium leading-6 text-gray-900 mb-4">Cashflow Trend</h3>
+    <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+        <h3 class="text-lg font-medium leading-6 text-gray-900 dark:text-white mb-4">Cashflow Trend</h3>
         <div class="h-48 flex items-end space-x-2">
              @if (cashflow != null && cashflow.Any())
             {
@@ -233,7 +233,7 @@
                     var height = (point.Value / maxVal) * 100;
                     <div class="flex-1 flex flex-col items-center group relative">
                         <div class="w-full bg-green-500 rounded-t hover:bg-green-600 transition-all duration-300" style="height: @height%"></div>
-                        <div class="text-xs text-gray-500 mt-1 transform -rotate-45 origin-top-left">@point.Label</div>
+                        <div class="text-xs text-gray-500 dark:text-gray-400 mt-1 transform -rotate-45 origin-top-left">@point.Label</div>
                          <div class="absolute bottom-full mb-2 hidden group-hover:block bg-gray-800 text-white text-xs rounded py-1 px-2 z-10 whitespace-nowrap">
                             @point.Value.ToString("C")
                         </div>
@@ -242,7 +242,7 @@
             }
             else
             {
-                <div class="w-full h-full flex items-center justify-center text-gray-400">No Data Available</div>
+                <div class="w-full h-full flex items-center justify-center text-gray-400 dark:text-gray-500">No Data Available</div>
             }
         </div>
     </div>

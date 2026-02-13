@@ -6,7 +6,7 @@ pub mod email;
 use tauri::{State, Manager};
 use tokio::sync::RwLock;
 use std::collections::HashMap;
-use models::{Product, Employee, Payment, DashboardStats, Task, Attendance, ReportSummary, ChartDataPoint, Complaint, Tool, Role, Permission, FeatureToggle, ToolAssignment, AuditLog, DashboardConfig, Project, ProjectProfitability, ProjectTask, ProjectAssignment, Account, Invoice, Integration, User, LoginResponse, Invite, BomHeader, BomLine, InventoryBatch, VelocityReport, BomData, Supplier, SupplierOrder, Sale, BusinessConfiguration, Service, Client, TimeEntry, ServiceContract, Quote, QuoteItem, GlAccount, GlEntry, PurchaseOrder, SalesOrder};
+use models::{Product, Employee, Payment, DashboardStats, Task, Attendance, ReportSummary, ChartDataPoint, Complaint, Tool, Role, Permission, FeatureToggle, ToolAssignment, AuditLog, DashboardConfig, Project, ProjectProfitability, ProjectTask, ProjectAssignment, ProjectPhase, ProjectMilestone, ProjectTimeline, Account, Invoice, Integration, User, LoginResponse, Invite, BomHeader, BomLine, InventoryBatch, VelocityReport, BomData, Supplier, SupplierOrder, Sale, BusinessConfiguration, Service, Client, TimeEntry, ServiceContract, Quote, QuoteItem, GlAccount, GlEntry, PurchaseOrder, SalesOrder, FinanceOverview};
 use db::{Database, DbConfig, PostgresDatabase};
 use argon2::{
     password_hash::{
@@ -315,6 +315,12 @@ async fn register_user(state: State<'_, AppState>, mut user: User, password_plai
     let id = db.create_user(user.clone()).await?;
     let _ = db.log_activity(Some(id as i32), "register".to_string(), "UserManagement".to_string(), Some("User".to_string()), Some(id as i32), Some("User registered".to_string()), None, None).await;
     Ok(id)
+}
+
+#[tauri::command]
+async fn get_finance_overview(state: State<'_, AppState>, token: String) -> Result<FinanceOverview, String> {
+    check_auth(&state, &token, vec!["CEO", "Manager", "Finance"]).await?;
+    state.db.read().await.get_finance_overview().await
 }
 
 // --- Product Commands ---
@@ -785,9 +791,9 @@ async fn delete_complaint(state: State<'_, AppState>, id: i32, token: String) ->
 // --- Tool Commands ---
 
 #[tauri::command]
-async fn get_tools(state: State<'_, AppState>, token: String) -> Result<Vec<Tool>, String> {
+async fn get_tools(state: State<'_, AppState>, search: Option<String>, page: Option<i32>, page_size: Option<i32>, token: String) -> Result<serde_json::Value, String> {
     check_auth(&state, &token, vec![]).await?; // Any authenticated
-    state.db.read().await.get_tools().await
+    state.db.read().await.get_tools(search, page, page_size).await
 }
 
 #[tauri::command]
@@ -1388,6 +1394,68 @@ async fn delete_project(state: State<'_, AppState>, id: i32, token: String) -> R
     Ok(())
 }
 
+// --- Project Timeline Commands ---
+
+#[tauri::command]
+async fn get_project_timeline(state: State<'_, AppState>, project_id: i32, token: String) -> Result<ProjectTimeline, String> {
+    check_auth(&state, &token, vec![]).await?; // Any authenticated
+    state.db.read().await.get_project_timeline(project_id).await
+}
+
+#[tauri::command]
+async fn add_project_phase(state: State<'_, AppState>, phase: ProjectPhase, token: String) -> Result<i64, String> {
+    let user = check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    let db = state.db.read().await;
+    let id = db.add_project_phase(phase.clone()).await?;
+    let _ = db.log_activity(user.id, "create".to_string(), "ProjectManagement".to_string(), Some("ProjectPhase".to_string()), Some(id as i32), Some(format!("Added phase: {} to project {}", phase.name, phase.project_id)), None, None).await;
+    Ok(id.into())
+}
+
+#[tauri::command]
+async fn update_project_phase(state: State<'_, AppState>, phase: ProjectPhase, token: String) -> Result<(), String> {
+    let user = check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    let db = state.db.read().await;
+    db.update_project_phase(phase.clone()).await?;
+    let _ = db.log_activity(user.id, "update".to_string(), "ProjectManagement".to_string(), Some("ProjectPhase".to_string()), phase.id, Some(format!("Updated phase: {}", phase.name)), None, None).await;
+    Ok(())
+}
+
+#[tauri::command]
+async fn delete_project_phase(state: State<'_, AppState>, id: i32, token: String) -> Result<(), String> {
+    let user = check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    let db = state.db.read().await;
+    db.delete_project_phase(id).await?;
+    let _ = db.log_activity(user.id, "delete".to_string(), "ProjectManagement".to_string(), Some("ProjectPhase".to_string()), Some(id), Some("Deleted phase".to_string()), None, None).await;
+    Ok(())
+}
+
+#[tauri::command]
+async fn add_project_milestone(state: State<'_, AppState>, milestone: ProjectMilestone, token: String) -> Result<i64, String> {
+    let user = check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    let db = state.db.read().await;
+    let id = db.add_project_milestone(milestone.clone()).await?;
+    let _ = db.log_activity(user.id, "create".to_string(), "ProjectManagement".to_string(), Some("ProjectMilestone".to_string()), Some(id as i32), Some(format!("Added milestone: {} to project {}", milestone.name, milestone.project_id)), None, None).await;
+    Ok(id.into())
+}
+
+#[tauri::command]
+async fn update_project_milestone(state: State<'_, AppState>, milestone: ProjectMilestone, token: String) -> Result<(), String> {
+    let user = check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    let db = state.db.read().await;
+    db.update_project_milestone(milestone.clone()).await?;
+    let _ = db.log_activity(user.id, "update".to_string(), "ProjectManagement".to_string(), Some("ProjectMilestone".to_string()), milestone.id, Some(format!("Updated milestone: {}", milestone.name)), None, None).await;
+    Ok(())
+}
+
+#[tauri::command]
+async fn delete_project_milestone(state: State<'_, AppState>, id: i32, token: String) -> Result<(), String> {
+    let user = check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    let db = state.db.read().await;
+    db.delete_project_milestone(id).await?;
+    let _ = db.log_activity(user.id, "delete".to_string(), "ProjectManagement".to_string(), Some("ProjectMilestone".to_string()), Some(id), Some("Deleted milestone".to_string()), None, None).await;
+    Ok(())
+}
+
 #[tauri::command]
 async fn assign_project_employee(state: State<'_, AppState>, project_id: i32, employee_id: i32, role: String, token: String) -> Result<(), String> {
     let user = check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
@@ -1860,7 +1928,7 @@ pub fn run() {
             get_payments, add_payment, update_payment, delete_payment,
             get_tasks, add_task, update_task, delete_task,
             get_attendances, clock_in, clock_out,
-            get_dashboard_stats,
+            get_dashboard_stats, get_finance_overview,
             get_report_summary, get_monthly_cashflow,
             get_complaints, submit_complaint, resolve_complaint, delete_complaint,
             get_tools, add_tool, update_tool, delete_tool,
@@ -1878,6 +1946,7 @@ pub fn run() {
             get_audit_logs, export_audit_logs, update_client_info,
             get_dashboard_configs, save_dashboard_config,
             get_projects, get_project_profitability, add_project, update_project, get_project_tasks, add_project_task, update_project_task, delete_project, assign_project_employee, get_project_assignments, get_all_project_assignments, remove_project_assignment, delete_project_task,
+            get_project_timeline, add_project_phase, update_project_phase, delete_project_phase, add_project_milestone, update_project_milestone, delete_project_milestone,
             get_accounts, add_account, get_invoices, create_invoice,
             get_gl_accounts, add_gl_account, get_gl_entries, add_gl_entry,
             get_purchase_orders, get_purchase_order, create_purchase_order, update_purchase_order_status, receive_purchase_order,

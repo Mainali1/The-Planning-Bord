@@ -2,6 +2,24 @@ using System.Text.Json.Serialization;
 
 namespace ThePlanningBord.Models
 {
+    public class FinanceOverview
+    {
+        [JsonPropertyName("net_income")]
+        public double NetIncome { get; set; }
+
+        [JsonPropertyName("total_revenue")]
+        public double TotalRevenue { get; set; }
+
+        [JsonPropertyName("outstanding_invoices")]
+        public double OutstandingInvoices { get; set; }
+
+        [JsonPropertyName("revenue_trend")]
+        public List<ChartDataPoint> RevenueTrend { get; set; } = new();
+
+        [JsonPropertyName("expense_allocation")]
+        public List<ChartDataPoint> ExpenseAllocation { get; set; } = new();
+    }
+
     public class Payment
     {
         [JsonPropertyName("id")]

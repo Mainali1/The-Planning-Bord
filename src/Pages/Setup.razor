@@ -67,14 +67,21 @@
                     
                     @if (showPgMissingModal)
                     {
-                        <div class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-                            <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
-                                <h4 class="text-lg font-semibold text-gray-900 mb-2">PostgreSQL Not Installed</h4>
-                                <p class="text-sm text-gray-700">
-                                    PostgreSQL is not installed. Please install PostgreSQL first, then click OK to close the application.
-                                </p>
-                                <div class="mt-6 flex justify-end space-x-2">
-                                    <button @onclick="CloseApp" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">OK</button>
+                        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto" aria-labelledby="modal-title-pg-missing" role="dialog" aria-modal="true">
+                            <div class="fixed inset-0 transition-opacity" aria-hidden="true" @onclick="CloseApp">
+                                <div class="absolute inset-0 bg-gray-500/75 dark:bg-gray-900/80"></div>
+                            </div>
+                            <div class="relative w-full max-w-md bg-white dark:bg-gray-800 rounded-lg shadow-xl overflow-hidden border border-gray-200 dark:border-gray-700 transform transition-all">
+                                <div class="bg-white dark:bg-gray-800 px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
+                                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white" id="modal-title-pg-missing">PostgreSQL Not Installed</h3>
+                                </div>
+                                <div class="p-6">
+                                    <p class="text-sm text-gray-700 dark:text-gray-300">
+                                        PostgreSQL is not installed. Please install PostgreSQL first, then click OK to close the application.
+                                    </p>
+                                </div>
+                                <div class="bg-gray-50 dark:bg-gray-900/50 px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex flex-row-reverse">
+                                    <button @onclick="CloseApp" class="inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:bg-blue-500 dark:hover:bg-blue-600 transition-colors">OK</button>
                                 </div>
                             </div>
                         </div>

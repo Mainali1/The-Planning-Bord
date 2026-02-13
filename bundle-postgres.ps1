@@ -1,17 +1,25 @@
 $version = "16.3-1"
 $url = "https://get.enterprisedb.com/postgresql/postgresql-$version-windows-x64-binaries.zip"
-$dest = "D:\Projects\The-Planning-Bord\src-tauri\resources\postgres-binaries.zip"
-$extractPath = "D:\Projects\The-Planning-Bord\src-tauri\resources\postgres-tmp"
-$finalPath = "D:\Projects\The-Planning-Bord\src-tauri\resources\postgres\windows-x64"
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
+if (-not $scriptDir) { $scriptDir = $PSScriptRoot }
+if (-not $scriptDir) { $scriptDir = Get-Location }
 
-if (-not (Test-Path "D:\Projects\The-Planning-Bord\src-tauri\resources")) {
-    New-Item -ItemType Directory -Path "D:\Projects\The-Planning-Bord\src-tauri\resources" -Force
+$dest = Join-Path $scriptDir "src-tauri\resources\postgres-binaries.zip"
+$extractPath = Join-Path $scriptDir "src-tauri\resources\postgres-tmp"
+$finalPath = Join-Path $scriptDir "src-tauri\resources\postgres\windows-x64"
+
+$resourcesDir = Join-Path $scriptDir "src-tauri\resources"
+if (-not (Test-Path $resourcesDir)) {
+    New-Item -ItemType Directory -Path $resourcesDir -Force
 }
 
 function Download-WithRetry {
     param($url, $dest)
+    if (Test-Path $dest) {
+        Write-Host "Zip already exists at $dest, skipping download."
+        return $true
+    }
     Write-Host "Downloading from $url ..."
-    if (Test-Path $dest) { Remove-Item $dest -Force }
     
     curl.exe -L -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36" -o $dest $url
     
@@ -53,6 +61,24 @@ if (-not (Test-Path $src)) {
 
 # Use robocopy for more reliable moving/copying on Windows
 robocopy $src $finalPath /E /MOVE /NFL /NDL /NJH /NJS /nc /ns /np
+
+Write-Host "Pruning unnecessary files to reduce bundle size and WiX file count..."
+$dirsToRemove = "doc", "include", "pgAdmin*", "StackBuilder", "symbols"
+foreach ($dir in $dirsToRemove) {
+    $targetDirs = Get-ChildItem -Path $finalPath -Filter $dir -Directory
+    foreach ($targetDir in $targetDirs) {
+        Write-Host "Removing $($targetDir.Name)..."
+        Remove-Item -Path $targetDir.FullName -Recurse -Force
+    }
+}
+
+$filesToRemove = "bin\stackbuilder.exe", "bin\isolationtester.exe", "bin\pg_isolation_regress.exe"
+foreach ($file in $filesToRemove) {
+    $targetFile = Join-Path $finalPath $file
+    if (Test-Path $targetFile) {
+        Remove-Item -Path $targetFile -Force
+    }
+}
 
 Write-Host "Cleaning up..."
 if (Test-Path $dest) { 

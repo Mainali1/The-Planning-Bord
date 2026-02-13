@@ -13,12 +13,12 @@
 
 <PageTitle>Settings - The Planning Bord</PageTitle>
 
-<div class="flex h-full bg-gray-50">
+<div class="flex h-full bg-gray-50 dark:bg-gray-900">
     <!-- Sidebar -->
-    <div class="w-64 bg-white shadow-md flex-shrink-0 flex flex-col">
-        <div class="p-6 border-b border-gray-200">
-            <h2 class="text-xl font-bold text-gray-800">Settings</h2>
-            <p class="text-xs text-gray-500 mt-1">Manage application preferences</p>
+    <div class="w-64 bg-white dark:bg-gray-800 shadow-md flex-shrink-0 flex flex-col">
+        <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+            <h2 class="text-xl font-bold text-gray-800 dark:text-white">Settings</h2>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Manage application preferences</p>
         </div>
         <nav class="flex-1 overflow-y-auto py-4">
             <button @onclick='() => ChangeTab("general")' class="@GetTabClass("general") w-full text-left px-6 py-3 text-sm font-medium transition-colors">
@@ -28,73 +28,76 @@
                 Access Control
             </button>
             <button @onclick='() => ChangeTab("features")' class="@GetTabClass("features") w-full text-left px-6 py-3 text-sm font-medium transition-colors">
-                Features & Toggles
+                Features
+            </button>
+            <button @onclick='() => ChangeTab("integrations")' class="@GetTabClass("integrations") w-full text-left px-6 py-3 text-sm font-medium transition-colors">
+                Integrations
             </button>
             <button @onclick='() => ChangeTab("audit")' class="@GetTabClass("audit") w-full text-left px-6 py-3 text-sm font-medium transition-colors">
                 Audit Logs
             </button>
-            <button @onclick='() => ChangeTab("system")' class="@GetTabClass("system") w-full text-left px-6 py-3 text-sm font-medium transition-colors">
-                System
+            <button @onclick='() => ChangeTab("maintenance")' class="@GetTabClass("maintenance") w-full text-left px-6 py-3 text-sm font-medium transition-colors">
+                Maintenance
             </button>
         </nav>
     </div>
 
     <!-- Content -->
-    <div class="flex-1 overflow-auto p-8">
+    <div class="flex-1 overflow-y-auto p-8">
         @if (activeTab == "general")
         {
             <div class="max-w-4xl space-y-6">
                 <!-- Inventory Settings -->
-                <section class="bg-white shadow rounded-lg overflow-hidden">
-                    <div class="p-6 border-b border-gray-200">
-                         <h3 class="text-lg font-medium text-gray-900">Inventory Configuration</h3>
-                         <p class="text-sm text-gray-500">Manage global inventory and purchasing settings.</p>
+                <section class="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
+                    <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+                         <h3 class="text-lg font-medium text-gray-900 dark:text-white">Inventory Configuration</h3>
+                         <p class="text-sm text-gray-500 dark:text-gray-400">Manage global inventory and purchasing settings.</p>
                     </div>
                     <div class="p-6">
                         <div class="max-w-md">
-                            <label class="block text-sm font-medium text-gray-700">Global Order Email</label>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Global Order Email</label>
                             <div class="mt-1 flex rounded-md shadow-sm">
-                                <input type="email" @bind="globalOrderEmail" class="flex-1 min-w-0 block w-full px-3 py-2 rounded-md border-gray-300 sm:text-sm focus:ring-blue-500 focus:border-blue-500" placeholder="fallback@example.com">
+                                <input type="email" @bind="globalOrderEmail" class="flex-1 min-w-0 block w-full px-3 py-2 rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white sm:text-sm focus:ring-blue-500 focus:border-blue-500" placeholder="fallback@example.com">
                                 <button type="button" @onclick="SaveGlobalOrderEmail" class="ml-3 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                                     Save
                                 </button>
                             </div>
-                            <p class="mt-2 text-sm text-gray-500">This email will be used for auto-orders if the supplier does not have a specific Order Email defined.</p>
+                            <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">This email will be used for auto-orders if the supplier does not have a specific Order Email defined.</p>
                         </div>
                     </div>
                 </section>
 
                 <!-- Email Configuration (SMTP) -->
-                <section class="bg-white shadow rounded-lg overflow-hidden">
-                    <div class="p-6 border-b border-gray-200">
-                         <h3 class="text-lg font-medium text-gray-900">Email Configuration (SMTP)</h3>
-                         <p class="text-sm text-gray-500">Configure outbound email settings (Gmail, Outlook, etc.).</p>
+                <section class="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
+                    <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+                         <h3 class="text-lg font-medium text-gray-900 dark:text-white">Email Configuration (SMTP)</h3>
+                         <p class="text-sm text-gray-500 dark:text-gray-400">Configure outbound email settings (Gmail, Outlook, etc.).</p>
                     </div>
                     <div class="p-6 space-y-4">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700">SMTP Host</label>
-                                <input type="text" @bind="smtpConfig.Host" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="smtp.gmail.com">
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">SMTP Host</label>
+                                <input type="text" @bind="smtpConfig.Host" class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="smtp.gmail.com">
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700">Port</label>
-                                <input type="number" @bind="smtpConfig.Port" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="587">
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Port</label>
+                                <input type="number" @bind="smtpConfig.Port" class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="587">
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700">Username</label>
-                                <input type="text" @bind="smtpConfig.Username" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="your_email@gmail.com">
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Username</label>
+                                <input type="text" @bind="smtpConfig.Username" class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="your_email@gmail.com">
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700">Password / App Password</label>
-                                <input type="password" @bind="smtpConfig.Password" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="App Password">
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Password / App Password</label>
+                                <input type="password" @bind="smtpConfig.Password" class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="App Password">
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700">From Email</label>
-                                <input type="email" @bind="smtpConfig.FromEmail" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="your_email@gmail.com">
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">From Email</label>
+                                <input type="email" @bind="smtpConfig.FromEmail" class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="your_email@gmail.com">
                             </div>
                             <div class="flex items-center pt-6">
-                                <input id="use_ssl" type="checkbox" @bind="smtpConfig.UseSsl" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
-                                <label for="use_ssl" class="ml-2 block text-sm text-gray-900">Use SSL (Implicit, port 465)</label>
+                                <input id="use_ssl" type="checkbox" @bind="smtpConfig.UseSsl" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded">
+                                <label for="use_ssl" class="ml-2 block text-sm text-gray-900 dark:text-gray-300">Use SSL (Implicit, port 465)</label>
                             </div>
                         </div>
                         <div class="flex justify-end pt-4">
@@ -102,59 +105,59 @@
                                 Save SMTP Settings
                             </button>
                         </div>
-                        <p class="text-xs text-gray-500">
+                        <p class="text-xs text-gray-500 dark:text-gray-400">
                             Note: For Gmail, use "smtp.gmail.com", port 587 (STARTTLS) or 465 (SSL). Enable "App Passwords" in your Google Account Security settings if 2FA is on.
                         </p>
                     </div>
                 </section>
 
                 <!-- Appearance -->
-                <section class="bg-white shadow rounded-lg overflow-hidden">
-                    <div class="p-6 border-b border-gray-200">
-                         <h3 class="text-lg font-medium text-gray-900">Appearance</h3>
-                         <p class="text-sm text-gray-500">Customize the look and feel of the application.</p>
+                <section class="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
+                    <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+                         <h3 class="text-lg font-medium text-gray-900 dark:text-white">Appearance</h3>
+                         <p class="text-sm text-gray-500 dark:text-gray-400">Customize the look and feel of the application.</p>
                     </div>
                     <div class="p-6">
                         <div class="mb-4">
-                            <h4 class="text-sm font-medium text-gray-900">Theme Preference</h4>
-                            <p class="text-sm text-gray-500">Choose your preferred theme.</p>
+                            <h4 class="text-sm font-medium text-gray-900 dark:text-white">Theme Preference</h4>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">Choose your preferred theme.</p>
                         </div>
                         <div class="flex items-center space-x-6">
                             <label class="inline-flex items-center cursor-pointer">
                                 <input type="radio" class="form-radio text-blue-600 focus:ring-blue-500 h-4 w-4" name="theme" 
                                        checked="@(themePreference == "light")" 
                                        @onchange="@(() => SetTheme("light"))">
-                                <span class="ml-2 text-gray-700">Light</span>
+                                <span class="ml-2 text-gray-700 dark:text-gray-300">Light</span>
                             </label>
                             <label class="inline-flex items-center cursor-pointer">
                                 <input type="radio" class="form-radio text-blue-600 focus:ring-blue-500 h-4 w-4" name="theme" 
                                        checked="@(themePreference == "dark")" 
                                        @onchange="@(() => SetTheme("dark"))">
-                                <span class="ml-2 text-gray-700">Dark</span>
+                                <span class="ml-2 text-gray-700 dark:text-gray-300">Dark</span>
                             </label>
                             <label class="inline-flex items-center cursor-pointer">
                                 <input type="radio" class="form-radio text-blue-600 focus:ring-blue-500 h-4 w-4" name="theme" 
                                        checked="@(themePreference == "system")" 
                                        @onchange="@(() => SetTheme("system"))">
-                                <span class="ml-2 text-gray-700">System</span>
+                                <span class="ml-2 text-gray-700 dark:text-gray-300">System</span>
                             </label>
                         </div>
                     </div>
                 </section>
 
                 <!-- Notifications -->
-                <section class="bg-white shadow rounded-lg overflow-hidden">
-                    <div class="p-6 border-b border-gray-200">
-                         <h3 class="text-lg font-medium text-gray-900">Notifications</h3>
-                         <p class="text-sm text-gray-500">Manage how you receive alerts and updates.</p>
+                <section class="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
+                    <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+                         <h3 class="text-lg font-medium text-gray-900 dark:text-white">Notifications</h3>
+                         <p class="text-sm text-gray-500 dark:text-gray-400">Manage how you receive alerts and updates.</p>
                     </div>
                     <div class="p-6 flex items-center justify-between">
                         <div>
-                            <h4 class="text-sm font-medium text-gray-900">Push Notifications</h4>
-                            <p class="text-sm text-gray-500">Get notified when stock is low or tasks are due.</p>
+                            <h4 class="text-sm font-medium text-gray-900 dark:text-white">Push Notifications</h4>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">Get notified when stock is low or tasks are due.</p>
                         </div>
                         <div class="flex items-center">
-                            <button type="button" @onclick="ToggleNotifications" class="@(notificationsEnabled ? "bg-blue-600" : "bg-gray-200") relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            <button type="button" @onclick="ToggleNotifications" class="@(notificationsEnabled ? "bg-blue-600" : "bg-gray-200 dark:bg-gray-700") relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                                 <span class="@(notificationsEnabled ? "translate-x-5" : "translate-x-0") pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200"></span>
                             </button>
                         </div>
@@ -162,18 +165,18 @@
                 </section>
 
                 <!-- Integrations Link -->
-                <section class="bg-white shadow rounded-lg overflow-hidden">
-                    <div class="p-6 border-b border-gray-200">
-                         <h3 class="text-lg font-medium text-gray-900">Integrations</h3>
-                         <p class="text-sm text-gray-500">Connect external tools and services.</p>
+                <section class="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
+                    <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+                         <h3 class="text-lg font-medium text-gray-900 dark:text-white">Integrations</h3>
+                         <p class="text-sm text-gray-500 dark:text-gray-400">Connect external tools and services.</p>
                     </div>
                     <div class="p-6">
                         <div class="flex items-center justify-between">
                             <div>
-                                <h4 class="text-sm font-medium text-gray-900">Manage Integrations</h4>
-                                <p class="text-sm text-gray-500">Connect with QuickBooks, Salesforce, Slack, and more.</p>
+                                <h4 class="text-sm font-medium text-gray-900 dark:text-white">Manage Integrations</h4>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">Connect with QuickBooks, Salesforce, Slack, and more.</p>
                             </div>
-                            <button @onclick='() => Navigation.NavigateTo("/integrations")' class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            <button @onclick='() => Navigation.NavigateTo("/integrations")' class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                                 Configure Integrations
                             </button>
                         </div>
@@ -189,28 +192,28 @@
         }
         else if (activeTab == "access")
         {
-            <div class="bg-white shadow rounded-lg p-6 h-full flex flex-col">
+            <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6 h-full flex flex-col">
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
                     <!-- Roles List -->
-                    <div class="col-span-1 border-r border-gray-200 pr-4 flex flex-col h-full">
+                    <div class="col-span-1 border-r border-gray-200 dark:border-gray-700 pr-4 flex flex-col h-full">
                         <div class="flex justify-between items-center mb-4 flex-shrink-0">
-                            <h4 class="text-lg font-medium text-gray-900">Roles</h4>
-                            <button @onclick="OpenAddRoleModal" class="text-sm text-blue-600 hover:text-blue-900 font-medium">+ Add Role</button>
+                            <h4 class="text-lg font-medium text-gray-900 dark:text-white">Roles</h4>
+                            <button @onclick="OpenAddRoleModal" class="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 font-medium">+ Add Role</button>
                         </div>
-                        <ul class="divide-y divide-gray-200 overflow-y-auto flex-1">
+                        <ul class="divide-y divide-gray-200 dark:divide-gray-700 overflow-y-auto flex-1">
                             @if (roles != null)
                             {
                                 @foreach (var role in roles)
                                 {
-                                    <li class="py-3 px-2 rounded hover:bg-gray-50 cursor-pointer @(selectedRole?.Id == role.Id ? "bg-blue-50" : "")" @onclick="() => SelectRole(role)">
+                                    <li class="py-3 px-2 rounded hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer @(selectedRole?.Id == role.Id ? "bg-blue-50 dark:bg-blue-900/30" : "")" @onclick="() => SelectRole(role)">
                                         <div class="flex justify-between items-center">
                                             <div>
-                                                <p class="text-sm font-medium text-gray-900">@role.Name</p>
-                                                <p class="text-xs text-gray-500">@role.Description</p>
+                                                <p class="text-sm font-medium text-gray-900 dark:text-white">@role.Name</p>
+                                                <p class="text-xs text-gray-500 dark:text-gray-400">@role.Description</p>
                                             </div>
                                             @if (role.IsCustom)
                                             {
-                                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Custom</span>
+                                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400">Custom</span>
                                             }
                                         </div>
                                     </li>
@@ -224,8 +227,8 @@
                         @if (selectedRole != null)
                         {
                             <div class="mb-4 flex-shrink-0">
-                                <h4 class="text-lg font-medium text-gray-900">Permissions: @selectedRole.Name</h4>
-                                <p class="text-sm text-gray-500">Configure access rights for this role.</p>
+                                <h4 class="text-lg font-medium text-gray-900 dark:text-white">Permissions: @selectedRole.Name</h4>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">Configure access rights for this role.</p>
                             </div>
                             <div class="flex-1 overflow-y-auto pr-2">
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -233,32 +236,32 @@
                                     {
                                         @foreach (var perm in permissions)
                                         {
-                                            <div class="relative flex items-start p-2 rounded hover:bg-gray-50">
+                                            <div class="relative flex items-start p-2 rounded hover:bg-gray-50 dark:hover:bg-gray-700">
                                                 <div class="flex items-center h-5">
-                                                    <input id="perm-@perm.Id" type="checkbox" checked="@(rolePermissionIds.Contains(perm.Id))" @onchange="@(e => TogglePermission(perm.Id, e.Value))" class="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded" />
+                                                    <input id="perm-@perm.Id" type="checkbox" checked="@(rolePermissionIds.Contains(perm.Id))" @onchange="@(e => TogglePermission(perm.Id, e.Value))" class="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded" />
                                                 </div>
                                                 <div class="ml-3 text-sm">
-                                                    <label for="perm-@perm.Id" class="font-medium text-gray-700 cursor-pointer">@perm.Code</label>
-                                                    <p class="text-gray-500 text-xs">@perm.Description</p>
+                                                    <label for="perm-@perm.Id" class="font-medium text-gray-700 dark:text-gray-300 cursor-pointer">@perm.Code</label>
+                                                    <p class="text-gray-500 dark:text-gray-400 text-xs">@perm.Description</p>
                                                 </div>
                                             </div>
                                         }
                                     }
                                 </div>
                             </div>
-                            <div class="mt-6 pt-4 border-t border-gray-200 flex justify-end flex-shrink-0">
+                            <div class="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700 flex justify-end flex-shrink-0">
                                 <button @onclick="SaveRolePermissions" class="ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none">Save Permissions</button>
                             </div>
                         }
                         else
                         {
-                            <div class="flex items-center justify-center h-full text-gray-500">
+                            <div class="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
                                 <div class="text-center">
-                                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <svg class="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                                     </svg>
-                                    <h3 class="mt-2 text-sm font-medium text-gray-900">No role selected</h3>
-                                    <p class="mt-1 text-sm text-gray-500">Select a role from the list to view and edit permissions.</p>
+                                    <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-white">No role selected</h3>
+                                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Select a role from the list to view and edit permissions.</p>
                                 </div>
                             </div>
                         }
@@ -270,21 +273,21 @@
         {
             <div class="max-w-4xl space-y-6">
                 <div>
-                    <h3 class="text-lg font-medium text-gray-900">Feature Management</h3>
-                    <p class="text-sm text-gray-500">Enable or disable system modules and experimental features.</p>
+                    <h3 class="text-lg font-medium text-gray-900 dark:text-white">Feature Management</h3>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Enable or disable system modules and experimental features.</p>
                 </div>
                 @if (featureToggles != null)
                 {
-                    <div class="bg-white shadow overflow-hidden sm:rounded-md">
-                        <ul class="divide-y divide-gray-200">
+                    <div class="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-md">
+                        <ul class="divide-y divide-gray-200 dark:divide-gray-700">
                             @foreach (var toggle in featureToggles)
                             {
-                                <li class="px-6 py-4 flex items-center justify-between hover:bg-gray-50">
+                                <li class="px-6 py-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700">
                                     <div class="flex flex-col">
-                                        <span class="text-sm font-medium text-gray-900">@toggle.Key</span>
-                                        <span class="text-sm text-gray-500">Controls visibility of the @toggle.Key module</span>
+                                        <span class="text-sm font-medium text-gray-900 dark:text-white">@toggle.Key</span>
+                                        <span class="text-sm text-gray-500 dark:text-gray-400">Controls visibility of the @toggle.Key module</span>
                                     </div>
-                                    <button type="button" @onclick="() => ToggleFeature(toggle)" class="@(toggle.IsEnabled ? "bg-green-500" : "bg-gray-200") relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                    <button type="button" @onclick="() => ToggleFeature(toggle)" class="@(toggle.IsEnabled ? "bg-green-500" : "bg-gray-200 dark:bg-gray-700") relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                                         <span aria-hidden="true" class="@(toggle.IsEnabled ? "translate-x-5" : "translate-x-0") pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200"></span>
                                     </button>
                                 </li>
@@ -296,11 +299,11 @@
         }
         else if (activeTab == "audit")
         {
-            <div class="bg-white shadow rounded-lg overflow-hidden flex flex-col h-full">
-                <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center flex-shrink-0">
+            <div class="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden flex flex-col h-full">
+                <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center flex-shrink-0">
                     <div>
-                        <h4 class="text-lg font-medium text-gray-900">System Audit Logs</h4>
-                        <p class="text-sm text-gray-500">Track all changes and access events.</p>
+                        <h4 class="text-lg font-medium text-gray-900 dark:text-white">System Audit Logs</h4>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Track all changes and access events.</p>
                     </div>
                     <button @onclick="ExportLogs" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
                         Export to CSV
@@ -308,64 +311,64 @@
                 </div>
                 
                 <!-- Filters -->
-                <div class="px-6 py-4 bg-gray-50 border-b border-gray-200 flex flex-wrap gap-4 items-end flex-shrink-0">
+                <div class="px-6 py-4 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 flex flex-wrap gap-4 items-end flex-shrink-0">
                     <div>
-                        <label class="block text-xs font-medium text-gray-700">User ID</label>
-                        <input type="number" @bind="auditUserId" class="mt-1 block w-32 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" placeholder="ID">
+                        <label class="block text-xs font-medium text-gray-700 dark:text-gray-300">User ID</label>
+                        <input type="number" @bind="auditUserId" class="mt-1 block w-32 rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm placeholder" placeholder="ID">
                     </div>
                     <div>
-                        <label class="block text-xs font-medium text-gray-700">Action</label>
-                        <input type="text" @bind="auditAction" class="mt-1 block w-40 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" placeholder="Action">
+                        <label class="block text-xs font-medium text-gray-700 dark:text-gray-300">Action</label>
+                        <input type="text" @bind="auditAction" class="mt-1 block w-40 rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm placeholder" placeholder="Action">
                     </div>
                     <div>
-                        <label class="block text-xs font-medium text-gray-700">Category</label>
-                        <input type="text" @bind="auditCategory" class="mt-1 block w-40 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" placeholder="Category">
+                        <label class="block text-xs font-medium text-gray-700 dark:text-gray-300">Category</label>
+                        <input type="text" @bind="auditCategory" class="mt-1 block w-40 rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm placeholder" placeholder="Category">
                     </div>
                     <div>
-                        <label class="block text-xs font-medium text-gray-700">From</label>
-                        <input type="date" @bind="auditDateFrom" class="mt-1 block w-40 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                        <label class="block text-xs font-medium text-gray-700 dark:text-gray-300">From</label>
+                        <input type="date" @bind="auditDateFrom" class="mt-1 block w-40 rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
                     </div>
                     <div>
-                        <label class="block text-xs font-medium text-gray-700">To</label>
-                        <input type="date" @bind="auditDateTo" class="mt-1 block w-40 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                        <label class="block text-xs font-medium text-gray-700 dark:text-gray-300">To</label>
+                        <input type="date" @bind="auditDateTo" class="mt-1 block w-40 rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
                     </div>
                     <div>
-                        <button @onclick="FilterLogs" class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        <button @onclick="FilterLogs" class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                             Filter
                         </button>
                     </div>
                 </div>
 
                 <div class="overflow-auto flex-1">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50 sticky top-0">
+                    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                        <thead class="bg-gray-50 dark:bg-gray-900 sticky top-0">
                             <tr>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Entity</th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Details</th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client Info</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">User</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Action</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Category</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Entity</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Details</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Client Info</th>
                             </tr>
                         </thead>
-                        <tbody class="bg-white divide-y divide-gray-200">
+                        <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                             @if (auditLogs != null)
                             {
                                 @foreach (var log in auditLogs)
                                 {
-                                    <tr class="hover:bg-gray-50">
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">@log.CreatedAt</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">@(log.UserName ?? $"User {log.UserId}")</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">@log.CreatedAt</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">@(log.UserName ?? $"User {log.UserId}")</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400">
                                                 @log.Action
                                             </span>
                                         </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">@log.Category</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">@log.Entity (@log.EntityId)</td>
-                                        <td class="px-6 py-4 text-sm text-gray-500 truncate max-w-xs" title="@log.Details">@log.Details</td>
-                                        <td class="px-6 py-4 text-xs text-gray-500">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">@log.Category</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">@log.Entity (@log.EntityId)</td>
+                                        <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 truncate max-w-xs" title="@log.Details">@log.Details</td>
+                                        <td class="px-6 py-4 text-xs text-gray-500 dark:text-gray-400">
                                             <div>@log.IpAddress</div>
                                             <div class="truncate max-w-xs" title="@log.UserAgent">@log.UserAgent</div>
                                         </td>
@@ -375,29 +378,29 @@
                             else
                             {
                                 <tr>
-                                    <td colspan="7" class="px-6 py-4 text-center text-sm text-gray-500">Loading logs...</td>
+                                    <td colspan="7" class="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">Loading logs...</td>
                                 </tr>
                             }
                         </tbody>
                     </table>
                 </div>
-                <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-between items-center flex-shrink-0">
-                    <button class="px-3 py-1 border border-gray-300 rounded-md bg-white text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50" @onclick="PrevPage" disabled="@(auditPage == 1)">Previous</button>
-                    <span class="text-sm text-gray-600">Page @auditPage</span>
-                    <button class="px-3 py-1 border border-gray-300 rounded-md bg-white text-sm text-gray-600 hover:bg-gray-50" @onclick="NextPage">Next</button>
+                <div class="px-6 py-4 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center flex-shrink-0">
+                    <button class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50" @onclick="PrevPage" disabled="@(auditPage == 1)">Previous</button>
+                    <span class="text-sm text-gray-600 dark:text-gray-400">Page @auditPage</span>
+                    <button class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-600" @onclick="NextPage">Next</button>
                 </div>
             </div>
         }
-        else if (activeTab == "system")
+        else if (activeTab == "maintenance")
         {
              <div class="max-w-4xl space-y-6">
-                <div class="bg-white shadow rounded-lg overflow-hidden">
-                    <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
-                        <h4 class="text-lg font-medium text-gray-900">System Configuration</h4>
-                        <p class="text-sm text-gray-500">Advanced settings and maintenance tools.</p>
+                <div class="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
+                    <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
+                        <h4 class="text-lg font-medium text-gray-900 dark:text-white">System Configuration</h4>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Advanced settings and maintenance tools.</p>
                     </div>
                     <div class="p-6 space-y-6">
-                        <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded">
+                        <div class="bg-yellow-50 dark:bg-yellow-900/30 border-l-4 border-yellow-400 p-4 rounded">
                             <div class="flex">
                                 <div class="flex-shrink-0">
                                     <svg class="h-5 w-5 text-yellow-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
@@ -405,32 +408,32 @@
                                     </svg>
                                 </div>
                                 <div class="ml-3">
-                                    <p class="text-sm text-yellow-700 font-medium">
+                                    <p class="text-sm text-yellow-700 dark:text-yellow-400 font-medium">
                                         Warning
                                     </p>
-                                    <p class="text-sm text-yellow-700 mt-1">
+                                    <p class="text-sm text-yellow-700 dark:text-yellow-400 mt-1">
                                         Advanced system operations should only be performed by Technical Support or Administrators. Improper changes may affect system stability.
                                     </p>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="border-t border-gray-200 pt-6">
-                            <h5 class="text-sm font-medium text-gray-900 mb-2">Setup & Maintenance</h5>
+                        <div class="border-t border-gray-200 dark:border-gray-700 pt-6">
+                            <h5 class="text-sm font-medium text-gray-900 dark:text-white mb-2">Setup & Maintenance</h5>
                             <div class="flex space-x-4">
-                                <button @onclick="RunSetupWizard" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                <button @onclick="RunSetupWizard" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-indigo-700 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-900/30 hover:bg-indigo-200 dark:hover:bg-indigo-900/50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
                                     Run Setup Wizard
                                 </button>
-                                <button @onclick="SeedDemoDataAsync" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-green-700 bg-green-100 hover:bg-green-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                                <button @onclick="SeedDemoDataAsync" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-green-700 dark:text-green-400 bg-green-100 dark:bg-green-900/30 hover:bg-green-200 dark:hover:bg-green-900/50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
                                     Generate Demo Data
                                 </button>
                             </div>
-                            <div class="mt-6 border-t border-gray-200 pt-6">
-                                <h5 class="text-sm font-medium text-red-700 mb-2">Danger Zone</h5>
-                                <button @onclick="ResetDatabaseAsync" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                            <div class="mt-6 border-t border-gray-200 dark:border-gray-700 pt-6">
+                                <h5 class="text-sm font-medium text-red-700 dark:text-red-400 mb-2">Danger Zone</h5>
+                                <button @onclick="ResetDatabaseAsync" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-red-700 dark:text-red-400 bg-red-100 dark:bg-red-900/30 hover:bg-red-200 dark:hover:bg-red-900/50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
                                     Reset Database (Wipes All Data)
                                 </button>
-                                <p class="text-xs text-gray-500 mt-2">This will permanently delete all data (including audit logs) and re-initialize the database. Only use if you need to start fresh.</p>
+                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">This will permanently delete all data (including audit logs) and re-initialize the database. Only use if you need to start fresh.</p>
                             </div>
                         </div>
                     </div>
@@ -442,20 +445,38 @@
 
 @if (showAddRoleModal)
 {
-    <div class="fixed z-50 inset-0 overflow-y-auto">
+    <div class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title-add-role" role="dialog" aria-modal="true">
         <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div class="fixed inset-0 transition-opacity"><div class="absolute inset-0 bg-gray-500 opacity-75"></div></div>
-            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                    <h3 class="text-lg leading-6 font-medium text-gray-900">Add New Role</h3>
-                    <div class="mt-4 grid grid-cols-1 gap-y-4">
-                        <input type="text" @bind="newRoleName" placeholder="Role Name" class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2 border" />
-                        <input type="text" @bind="newRoleDescription" placeholder="Description" class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2 border" />
+            <div @onclick="() => showAddRoleModal = false" class="fixed inset-0 bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-80 transition-opacity" aria-hidden="true"></div>
+
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+            <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full border border-gray-200 dark:border-gray-700">
+                <div class="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <div class="sm:flex sm:items-start">
+                        <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900/30 sm:mx-0 sm:h-10 sm:w-10">
+                            <svg class="h-6 w-6 text-blue-600 dark:text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
+                            </svg>
+                        </div>
+                        <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                            <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white" id="modal-title-add-role">Add New Role</h3>
+                            <div class="mt-4 space-y-4">
+                                <div>
+                                    <label for="roleName" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Role Name</label>
+                                    <input type="text" id="roleName" @bind="newRoleName" class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="e.g., Warehouse Manager">
+                                </div>
+                                <div>
+                                    <label for="roleDescription" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Description</label>
+                                    <textarea id="roleDescription" @bind="newRoleDescription" rows="3" class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="Briefly describe the role's purpose."></textarea>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                    <button type="button" @onclick="SaveNewRole" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 sm:ml-3 sm:w-auto sm:text-sm">Save</button>
-                    <button type="button" @onclick="() => showAddRoleModal = false" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">Cancel</button>
+                <div class="bg-gray-50 dark:bg-gray-800/50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse border-t border-gray-200 dark:border-gray-700">
+                    <button type="button" @onclick="SaveNewRole" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm transition-colors">Save Role</button>
+                    <button type="button" @onclick="() => showAddRoleModal = false" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-700 text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 sm:mt-0 sm:w-auto sm:text-sm transition-colors">Cancel</button>
                 </div>
             </div>
         </div>
@@ -531,8 +552,8 @@
     private string GetTabClass(string tab)
     {
         return activeTab == tab 
-            ? "bg-blue-50 text-blue-700 border-r-4 border-blue-600" 
-            : "text-gray-600 hover:bg-gray-50 hover:text-gray-900";
+            ? "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border-r-4 border-blue-600" 
+            : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white";
     }
 
     private void ChangeTab(string tab)

@@ -7,33 +7,33 @@
 <PageTitle>Resource Planning - Planning Bord</PageTitle>
 
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+    <div class="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-lg">
         <div class="px-4 py-5 sm:px-6">
-            <h3 class="text-lg leading-6 font-medium text-gray-900">Resource Planning</h3>
-            <p class="mt-1 max-w-2xl text-sm text-gray-500">Overview of employee workload and task assignments.</p>
+            <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white">Resource Planning</h3>
+            <p class="mt-1 max-w-2xl text-sm text-gray-500 dark:text-gray-400">Overview of employee workload and task assignments.</p>
         </div>
 
         @if (isLoading)
         {
             <div class="px-4 py-5 sm:px-6">
                 <div class="flex justify-center items-center">
-                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                    <span class="ml-2 text-gray-600">Loading resources...</span>
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 dark:border-blue-400"></div>
+                    <span class="ml-2 text-gray-600 dark:text-gray-400">Loading resources...</span>
                 </div>
             </div>
         }
         else
         {
-            <div class="border-t border-gray-200 px-4 py-5 sm:p-0">
+            <div class="border-t border-gray-200 dark:border-gray-700 px-4 py-5 sm:p-0">
                 <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 p-6">
                     @foreach (var employee in employees)
                     {
                         var employeeTasks = tasks.Where(t => t.EmployeeId == employee.Id).ToList();
-                        <div class="bg-gray-50 overflow-hidden shadow rounded-lg">
+                        <div class="bg-gray-50 dark:bg-gray-900/50 overflow-hidden shadow rounded-lg border border-transparent dark:border-gray-700">
                             <div class="px-4 py-5 sm:p-6">
                                 <div class="flex items-center justify-between mb-4">
-                                    <h4 class="text-lg font-medium text-gray-900">@employee.FirstName @employee.LastName</h4>
-                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                    <h4 class="text-lg font-medium text-gray-900 dark:text-white">@employee.FirstName @employee.LastName</h4>
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
                                         @employeeTasks.Count tasks
                                     </span>
                                 </div>
@@ -42,10 +42,10 @@
                                     {
                                         @foreach (var task in employeeTasks)
                                         {
-                                            <div class="bg-white p-3 rounded shadow-sm border border-gray-200">
-                                                <div class="text-sm font-medium text-gray-900">@task.Title</div>
+                                            <div class="bg-white dark:bg-gray-800 p-3 rounded shadow-sm border border-gray-200 dark:border-gray-700">
+                                                <div class="text-sm font-medium text-gray-900 dark:text-white">@task.Title</div>
                                                 <div class="flex justify-between items-center mt-1">
-                                                    <span class="text-xs text-gray-500">Due: @(task.DueDate?.ToString("MM/dd") ?? "None")</span>
+                                                    <span class="text-xs text-gray-500 dark:text-gray-400">Due: @(task.DueDate?.ToString("MM/dd") ?? "None")</span>
                                                     <span class="text-xs px-2 py-0.5 rounded-full @GetPriorityClass(task.Priority)">@task.Priority</span>
                                                 </div>
                                             </div>
@@ -53,7 +53,7 @@
                                     }
                                     else
                                     {
-                                        <p class="text-sm text-gray-500 italic">No tasks assigned.</p>
+                                        <p class="text-sm text-gray-500 dark:text-gray-400 italic">No tasks assigned.</p>
                                     }
                                 </div>
                             </div>
@@ -61,11 +61,11 @@
                     }
 
                     @* Unassigned Tasks Column *@
-                    <div class="bg-yellow-50 overflow-hidden shadow rounded-lg border-2 border-yellow-100">
+                    <div class="bg-yellow-50 dark:bg-yellow-900/10 overflow-hidden shadow rounded-lg border-2 border-yellow-100 dark:border-yellow-900/30">
                         <div class="px-4 py-5 sm:p-6">
                             <div class="flex items-center justify-between mb-4">
-                                <h4 class="text-lg font-medium text-gray-900">Unassigned Tasks</h4>
-                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                <h4 class="text-lg font-medium text-gray-900 dark:text-white">Unassigned Tasks</h4>
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
                                     @unassignedTasks.Count
                                 </span>
                             </div>
@@ -74,14 +74,14 @@
                                 {
                                     @foreach (var task in unassignedTasks)
                                     {
-                                        <div class="bg-white p-3 rounded shadow-sm border border-gray-200">
-                                            <div class="text-sm font-medium text-gray-900">@task.Title</div>
+                                        <div class="bg-white dark:bg-gray-800 p-3 rounded shadow-sm border border-gray-200 dark:border-gray-700">
+                                            <div class="text-sm font-medium text-gray-900 dark:text-white">@task.Title</div>
                                             <div class="flex justify-between items-center mt-1">
-                                                <span class="text-xs text-gray-500">Due: @(task.DueDate?.ToString("MM/dd") ?? "None")</span>
+                                                <span class="text-xs text-gray-500 dark:text-gray-400">Due: @(task.DueDate?.ToString("MM/dd") ?? "None")</span>
                                                 <span class="text-xs px-2 py-0.5 rounded-full @GetPriorityClass(task.Priority)">@task.Priority</span>
                                             </div>
                                             <div class="mt-2">
-                                                <select @onchange="(e) => AssignTask(task, e.Value?.ToString())" class="block w-full text-xs border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                                                <select @onchange="(e) => AssignTask(task, e.Value?.ToString())" class="block w-full text-xs border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
                                                     <option value="">Assign to...</option>
                                                     @foreach (var emp in employees)
                                                     {
@@ -94,7 +94,7 @@
                                 }
                                 else
                                 {
-                                    <p class="text-sm text-gray-500 italic">No unassigned tasks.</p>
+                                    <p class="text-sm text-gray-500 dark:text-gray-400 italic">No unassigned tasks.</p>
                                 }
                             </div>
                         </div>
@@ -139,10 +139,10 @@
     {
         return priority?.ToLower() switch
         {
-            "high" => "bg-red-100 text-red-800",
-            "medium" => "bg-yellow-100 text-yellow-800",
-            "low" => "bg-green-100 text-green-800",
-            _ => "bg-gray-100 text-gray-800"
+            "high" => "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+            "medium" => "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
+            "low" => "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
+            _ => "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400"
         };
     }
 

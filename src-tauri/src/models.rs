@@ -293,6 +293,15 @@ pub struct PurchaseOrderLine {
 // --- Finance & Business ---
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct FinanceOverview {
+    pub net_income: f64,
+    pub total_revenue: f64,
+    pub outstanding_invoices: f64,
+    pub revenue_trend: Vec<ChartDataPoint>,
+    pub expense_allocation: Vec<ChartDataPoint>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Payment {
     pub id: Option<i32>,
     pub payment_type: String,
@@ -643,6 +652,38 @@ pub struct ProjectTask {
     pub due_date: Option<String>,
     pub parent_task_id: Option<i32>,
     pub dependencies_json: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ProjectPhase {
+    pub id: Option<i32>,
+    pub project_id: i32,
+    pub name: String,
+    pub description: Option<String>,
+    pub start_date: String,
+    pub end_date: String,
+    pub status: String,
+    pub color: Option<String>,
+    pub sort_order: i32,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ProjectMilestone {
+    pub id: Option<i32>,
+    pub project_id: i32,
+    pub name: String,
+    pub description: Option<String>,
+    pub date: String,
+    pub status: String,
+    pub is_critical: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ProjectTimeline {
+    pub project_id: i32,
+    pub project_name: String,
+    pub phases: Vec<ProjectPhase>,
+    pub milestones: Vec<ProjectMilestone>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

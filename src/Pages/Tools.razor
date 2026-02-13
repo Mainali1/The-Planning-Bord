@@ -10,51 +10,51 @@
 
 <div class="flex flex-col h-full relative">
     <div class="flex justify-between items-center mb-6">
-        <h3 class="text-lg font-medium leading-6 text-gray-900">Tool & Equipment Tracking</h3>
-        <button @onclick="OpenAddModal" class="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+        <h3 class="text-lg font-medium leading-6 text-gray-900 dark:text-white">Tool & Equipment Tracking</h3>
+        <button @onclick="OpenAddModal" class="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 transition-colors">
             ➕ New Tool
         </button>
     </div>
 
-    <div class="flex-1 overflow-auto bg-white shadow rounded-lg">
-        <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
+    <div class="flex-1 overflow-auto bg-white dark:bg-gray-800 shadow rounded-lg border border-transparent dark:border-gray-700">
+        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead class="bg-gray-50 dark:bg-gray-900/50">
                 <tr>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Condition</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Name</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Type</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Condition</th>
                     <th class="relative px-6 py-3"><span class="sr-only">Actions</span></th>
                 </tr>
             </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-                @if (tools == null) { <tr><td colspan="5" class="px-6 py-4 text-center">Loading...</td></tr> }
-                else if (!tools.Any()) { <tr><td colspan="5" class="px-6 py-4 text-center">No tools found.</td></tr> }
+            <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                @if (tools == null) { <tr><td colspan="5" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">Loading...</td></tr> }
+                else if (!tools.Any()) { <tr><td colspan="5" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">No tools found.</td></tr> }
                 else
                 {
                     @foreach (var t in tools)
                     {
-                        <tr>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">@t.Name</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">@t.TypeName</td>
+                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">@t.Name</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">@t.TypeName</td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full @(t.Status == "available" ? "bg-green-100 text-green-800" : (t.Status == "assigned" ? "bg-blue-100 text-blue-800" : "bg-red-100 text-red-800"))">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full @(t.Status == "available" ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" : (t.Status == "assigned" ? "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400" : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"))">
                                     @t.Status
                                 </span>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">@t.Condition</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">@t.Condition</td>
                             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                 @if (t.Status == "available")
                                 {
-                                    <button @onclick="() => OpenAssignModal(t)" class="text-indigo-600 hover:text-indigo-900 mr-3">Assign</button>
+                                    <button @onclick="() => OpenAssignModal(t)" class="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300 mr-3 transition-colors">Assign</button>
                                 }
                                 else if (t.Status == "assigned")
                                 {
-                                    <button @onclick="() => OpenReturnModal(t)" class="text-orange-600 hover:text-orange-900 mr-3">Return</button>
+                                    <button @onclick="() => OpenReturnModal(t)" class="text-orange-600 dark:text-orange-400 hover:text-orange-900 dark:hover:text-orange-300 mr-3 transition-colors">Return</button>
                                 }
-                                <button @onclick="() => OpenHistoryModal(t)" class="text-gray-600 hover:text-gray-900 mr-3">History</button>
-                                <button @onclick="() => EditTool(t)" class="text-blue-600 hover:text-blue-900 mr-3">Edit</button>
-                                <button @onclick="() => DeleteTool(t.Id ?? 0)" class="text-red-600 hover:text-red-900">Delete</button>
+                                <button @onclick="() => OpenHistoryModal(t)" class="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 mr-3 transition-colors">History</button>
+                                <button @onclick="() => EditTool(t)" class="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 mr-3 transition-colors">Edit</button>
+                                <button @onclick="() => DeleteTool(t.Id ?? 0)" class="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300 transition-colors">Delete</button>
                             </td>
                         </tr>
                     }
@@ -66,33 +66,34 @@
 
 @if (showAddModal)
 {
-    <div class="fixed z-10 inset-0 overflow-y-auto">
+    <div class="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="modal-title-add">
         <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div class="fixed inset-0 transition-opacity"><div class="absolute inset-0 bg-gray-500 opacity-75"></div></div>
-            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                    <h3 class="text-lg leading-6 font-medium text-gray-900">@((newTool.Id.HasValue ? "Edit" : "Add")) Tool</h3>
+            <div @onclick="() => showAddModal = false" class="fixed inset-0 bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-80 transition-opacity" aria-hidden="true"></div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full border border-gray-200 dark:border-gray-700">
+                <div class="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white" id="modal-title-add">@((newTool.Id.HasValue ? "Edit" : "Add")) Tool</h3>
                     <div class="mt-4 grid grid-cols-1 gap-y-4">
                         <div class="col-span-1">
-                            <label class="block text-sm font-medium text-gray-700">Link to Asset (Inventory) <span class="text-gray-400 font-normal">(Optional)</span></label>
-                            <select @onchange="OnAssetSelected" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Link to Asset (Inventory) <span class="text-gray-400 dark:text-gray-500 font-normal">(Optional)</span></label>
+                            <select @onchange="OnAssetSelected" class="mt-1 block w-full px-3 py-2 border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors">
                                 <option value="">(None - Standalone Tool)</option>
                                 @foreach (var p in assetProducts)
                                 {
                                     <option value="@p.Id" selected="@(newTool.ProductId == p.Id)">@p.Name (Qty: @p.CurrentQuantity)</option>
                                 }
                             </select>
-                            <p class="mt-1 text-xs text-gray-500">Select an inventory asset if this tool is a tracked instance (e.g., "Drill #1" linked to "Makita Drill"). Leave empty for general equipment or if not applicable.</p>
+                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Select an inventory asset if this tool is a tracked instance (e.g., "Drill #1" linked to "Makita Drill"). Leave empty for general equipment or if not applicable.</p>
                         </div>
                         
-                        <input type="text" @bind="newTool.Name" placeholder="Tool Name" class="block w-full border-gray-300 rounded-md shadow-sm" />
-                        <input type="text" @bind="newTool.TypeName" placeholder="Type (e.g., Drill, Saw)" class="block w-full border-gray-300 rounded-md shadow-sm" />
-                        <select @bind="newTool.Status" class="block w-full border-gray-300 rounded-md shadow-sm">
+                        <input type="text" @bind="newTool.Name" placeholder="Tool Name" class="block w-full px-3 py-2 border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors" />
+                        <input type="text" @bind="newTool.TypeName" placeholder="Type (e.g., Drill, Saw)" class="block w-full px-3 py-2 border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors" />
+                        <select @bind="newTool.Status" class="block w-full px-3 py-2 border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors">
                             <option value="available">Available</option>
                             <option value="in_use">In Use</option>
                             <option value="maintenance">Maintenance</option>
                         </select>
-                        <select @bind="newTool.Condition" class="block w-full border-gray-300 rounded-md shadow-sm">
+                        <select @bind="newTool.Condition" class="block w-full px-3 py-2 border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors">
                             <option value="new">New</option>
                             <option value="good">Good</option>
                             <option value="fair">Fair</option>
@@ -100,8 +101,8 @@
                         </select>
                     </div>
                 </div>
-                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                    <button type="button" @onclick="SaveTool" disabled="@isLoading" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                <div class="bg-gray-50 dark:bg-gray-900/50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse border-t border-gray-200 dark:border-gray-700">
+                    <button type="button" @onclick="SaveTool" disabled="@isLoading" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
                         @if (isLoading)
                         {
                             <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -111,7 +112,7 @@
                         }
                         Save
                     </button>
-                    <button type="button" @onclick="() => showAddModal = false" disabled="@isLoading" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed">Cancel</button>
+                    <button type="button" @onclick="() => showAddModal = false" disabled="@isLoading" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-700 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors">Cancel</button>
                 </div>
             </div>
         </div>
@@ -120,37 +121,44 @@
 
 @if (showAssignModal)
 {
-    <div class="fixed z-10 inset-0 overflow-y-auto">
+    <div class="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="modal-title-assign">
         <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div class="fixed inset-0 transition-opacity"><div class="absolute inset-0 bg-gray-500 opacity-75"></div></div>
-            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                    <h3 class="text-lg leading-6 font-medium text-gray-900">Assign Tool: @selectedTool?.Name</h3>
+            <div @onclick="() => showAssignModal = false" class="fixed inset-0 bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-80 transition-opacity" aria-hidden="true"></div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full border border-gray-200 dark:border-gray-700">
+                <div class="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white" id="modal-title-assign">Assign Tool: @selectedTool?.Name</h3>
                     <div class="mt-4 grid grid-cols-1 gap-y-4">
-                        <label class="block text-sm font-medium text-gray-700">Employee</label>
-                        <select @bind="assignEmployeeId" class="block w-full border-gray-300 rounded-md shadow-sm">
-                            <option value="0">Select Employee...</option>
-                            @if (employees != null)
-                            {
-                                @foreach (var emp in employees)
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Employee</label>
+                            <select @bind="assignEmployeeId" class="mt-1 block w-full px-3 py-2 border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors">
+                                <option value="0">Select Employee...</option>
+                                @if (employees != null)
                                 {
-                                    <option value="@emp.Id">@emp.FirstName @emp.LastName</option>
+                                    @foreach (var emp in employees)
+                                    {
+                                        <option value="@emp.Id">@emp.FirstName @emp.LastName</option>
+                                    }
                                 }
-                            }
-                        </select>
-                        <label class="block text-sm font-medium text-gray-700">Condition on Assignment</label>
-                        <select @bind="assignCondition" class="block w-full border-gray-300 rounded-md shadow-sm">
-                            <option value="new">New</option>
-                            <option value="good">Good</option>
-                            <option value="fair">Fair</option>
-                            <option value="poor">Poor</option>
-                        </select>
-                        <label class="block text-sm font-medium text-gray-700">Notes</label>
-                        <textarea @bind="assignNotes" class="block w-full border-gray-300 rounded-md shadow-sm" rows="3"></textarea>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Condition on Assignment</label>
+                            <select @bind="assignCondition" class="mt-1 block w-full px-3 py-2 border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors">
+                                <option value="new">New</option>
+                                <option value="good">Good</option>
+                                <option value="fair">Fair</option>
+                                <option value="poor">Poor</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Notes</label>
+                            <textarea @bind="assignNotes" class="mt-1 block w-full px-3 py-2 border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors" rows="3"></textarea>
+                        </div>
                     </div>
                 </div>
-                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                    <button type="button" @onclick="AssignTool" disabled="@isLoading" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                <div class="bg-gray-50 dark:bg-gray-900/50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse border-t border-gray-200 dark:border-gray-700">
+                    <button type="button" @onclick="AssignTool" disabled="@isLoading" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
                         @if (isLoading)
                         {
                             <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -160,7 +168,7 @@
                         }
                         Assign
                     </button>
-                    <button type="button" @onclick="() => showAssignModal = false" disabled="@isLoading" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed">Cancel</button>
+                    <button type="button" @onclick="() => showAssignModal = false" disabled="@isLoading" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-700 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors">Cancel</button>
                 </div>
             </div>
         </div>
@@ -169,26 +177,31 @@
 
 @if (showReturnModal)
 {
-    <div class="fixed z-10 inset-0 overflow-y-auto">
+    <div class="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="modal-title-return">
         <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div class="fixed inset-0 transition-opacity"><div class="absolute inset-0 bg-gray-500 opacity-75"></div></div>
-            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                    <h3 class="text-lg leading-6 font-medium text-gray-900">Return Tool: @selectedTool?.Name</h3>
+            <div @onclick="() => showReturnModal = false" class="fixed inset-0 bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-80 transition-opacity" aria-hidden="true"></div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full border border-gray-200 dark:border-gray-700">
+                <div class="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white" id="modal-title-return">Return Tool: @selectedTool?.Name</h3>
                     <div class="mt-4 grid grid-cols-1 gap-y-4">
-                        <label class="block text-sm font-medium text-gray-700">Condition on Return</label>
-                        <select @bind="returnCondition" class="block w-full border-gray-300 rounded-md shadow-sm">
-                            <option value="new">New</option>
-                            <option value="good">Good</option>
-                            <option value="fair">Fair</option>
-                            <option value="poor">Poor</option>
-                        </select>
-                        <label class="block text-sm font-medium text-gray-700">Notes</label>
-                        <textarea @bind="returnNotes" class="block w-full border-gray-300 rounded-md shadow-sm" rows="3"></textarea>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Condition on Return</label>
+                            <select @bind="returnCondition" class="mt-1 block w-full px-3 py-2 border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors">
+                                <option value="new">New</option>
+                                <option value="good">Good</option>
+                                <option value="fair">Fair</option>
+                                <option value="poor">Poor</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Notes</label>
+                            <textarea @bind="returnNotes" class="mt-1 block w-full px-3 py-2 border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors" rows="3"></textarea>
+                        </div>
                     </div>
                 </div>
-                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                    <button type="button" @onclick="ReturnTool" disabled="@isLoading" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-orange-600 text-base font-medium text-white hover:bg-orange-700 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                <div class="bg-gray-50 dark:bg-gray-900/50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse border-t border-gray-200 dark:border-gray-700">
+                    <button type="button" @onclick="ReturnTool" disabled="@isLoading" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-orange-600 text-base font-medium text-white hover:bg-orange-700 dark:bg-orange-500 dark:hover:bg-orange-600 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
                         @if (isLoading)
                         {
                             <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -198,7 +211,7 @@
                         }
                         Return
                     </button>
-                    <button type="button" @onclick="() => showReturnModal = false" disabled="@isLoading" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed">Cancel</button>
+                    <button type="button" @onclick="() => showReturnModal = false" disabled="@isLoading" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-700 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors">Cancel</button>
                 </div>
             </div>
         </div>
@@ -207,37 +220,38 @@
 
 @if (showHistoryModal)
 {
-    <div class="fixed z-10 inset-0 overflow-y-auto">
+    <div class="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="modal-title-history">
         <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div class="fixed inset-0 transition-opacity"><div class="absolute inset-0 bg-gray-500 opacity-75"></div></div>
-            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-3xl sm:w-full">
-                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                    <h3 class="text-lg leading-6 font-medium text-gray-900">History: @selectedTool?.Name</h3>
+            <div @onclick="() => showHistoryModal = false" class="fixed inset-0 bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-80 transition-opacity" aria-hidden="true"></div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-3xl sm:w-full border border-gray-200 dark:border-gray-700">
+                <div class="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white" id="modal-title-history">History: @selectedTool?.Name</h3>
                     <div class="mt-4 flex flex-col">
                         <div class="-my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
                             <div class="py-2 align-middle inline-block min-w-full sm:px-6 lg:px-8">
-                                <div class="shadow overflow-hidden border-b border-gray-200 sm:rounded-lg">
-                                    <table class="min-w-full divide-y divide-gray-200">
-                                        <thead class="bg-gray-50">
+                                <div class="shadow overflow-hidden border border-gray-200 dark:border-gray-700 sm:rounded-lg">
+                                    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                                        <thead class="bg-gray-50 dark:bg-gray-900/50">
                                             <tr>
-                                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee</th>
-                                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assigned</th>
-                                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Returned</th>
-                                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notes</th>
+                                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Employee</th>
+                                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Assigned</th>
+                                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Returned</th>
+                                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Notes</th>
                                             </tr>
                                         </thead>
-                                        <tbody class="bg-white divide-y divide-gray-200">
-                                            @if (toolHistory == null) { <tr><td colspan="4" class="px-6 py-4 text-center">Loading...</td></tr> }
-                                            else if (!toolHistory.Any()) { <tr><td colspan="4" class="px-6 py-4 text-center">No history found.</td></tr> }
+                                        <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                                            @if (toolHistory == null) { <tr><td colspan="4" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">Loading...</td></tr> }
+                                            else if (!toolHistory.Any()) { <tr><td colspan="4" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">No history found.</td></tr> }
                                             else
                                             {
                                                 @foreach (var h in toolHistory)
                                                 {
-                                                    <tr>
-                                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">@GetEmployeeName(h.EmployeeId)</td>
-                                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">@h.AssignedAt</td>
-                                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">@h.ReturnedAt</td>
-                                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">@h.Notes</td>
+                                                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">@GetEmployeeName(h.EmployeeId)</td>
+                                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">@h.AssignedAt</td>
+                                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">@h.ReturnedAt</td>
+                                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">@h.Notes</td>
                                                     </tr>
                                                 }
                                             }
@@ -248,8 +262,8 @@
                         </div>
                     </div>
                 </div>
-                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                    <button type="button" @onclick="() => showHistoryModal = false" class="w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:ml-3 sm:w-auto sm:text-sm">Close</button>
+                <div class="bg-gray-50 dark:bg-gray-900/50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse border-t border-gray-200 dark:border-gray-700">
+                    <button type="button" @onclick="() => showHistoryModal = false" class="w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-700 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 sm:ml-3 sm:w-auto sm:text-sm transition-colors">Close</button>
                 </div>
             </div>
         </div>
@@ -258,28 +272,30 @@
 
 @if (showDeleteModal)
 {
-    <div class="fixed z-10 inset-0 overflow-y-auto">
+    <div class="fixed z-10 inset-0 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="modal-title-delete">
         <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div class="fixed inset-0 transition-opacity"><div class="absolute inset-0 bg-gray-500 opacity-75"></div></div>
-            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+            <div class="fixed inset-0 transition-opacity" aria-hidden="true" @onclick="() => showDeleteModal = false">
+                <div class="absolute inset-0 bg-gray-500/75 dark:bg-gray-900/80"></div>
+            </div>
+            <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full border border-gray-200 dark:border-gray-700">
+                <div class="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                     <div class="sm:flex sm:items-start">
-                        <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+                        <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 dark:bg-red-900/30 sm:mx-0 sm:h-10 sm:w-10">
                             <!-- Heroicon name: outline/exclamation -->
-                            <svg class="h-6 w-6 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                            <svg class="h-6 w-6 text-red-600 dark:text-red-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                             </svg>
                         </div>
                         <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
-                            <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">Delete Tool</h3>
+                            <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white" id="modal-title-delete">Delete Tool</h3>
                             <div class="mt-2">
-                                <p class="text-sm text-gray-500">Are you sure you want to delete this tool? This action cannot be undone.</p>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">Are you sure you want to delete this tool? This action cannot be undone.</p>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                    <button type="button" @onclick="ConfirmDeleteTool" disabled="@isLoading" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                <div class="bg-gray-50 dark:bg-gray-900/50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse border-t border-gray-200 dark:border-gray-700">
+                    <button type="button" @onclick="ConfirmDeleteTool" disabled="@isLoading" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
                         @if (isLoading)
                         {
                             <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -289,7 +305,7 @@
                         }
                         Confirm Delete
                     </button>
-                    <button type="button" @onclick="() => showDeleteModal = false" disabled="@isLoading" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed">Cancel</button>
+                    <button type="button" @onclick="() => showDeleteModal = false" disabled="@isLoading" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-700 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors">Cancel</button>
                 </div>
             </div>
         </div>
@@ -347,7 +363,8 @@
     {
         try { 
             Console.WriteLine("Tools.LoadTools: Loading tools...");
-            tools = await InventoryService.GetToolsAsync() ?? new List<Tool>(); 
+            var result = await InventoryService.GetToolsAsync(); 
+            tools = result?.Items ?? new List<Tool>();
             Console.WriteLine($"Tools.LoadTools: Loaded {tools.Count} tools");
         }
         catch (TauriValidationException ex) { 

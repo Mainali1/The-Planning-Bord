@@ -18,6 +18,15 @@ namespace ThePlanningBord.Services
         Task<List<ProjectAssignment>> GetAllProjectAssignmentsAsync();
         Task RemoveProjectAssignmentAsync(int projectId, int employeeId);
         Task<ProjectProfitability> GetProjectProfitabilityAsync(int projectId);
+        
+        // Timeline methods
+        Task<ProjectTimeline> GetProjectTimelineAsync(int projectId);
+        Task<long> AddProjectPhaseAsync(ProjectPhase phase);
+        Task UpdateProjectPhaseAsync(ProjectPhase phase);
+        Task DeleteProjectPhaseAsync(int id);
+        Task<long> AddProjectMilestoneAsync(ProjectMilestone milestone);
+        Task UpdateProjectMilestoneAsync(ProjectMilestone milestone);
+        Task DeleteProjectMilestoneAsync(int id);
     }
 
     public class ProjectService : IProjectService
@@ -200,6 +209,48 @@ namespace ThePlanningBord.Services
                 Console.WriteLine($"ProjectService.GetProjectProfitabilityAsync: Error fetching profitability - {ex.Message}");
                 throw;
             }
+        }
+
+        public async Task<ProjectTimeline> GetProjectTimelineAsync(int projectId)
+        {
+            var token = await _userService.GetTokenAsync();
+            return await _tauri.InvokeAsync<ProjectTimeline>("get_project_timeline", new { projectId, token });
+        }
+
+        public async Task<long> AddProjectPhaseAsync(ProjectPhase phase)
+        {
+            var token = await _userService.GetTokenAsync();
+            return await _tauri.InvokeAsync<long>("add_project_phase", new { phase, token });
+        }
+
+        public async Task UpdateProjectPhaseAsync(ProjectPhase phase)
+        {
+            var token = await _userService.GetTokenAsync();
+            await _tauri.InvokeVoidAsync("update_project_phase", new { phase, token });
+        }
+
+        public async Task DeleteProjectPhaseAsync(int id)
+        {
+            var token = await _userService.GetTokenAsync();
+            await _tauri.InvokeVoidAsync("delete_project_phase", new { id, token });
+        }
+
+        public async Task<long> AddProjectMilestoneAsync(ProjectMilestone milestone)
+        {
+            var token = await _userService.GetTokenAsync();
+            return await _tauri.InvokeAsync<long>("add_project_milestone", new { milestone, token });
+        }
+
+        public async Task UpdateProjectMilestoneAsync(ProjectMilestone milestone)
+        {
+            var token = await _userService.GetTokenAsync();
+            await _tauri.InvokeVoidAsync("update_project_milestone", new { milestone, token });
+        }
+
+        public async Task DeleteProjectMilestoneAsync(int id)
+        {
+            var token = await _userService.GetTokenAsync();
+            await _tauri.InvokeVoidAsync("delete_project_milestone", new { id, token });
         }
     }
 }
