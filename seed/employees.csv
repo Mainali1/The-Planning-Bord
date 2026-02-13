@@ -1,5 +1,5 @@
 EmpID,FullName,Role,Department,ManagerID,Email,HireDate,Salary
-EMP-0001,Rajesh Thapa,CEO,Executive,,rajesh.thapa@apextek.com,2016-03-12,210000
+EMP-0001,Rajan Mainali,CEO,Executive,,rijan.d.devil@apextek.com,2016-03-12,210000
 EMP-0002,Anita Sharma,COO,Executive,EMP-0001,anita.sharma@apextek.com,2017-07-02,165000
 EMP-0003,Deepak Khatri,CFO,Finance,EMP-0001,deepak.khatri@apextek.com,2018-01-15,160000
 EMP-0004,Nisha Adhikari,CTO,Engineering,EMP-0001,nisha.adhikari@apextek.com,2019-05-21,175000
@@ -51,12 +51,11 @@ EMP-0049,Dr. Binita Shah,Healthcare Consultant,Consulting,EMP-0002,binita.shah@a
 EMP-0050,Rajendra B.,Logistics Specialist,Logistics,EMP-0027,rajendra.b@apextek.com,2019-07-09,54000
 EMP-0051,Sujata R.,(duplicate-name placeholder) Sales Engineer,Sales,EMP-0005,sujata.sales@apextek.com,2022-02-02,65000
 EMP-0052,Prakash Adhikari,Business Dev Manager,Sales,EMP-0005,prakash.adhikari@apextek.com,2017-08-19,92000
-EMP-0053,Maya Tamang,Account Manager,Sales,EMP-0005,maya.tamang@apextek.com,2020-03-01,76000
+EMP-0053,Maya Tamang,Account Manager,Sales,EMP-0005,maya.tamang2@apextek.com,2020-03-01,76000
 EMP-0054,Binita Joshi,Office Manager,Ops,EMP-0002,binita.joshi@apextek.com,2016-12-12,62000
 EMP-0055,Rajiv Sharma,Technical Writer,Product,EMP-0017,rajiv.sharma@apextek.com,2021-01-20,52000
 EMP-0056,Pratik Gurung,Junior Warehouse,Logistics,EMP-0027,pratik.gurung2@apextek.com,2023-01-05,34000
 EMP-0057,Rita Shrestha,Channel Sales Lead,Sales,EMP-0005,rita.channel@apextek.com,2019-06-01,88000
-EMP-0058,Kamal Thapa,QA Lead,Engineering,EMP-0004,kamal.thapa@apextek.com,2016-04-19,98000
+EMP-0058,Kamal Thapa,QA Lead,Engineering,EMP-0004,kamal.thapa2@apextek.com,2016-04-19,98000
 EMP-0059,Niraj Bhandari,Operations Coordinator,Operations,EMP-0002,niraj.bhandari2@apextek.com,2022-11-11,45000
 EMP-0060,Dev Raj,Field Supervisor,FieldServices,EMP-0018,dev.supervisor@apextek.com,2020-09-12,54000
-

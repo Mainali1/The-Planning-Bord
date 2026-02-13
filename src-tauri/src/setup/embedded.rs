@@ -39,6 +39,16 @@ fn resource_bin(app: &tauri::AppHandle) -> Option<PathBuf> {
         println!("Checking bin path: {:?}", path);
         if path.join(exe_name("postgres")).exists() {
             println!("Found postgres at: {:?}", path);
+            
+            // On Windows, the UNC prefix (\\?\) can confuse some tools like pg_ctl
+            #[cfg(windows)]
+            {
+                let path_str = path.to_string_lossy();
+                if path_str.starts_with(r"\\?\") {
+                    return Some(PathBuf::from(&path_str[4..]));
+                }
+            }
+            
             return Some(path);
         }
     }
@@ -48,6 +58,16 @@ fn resource_bin(app: &tauri::AppHandle) -> Option<PathBuf> {
 
 fn data_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     let base = app.path().app_local_data_dir().map_err(|_| "Failed to get app data dir".to_string())?;
+    
+    // On Windows, strip UNC prefix for consistency with resource_bin
+    #[cfg(windows)]
+    {
+        let base_str = base.to_string_lossy();
+        if base_str.starts_with(r"\\?\") {
+            return Ok(PathBuf::from(&base_str[4..]).join("embedded_pg_data"));
+        }
+    }
+    
     Ok(base.join("embedded_pg_data"))
 }
 

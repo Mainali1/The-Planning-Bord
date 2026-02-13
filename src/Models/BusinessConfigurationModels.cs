@@ -70,7 +70,7 @@ namespace ThePlanningBord.Models
         public int? Id { get; set; }
 
         [JsonPropertyName("service_code")]
-        public string ServiceCode { get; set; } = string.Empty;
+        public string? ServiceCode { get; set; }
 
         [JsonPropertyName("name")]
         public string Name { get; set; } = string.Empty;
@@ -94,7 +94,7 @@ namespace ThePlanningBord.Models
         public double? EstimatedHours { get; set; }
 
         [JsonPropertyName("typical_duration")]
-        public double? TypicalDuration { get; set; }
+        public string? TypicalDuration { get; set; }
 
         [JsonPropertyName("duration_unit")]
         public string? DurationUnit { get; set; } // 'days' or 'hours'

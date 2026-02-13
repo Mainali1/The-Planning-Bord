@@ -33,6 +33,7 @@ use deadpool_postgres::{Pool, Manager, ManagerConfig, RecyclingMethod};
 use tokio_postgres::NoTls;
 use tokio_postgres::error::SqlState;
 use std::str::FromStr;
+use csv;
 use chrono::{NaiveDateTime, NaiveDate, DateTime};
 use argon2::{
     password_hash::{
@@ -1921,6 +1922,247 @@ impl Database for PostgresDatabase {
     }
 
     async fn seed_demo_data(&self) -> Result<(), String> {
+        println!("Seeding demo data from CSV files...");
+        
+        // 0. Clear existing data to avoid unique constraint violations
+        let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection for clearing: {}", e))?;
+        println!("Clearing existing services, clients, employees, and products (cascading)...");
+        client.batch_execute("
+            TRUNCATE TABLE services, clients, employees, products CASCADE;
+        ").await.map_err(|e| format!("Failed to clear existing data: {}", e))?;
+
+        if let Ok(cwd) = std::env::current_dir() {
+            println!("Current working directory: {:?}", cwd);
+        }
+
+        // Try to find the seed directory
+        let mut seed_dir = std::path::PathBuf::from("seed");
+        if !seed_dir.exists() {
+            seed_dir = std::path::PathBuf::from("../seed");
+        }
+        if !seed_dir.exists() {
+            seed_dir = std::path::PathBuf::from("The-Planning-Bord/seed");
+        }
+        if !seed_dir.exists() {
+            // Check current executable directory if running in production
+            if let Ok(exe_path) = std::env::current_exe() {
+                if let Some(exe_dir) = exe_path.parent() {
+                    let exe_seed = exe_dir.join("seed");
+                    if exe_seed.exists() {
+                        seed_dir = exe_seed;
+                    }
+                }
+            }
+        }
+        if !seed_dir.exists() {
+            // Fallback to absolute path provided by user if others fail
+            seed_dir = std::path::PathBuf::from(r"d:\Projects\The planning bord collection\The-Planning-Bord\seed");
+        }
+
+        println!("Using seed directory: {:?}", seed_dir);
+
+        if !seed_dir.exists() {
+            return Err(format!("Could not find seed directory. Tried 'seed', '../seed', and absolute path. CWD: {:?}", std::env::current_dir().ok()));
+        }
+
+        // 1. Seed Services
+        let services_path = seed_dir.join("services.csv");
+        if let Ok(mut reader) = csv::Reader::from_path(&services_path) {
+            println!("Reading services from {:?}", services_path);
+            for result in reader.records() {
+                if let Ok(record) = result {
+                    let service_code = record.get(0).unwrap_or("").trim().to_string();
+                    let name = record.get(1).unwrap_or("").trim().to_string();
+                    let category = record.get(2).unwrap_or("").trim().to_string();
+
+                    if name.is_empty() {
+                        println!("Skipping service record: Name is required (record: {:?})", record);
+                        continue;
+                    }
+
+                    let service = Service {
+                        id: None,
+                        service_code: if service_code.is_empty() { None } else { Some(service_code) },
+                        name,
+                        description: None,
+                        category,
+                        unit_price: record.get(3).unwrap_or("0").parse().unwrap_or(0.0),
+                        flat_price: record.get(4).and_then(|s| s.parse().ok()),
+                        billing_type: "hourly".to_string(),
+                        estimated_hours: None,
+                        typical_duration: record.get(5).map(|s| s.trim().to_string()),
+                        duration_unit: Some("days".to_string()),
+                        sla_terms: record.get(6).map(|s| s.to_string()),
+                        is_active: true,
+                        created_at: None,
+                        updated_at: None,
+                    };
+                    println!("Adding service: {:?}", service);
+                    if let Err(e) = self.add_service(service).await {
+                        println!("Error adding service: {}", e);
+                    }
+                }
+            }
+        } else {
+            println!("Failed to open {:?}", services_path);
+        }
+
+        // 2. Seed Clients
+        let clients_path = seed_dir.join("clients.csv");
+        if let Ok(mut reader) = csv::Reader::from_path(&clients_path) {
+            println!("Reading clients from {:?}", clients_path);
+            for result in reader.records() {
+                if let Ok(record) = result {
+                    let company_name = record.get(1).unwrap_or("").trim().to_string();
+                    let contact_name = record.get(3).unwrap_or("").trim().to_string();
+                    let email = record.get(4).unwrap_or("").trim().to_string();
+
+                    if company_name.is_empty() || contact_name.is_empty() || email.is_empty() {
+                        println!("Skipping client record: Company name, Contact name, and Email are required");
+                        continue;
+                    }
+
+                    let client = Client {
+                        id: None,
+                        company_name,
+                        contact_name,
+                        email,
+                        phone: None,
+                        address: None,
+                        industry: record.get(2).map(|s| s.to_string()),
+                        status: "active".to_string(),
+                        payment_terms: None,
+                        credit_limit: None,
+                        tax_id: None,
+                        notes: None,
+                        annual_contract_value: record.get(5).and_then(|s| s.parse().ok()),
+                        primary_products_purchased: record.get(7).map(|s| s.to_string()),
+                        subscribed_service_ids: None,
+                        is_active: true,
+                        created_at: None,
+                        updated_at: None,
+                    };
+                    if let Err(e) = self.add_client(client).await {
+                        println!("Error adding client: {}", e);
+                    }
+                }
+            }
+        } else {
+            println!("Failed to open {:?}", clients_path);
+        }
+
+        // 3. Seed Employees
+        let employees_path = seed_dir.join("employees.csv");
+        if let Ok(mut reader) = csv::Reader::from_path(&employees_path) {
+            println!("Reading employees from {:?}", employees_path);
+            
+            // First, ensure all roles exist
+            let mut roles = std::collections::HashSet::new();
+            for result in reader.records() {
+                if let Ok(record) = result {
+                    let role = record.get(2).unwrap_or("").trim().to_string();
+                    if !role.is_empty() {
+                        roles.insert(role);
+                    }
+                }
+            }
+            
+            for role_name in roles {
+                let _ = client.execute("INSERT INTO roles (name, description, is_custom) VALUES ($1, $2, TRUE) ON CONFLICT (name) DO NOTHING", &[&role_name, &format!("{} role", role_name)]).await;
+            }
+
+            // Re-open reader for second pass
+            let mut reader = csv::Reader::from_path(&employees_path).map_err(|e| e.to_string())?;
+            for result in reader.records() {
+                if let Ok(record) = result {
+                    let full_name_raw = record.get(1).unwrap_or("").trim().to_string();
+                    if full_name_raw.is_empty() {
+                        println!("Skipping employee record: Full name is required");
+                        continue;
+                    }
+
+                    let names: Vec<&str> = full_name_raw.split_whitespace().collect();
+                    let first_name = names.first().unwrap_or(&"").to_string();
+                    let last_name = if names.len() > 1 { 
+                        names[1..].join(" ") 
+                    } else { 
+                        "---".to_string() // Fallback for NOT NULL last_name
+                    };
+
+                    if first_name.is_empty() {
+                         println!("Skipping employee record: First name could not be parsed from '{}'", full_name_raw);
+                         continue;
+                    }
+
+                    let hire_date_raw = record.get(6).unwrap_or("").trim().to_string();
+                    let employee = Employee {
+                        id: None,
+                        employee_id: record.get(0).map(|s| s.trim().to_string()),
+                        first_name,
+                        last_name,
+                        full_name: Some(full_name_raw),
+                        email: record.get(5).map(|s| s.trim().to_string()),
+                        phone: None,
+                        role: record.get(2).unwrap_or("").trim().to_string(),
+                        department: record.get(3).map(|s| s.trim().to_string()),
+                        position: record.get(2).map(|s| s.trim().to_string()),
+                        manager_id: None,
+                        hire_date: if hire_date_raw.is_empty() { None } else { Some(hire_date_raw) },
+                        salary: record.get(7).and_then(|s| s.trim().parse().ok()),
+                        hourly_cost: None,
+                        status: "active".to_string(),
+                        created_at: None,
+                        updated_at: None,
+                    };
+                    println!("Adding employee: {:?}", employee);
+                    if let Err(e) = self.add_employee(employee).await {
+                        println!("Error adding employee: {}", e);
+                    }
+                }
+            }
+        } else {
+            println!("Failed to open {:?}", employees_path);
+        }
+
+        // 4. Seed Products
+        let products_path = seed_dir.join("products.csv");
+        if let Ok(mut reader) = csv::Reader::from_path(&products_path) {
+            println!("Reading products from {:?}", products_path);
+            for result in reader.records() {
+                if let Ok(record) = result {
+                    let name = record.get(1).unwrap_or("").trim().to_string();
+                    if name.is_empty() {
+                        println!("Skipping product record: Name is required");
+                        continue;
+                    }
+
+                    let product = Product {
+                        id: None,
+                        name,
+                        description: None,
+                        category: record.get(2).unwrap_or("").trim().to_string(),
+                        sku: record.get(0).map(|s| s.trim().to_string()),
+                        current_quantity: record.get(5).unwrap_or("0").trim().parse().unwrap_or(0),
+                        minimum_quantity: record.get(6).unwrap_or("0").trim().parse().unwrap_or(0),
+                        reorder_quantity: record.get(6).unwrap_or("0").trim().parse().unwrap_or(0),
+                        unit_price: record.get(3).unwrap_or("0").trim().parse().unwrap_or(0.0),
+                        cost_price: record.get(4).and_then(|s| s.trim().parse().ok()),
+                        item_type: "goods".to_string(),
+                        supplier_name: None,
+                        is_active: true,
+                        created_at: None,
+                        updated_at: None,
+                    };
+                    if let Err(e) = self.add_product(product).await {
+                        println!("Error adding product: {}", e);
+                    }
+                }
+            }
+        } else {
+            println!("Failed to open {:?}", products_path);
+        }
+
+
         Ok(())
     }
 

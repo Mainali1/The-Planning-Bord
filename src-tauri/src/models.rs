@@ -363,7 +363,7 @@ pub struct BusinessConfiguration {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Service {
     pub id: Option<i32>,
-    pub service_code: String,
+    pub service_code: Option<String>,
     pub name: String,
     pub description: Option<String>,
     pub category: String,
@@ -371,7 +371,7 @@ pub struct Service {
     pub flat_price: Option<f64>,
     pub billing_type: String,
     pub estimated_hours: Option<f64>,
-    pub typical_duration: Option<f64>,
+    pub typical_duration: Option<String>,
     pub duration_unit: Option<String>, // 'days' or 'hours'
     pub sla_terms: Option<String>,
     pub is_active: bool,
