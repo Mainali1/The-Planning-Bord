@@ -5,6 +5,21 @@
 
 # dotenv files
 .env
+.env.*
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Generated CSS
+src/wwwroot/css/app.css
+
+# OS files
+.DS_Store
+Thumbs.db
 
 # User-specific files
 *.rsuser
@@ -12,7 +27,6 @@
 *.user
 *.userosscache
 *.sln.docstates
-package-lock.json
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs

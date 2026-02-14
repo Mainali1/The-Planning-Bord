@@ -73,6 +73,7 @@ pub trait Database: Send + Sync {
 
     // Dashboard & Reports
     async fn get_dashboard_stats(&self) -> Result<DashboardStats, String>;
+    async fn get_finance_overview(&self) -> Result<FinanceOverview, String>;
     async fn get_report_summary(&self) -> Result<ReportSummary, String>;
     async fn get_monthly_cashflow(&self) -> Result<Vec<ChartDataPoint>, String>;
 
@@ -83,7 +84,7 @@ pub trait Database: Send + Sync {
     async fn delete_complaint(&self, id: i32) -> Result<(), String>;
 
     // Tools
-    async fn get_tools(&self) -> Result<Vec<Tool>, String>;
+    async fn get_tools(&self, search: Option<String>, page: Option<i32>, page_size: Option<i32>) -> Result<serde_json::Value, String>;
     async fn add_tool(&self, tool: Tool) -> Result<i64, String>;
     async fn update_tool(&self, tool: Tool) -> Result<(), String>;
     async fn delete_tool(&self, id: i32) -> Result<(), String>;
@@ -126,6 +127,13 @@ pub trait Database: Send + Sync {
     async fn get_all_project_assignments(&self) -> Result<Vec<ProjectAssignment>, String>;
     async fn remove_project_assignment(&self, project_id: i32, employee_id: i32) -> Result<(), String>;
     async fn get_project_profitability(&self, project_id: i32) -> Result<ProjectProfitability, String>;
+    async fn get_project_timeline(&self, project_id: i32) -> Result<ProjectTimeline, String>;
+    async fn add_project_phase(&self, phase: ProjectPhase) -> Result<i32, String>;
+    async fn update_project_phase(&self, phase: ProjectPhase) -> Result<(), String>;
+    async fn delete_project_phase(&self, id: i32) -> Result<(), String>;
+    async fn add_project_milestone(&self, milestone: ProjectMilestone) -> Result<i32, String>;
+    async fn update_project_milestone(&self, milestone: ProjectMilestone) -> Result<(), String>;
+    async fn delete_project_milestone(&self, id: i32) -> Result<(), String>;
     
     // Integrations
     async fn get_integrations(&self) -> Result<Vec<Integration>, String>;

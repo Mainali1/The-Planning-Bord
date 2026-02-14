@@ -14,7 +14,7 @@ namespace ThePlanningBord.Services
         Task<long> RecordSaleAsync(Sale sale);
         
         // Tools
-        Task<List<Tool>> GetToolsAsync();
+        Task<PagedResult<Tool>> GetToolsAsync(string? search = null, int page = 1, int pageSize = 50);
         Task<long> AddToolAsync(Tool tool);
         Task UpdateToolAsync(Tool tool);
         Task DeleteToolAsync(int id);
@@ -139,10 +139,21 @@ namespace ThePlanningBord.Services
             }
         }
 
-        public async Task<List<Tool>> GetToolsAsync()
+        public async Task<PagedResult<Tool>> GetToolsAsync(string? search = null, int page = 1, int pageSize = 50)
         {
+            Console.WriteLine($"InventoryService.GetToolsAsync: Fetching tools with search '{search}' (page {page}, {pageSize} per page)");
             var token = await _userService.GetTokenAsync();
-            return await _tauri.InvokeAsync<List<Tool>>("get_tools", new { token });
+            try
+            {
+                var result = await _tauri.InvokeAsync<PagedResult<Tool>>("get_tools", new { search, page, pageSize, token });
+                Console.WriteLine($"InventoryService.GetToolsAsync: Successfully fetched {result.Total} tools");
+                return result;
+            }
+            catch (Exception ex)
+            { 
+                Console.WriteLine($"InventoryService.GetToolsAsync: Error fetching tools - {ex.Message}");
+                throw;
+            }
         }
 
         public async Task<long> AddToolAsync(Tool tool)

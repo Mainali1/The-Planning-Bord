@@ -7,12 +7,14 @@ use std::path::PathBuf;
 use tauri::Manager;
 use rand::Rng;
 
-fn wait_for_postgres(conn: &str) -> bool {
+async fn wait_for_postgres(conn: &str) -> bool {
     for _ in 0..30 {
-        if crate::db::postgres_init::init_db(conn).is_ok() {
+        let conn_clone = conn.to_string();
+        let res = crate::db::postgres_init::init_db(&conn_clone).await;
+        if res.is_ok() {
             return true;
         }
-        std::thread::sleep(Duration::from_millis(500));
+        tokio::time::sleep(Duration::from_millis(500)).await;
     }
     false
 }
@@ -160,7 +162,7 @@ fn system_pg_data_dir(app: &tauri::AppHandle) -> PathBuf {
     base.join("system_pgdata")
 }
 
-fn start_system_postgres(app: &tauri::AppHandle) -> Result<String, String> {
+async fn start_system_postgres(app: &tauri::AppHandle) -> Result<String, String> {
     let bin = system_pg_bin().ok_or_else(|| "system postgres not found".to_string())?;
     let initdb = bin.join(if cfg!(target_os = "windows") { "initdb.exe" } else { "initdb" });
     let pg_ctl = bin.join(if cfg!(target_os = "windows") { "pg_ctl.exe" } else { "pg_ctl" });
@@ -240,17 +242,19 @@ fn start_system_postgres(app: &tauri::AppHandle) -> Result<String, String> {
             .status();
     }
     let conn = format!("postgres://postgres:{}@localhost:5432/planning_bord?connect_timeout=2", db_password);
-    if !wait_for_postgres(&conn) {
+    if !wait_for_postgres(&conn).await {
         return Err("system postgres failed to start or connect".to_string());
     }
     Ok(conn)
 }
 
-pub fn ensure_local_db(app: &tauri::AppHandle, custom_conn: Option<String>) -> Result<String, String> {
+pub async fn ensure_local_db(app: &tauri::AppHandle, custom_conn: Option<String>) -> Result<String, String> {
     if let Some(conn) = custom_conn {
         // If user provided a specific connection string, only try to connect to it.
         // We do not try to install or start system services if they provided explicit credentials.
-        if let Err(e) = crate::db::postgres_init::init_db(&conn) {
+        let conn_clone = conn.clone();
+        let res = crate::db::postgres_init::init_db(&conn_clone).await;
+        if let Err(e) = res {
             return Err(format!("Connection failed: {}", e));
         }
         return Ok(conn);
@@ -258,7 +262,9 @@ pub fn ensure_local_db(app: &tauri::AppHandle, custom_conn: Option<String>) -> R
 
     // 1. Check environment variable first
     if let Ok(env_conn) = std::env::var("DATABASE_URL") {
-        if crate::db::postgres_init::init_db(&env_conn).is_ok() {
+        let env_conn_clone = env_conn.clone();
+        let res = crate::db::postgres_init::init_db(&env_conn_clone).await;
+        if res.is_ok() {
             return Ok(env_conn);
         }
     }
@@ -268,12 +274,14 @@ pub fn ensure_local_db(app: &tauri::AppHandle, custom_conn: Option<String>) -> R
     let conn = default_conn;
     
     // 3. Try to connect first - if service is running and trust auth works
-    if crate::db::postgres_init::init_db(conn).is_ok() {
+    let conn_clone = conn.to_string();
+    let res = crate::db::postgres_init::init_db(&conn_clone).await;
+    if res.is_ok() {
         return Ok(conn.to_string());
     }
 
     if crate::setup::embedded::embedded_available(app) {
-        if let Ok(conn_emb) = crate::setup::embedded::start_embedded_postgres(app) {
+        if let Ok(conn_emb) = crate::setup::embedded::start_embedded_postgres(app).await {
             return Ok(conn_emb);
         }
     }
@@ -285,24 +293,26 @@ pub fn ensure_local_db(app: &tauri::AppHandle, custom_conn: Option<String>) -> R
                  return Err("no local postgres available and installation failed".to_string());
             }
             // Give it a moment if installer started the service
-            std::thread::sleep(Duration::from_secs(5));
+            tokio::time::sleep(Duration::from_secs(5)).await;
         }
     }
     
     // 3. Try to connect again (maybe installer started it)
-    if crate::db::postgres_init::init_db(conn).is_ok() {
+    let conn_clone = conn.to_string();
+    let res = crate::db::postgres_init::init_db(&conn_clone).await;
+    if res.is_ok() {
         return Ok(conn.to_string());
     }
 
     // 4. Try to start it using our tools (needs system_pg_bin)
     // This creates/uses a local data dir in AppData, which is separate from System install data.
     // However, if System install is running on port 5432, this will fail to bind port.
-    if let Ok(conn_sys) = start_system_postgres(app) {
+    if let Ok(conn_sys) = start_system_postgres(app).await {
         return Ok(conn_sys);
     }
 
     // 5. Last ditch connect attempt
-    if wait_for_postgres(conn) {
+    if wait_for_postgres(conn).await {
         return Ok(conn.to_string());
     }
     

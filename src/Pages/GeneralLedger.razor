@@ -8,17 +8,17 @@
 
 <div class="flex flex-col h-full relative">
     <div class="flex justify-between items-center mb-6">
-        <h3 class="text-lg font-medium leading-6 text-gray-900">General Ledger</h3>
+        <h3 class="text-lg font-medium leading-6 text-gray-900 dark:text-white">General Ledger</h3>
         <div class="flex space-x-2">
             @if (activeTab == "accounts")
             {
-                <button @onclick="OpenAddAccountModal" class="flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
+                <button @onclick="OpenAddAccountModal" class="flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 transition-colors">
                     ➕ New Account
                 </button>
             }
             else if (activeTab == "entries")
             {
-                <button @onclick="OpenAddEntryModal" class="flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
+                <button @onclick="OpenAddEntryModal" class="flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 transition-colors">
                     ➕ New Journal Entry
                 </button>
             }
@@ -26,44 +26,44 @@
     </div>
 
     <!-- Tabs -->
-    <div class="border-b border-gray-200 mb-4">
+    <div class="border-b border-gray-200 dark:border-gray-700 mb-4">
         <nav class="-mb-px flex space-x-8" aria-label="Tabs">
-            <button @onclick="@(() => SetTab("accounts"))" class="@GetTabClass("accounts") whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+            <button @onclick="@(() => SetTab("accounts"))" class="@GetTabClass("accounts") whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
                 Chart of Accounts
             </button>
-            <button @onclick="@(() => SetTab("entries"))" class="@GetTabClass("entries") whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+            <button @onclick="@(() => SetTab("entries"))" class="@GetTabClass("entries") whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
                 Journal Entries
             </button>
         </nav>
     </div>
 
-    <div class="flex-1 overflow-auto bg-white shadow rounded-lg">
+    <div class="flex-1 overflow-auto bg-white dark:bg-gray-800 shadow rounded-lg border border-gray-200 dark:border-gray-700">
         @if (isLoading)
         {
-            <div class="p-6 text-center text-gray-500">Loading...</div>
+            <div class="p-6 text-center text-gray-500 dark:text-gray-400">Loading...</div>
         }
         else if (activeTab == "accounts")
         {
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-900/50">
                     <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
-                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Code</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Name</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Type</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Balance</th>
+                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
                     </tr>
                 </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
+                <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                     @foreach (var account in accounts.OrderBy(a => a.Code))
                     {
-                        <tr>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">@account.Code</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">@account.Name</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">@account.AccountType</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">@account.Balance.ToString("C")</td>
+                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">@account.Code</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">@account.Name</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">@account.AccountType</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900 dark:text-white font-mono">@account.Balance.ToString("C")</td>
                             <td class="px-6 py-4 whitespace-nowrap text-center">
-                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full @(account.IsActive ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800")">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full @(account.IsActive ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400")">
                                     @(account.IsActive ? "Active" : "Inactive")
                                 </span>
                             </td>
@@ -74,35 +74,35 @@
         }
         else if (activeTab == "entries")
         {
-             <div class="p-4 flex justify-end space-x-2 bg-gray-50 border-b border-gray-200">
-                <input type="date" @bind="startDate" class="border-gray-300 rounded-md shadow-sm text-sm" />
-                <span class="self-center text-gray-500">-</span>
-                <input type="date" @bind="endDate" class="border-gray-300 rounded-md shadow-sm text-sm" />
-                <button @onclick="LoadEntries" class="px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 text-sm">Filter</button>
+             <div class="p-4 flex justify-end space-x-2 bg-gray-50 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-700">
+                <input type="date" @bind="startDate" class="border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
+                <span class="self-center text-gray-500 dark:text-gray-400">-</span>
+                <input type="date" @bind="endDate" class="border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
+                <button @onclick="LoadEntries" class="px-3 py-1 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded hover:bg-gray-300 dark:hover:bg-gray-600 text-sm transition-colors">Filter</button>
             </div>
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-900/50">
                     <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reference</th>
-                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Description</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Reference</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Amount</th>
                         <th class="relative px-6 py-3"><span class="sr-only">Details</span></th>
                     </tr>
                 </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
-                    @if (!entries.Any()) { <tr><td colspan="5" class="px-6 py-4 text-center text-gray-500">No entries found for this period.</td></tr> }
+                <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    @if (!entries.Any()) { <tr><td colspan="5" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">No entries found for this period.</td></tr> }
                     @foreach (var entry in entries.OrderByDescending(e => e.TransactionDate))
                     {
-                        <tr>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">@entry.TransactionDate</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">@entry.Description</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">@entry.ReferenceType #@entry.ReferenceId</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
+                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">@entry.TransactionDate</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">@entry.Description</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">@entry.ReferenceType #@entry.ReferenceId</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900 dark:text-white font-mono">
                                 @(entry.Lines?.Where(l => l.Debit > 0).Sum(l => l.Debit).ToString("C") ?? "0.00")
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                <button @onclick="() => ViewEntry(entry)" class="text-indigo-600 hover:text-indigo-900">Details</button>
+                                <button @onclick="() => ViewEntry(entry)" class="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300 transition-colors">Details</button>
                             </td>
                         </tr>
                     }
@@ -115,26 +115,25 @@
 <!-- Add Account Modal -->
 @if (showAccountModal)
 {
-    <div class="fixed z-10 inset-0 overflow-y-auto">
+    <div class="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="modal-title-account">
         <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div class="fixed inset-0 transition-opacity" aria-hidden="true" @onclick="CloseModals">
-                <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
-            </div>
-            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                    <h3 class="text-lg leading-6 font-medium text-gray-900">New GL Account</h3>
+            <div @onclick="CloseModals" class="fixed inset-0 bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-80 transition-opacity" aria-hidden="true"></div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full border border-gray-200 dark:border-gray-700">
+                <div class="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white" id="modal-title-account">New GL Account</h3>
                     <div class="mt-4 space-y-4">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">Code</label>
-                            <input @bind="newAccount.Code" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm" placeholder="e.g. 1000" />
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Code</label>
+                            <input @bind="newAccount.Code" class="mt-1 block w-full px-3 py-2 border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors" placeholder="e.g. 1000" />
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">Name</label>
-                            <input @bind="newAccount.Name" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm" placeholder="e.g. Cash on Hand" />
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Name</label>
+                            <input @bind="newAccount.Name" class="mt-1 block w-full px-3 py-2 border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors" placeholder="e.g. Cash on Hand" />
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">Type</label>
-                            <select @bind="newAccount.AccountType" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Type</label>
+                            <select @bind="newAccount.AccountType" class="mt-1 block w-full px-3 py-2 border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors">
                                 <option value="Asset">Asset</option>
                                 <option value="Liability">Liability</option>
                                 <option value="Equity">Equity</option>
@@ -144,11 +143,11 @@
                         </div>
                     </div>
                 </div>
-                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                    <button type="button" @onclick="SaveAccount" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">
+                <div class="bg-gray-50 dark:bg-gray-900/50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse border-t border-gray-200 dark:border-gray-700">
+                    <button type="button" @onclick="SaveAccount" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm transition-colors">
                         Save
                     </button>
-                    <button type="button" @onclick="CloseModals" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                    <button type="button" @onclick="CloseModals" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-700 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm transition-colors">
                         Cancel
                     </button>
                 </div>
@@ -160,51 +159,50 @@
 <!-- Entry Details Modal -->
 @if (showCreateEntryModal)
 {
-    <div class="fixed z-10 inset-0 overflow-y-auto">
+    <div class="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="modal-title-entry">
         <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div class="fixed inset-0 transition-opacity" aria-hidden="true" @onclick="CloseModals">
-                <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
-            </div>
-            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
-                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                    <h3 class="text-lg leading-6 font-medium text-gray-900">New Journal Entry</h3>
+            <div @onclick="CloseModals" class="fixed inset-0 bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-80 transition-opacity" aria-hidden="true"></div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full border border-gray-200 dark:border-gray-700">
+                <div class="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white" id="modal-title-entry">New Journal Entry</h3>
                     
                     <div class="mt-4 grid grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">Date</label>
-                            <input type="date" value="@newEntry.TransactionDate" @onchange="@(e => newEntry.TransactionDate = e.Value?.ToString())" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm" />
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Date</label>
+                            <input type="date" value="@newEntry.TransactionDate" @onchange="@(e => newEntry.TransactionDate = e.Value?.ToString())" class="mt-1 block w-full px-3 py-2 border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors" />
                         </div>
                         <div class="col-span-2">
-                            <label class="block text-sm font-medium text-gray-700">Description</label>
-                            <input @bind="newEntry.Description" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm" placeholder="e.g. Monthly Rent" />
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Description</label>
+                            <input @bind="newEntry.Description" class="mt-1 block w-full px-3 py-2 border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors" placeholder="e.g. Monthly Rent" />
                         </div>
                     </div>
 
                     <div class="mt-6">
                         <div class="flex justify-between items-center mb-2">
-                            <h4 class="text-sm font-medium text-gray-700">Lines</h4>
-                            <button type="button" @onclick="AddLine" class="text-sm text-indigo-600 hover:text-indigo-900">
+                            <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300">Lines</h4>
+                            <button type="button" @onclick="AddLine" class="text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300 transition-colors">
                                 + Add Line
                             </button>
                         </div>
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gray-50">
+                        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                            <thead class="bg-gray-50 dark:bg-gray-900/50">
                                 <tr>
-                                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500">Account</th>
-                                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500">Description (Optional)</th>
-                                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-500">Debit</th>
-                                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-500">Credit</th>
+                                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Account</th>
+                                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Description (Optional)</th>
+                                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400">Debit</th>
+                                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400">Credit</th>
                                     <th class="px-3 py-2"></th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-gray-200">
+                            <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
                                 @if (newEntry.Lines != null)
                                 {
                                     @foreach (var line in newEntry.Lines)
                                     {
-                                        <tr>
+                                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                                             <td class="px-3 py-2">
-                                                <select @bind="line.AccountId" class="block w-full border-gray-300 rounded-md shadow-sm text-sm">
+                                                <select @bind="line.AccountId" class="block w-full px-3 py-2 border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors">
                                                     <option value="0">Select Account...</option>
                                                     @foreach (var acc in accounts.OrderBy(a => a.Code))
                                                     {
@@ -213,16 +211,16 @@
                                                 </select>
                                             </td>
                                             <td class="px-3 py-2">
-                                                <input @bind="line.Description" class="block w-full border-gray-300 rounded-md shadow-sm text-sm" />
+                                                <input @bind="line.Description" class="block w-full px-3 py-2 border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors" />
                                             </td>
                                             <td class="px-3 py-2">
-                                                <input type="number" step="0.01" @bind="line.Debit" class="block w-full border-gray-300 rounded-md shadow-sm text-sm text-right" />
+                                                <input type="number" step="0.01" @bind="line.Debit" class="block w-full px-3 py-2 border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm text-right bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors" />
                                             </td>
                                             <td class="px-3 py-2">
-                                                <input type="number" step="0.01" @bind="line.Credit" class="block w-full border-gray-300 rounded-md shadow-sm text-sm text-right" />
+                                                <input type="number" step="0.01" @bind="line.Credit" class="block w-full px-3 py-2 border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm text-right bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors" />
                                             </td>
                                             <td class="px-3 py-2 text-center">
-                                                <button @onclick="() => RemoveLine(line)" class="text-red-600 hover:text-red-900">
+                                                <button @onclick="() => RemoveLine(line)" class="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300 transition-colors">
                                                     🗑️
                                                 </button>
                                             </td>
@@ -230,13 +228,13 @@
                                     }
                                 }
                             </tbody>
-                            <tfoot class="bg-gray-50 font-bold">
+                            <tfoot class="bg-gray-50 dark:bg-gray-900/50 font-bold">
                                 <tr>
-                                    <td colspan="2" class="px-3 py-2 text-right text-sm">Totals:</td>
-                                    <td class="px-3 py-2 text-right text-sm @(Math.Abs((newEntry.Lines?.Sum(l => l.Debit) ?? 0) - (newEntry.Lines?.Sum(l => l.Credit) ?? 0)) > 0.01 ? "text-red-600" : "text-green-600")">
+                                    <td colspan="2" class="px-3 py-2 text-right text-sm dark:text-gray-300">Totals:</td>
+                                    <td class="px-3 py-2 text-right text-sm @(Math.Abs((newEntry.Lines?.Sum(l => l.Debit) ?? 0) - (newEntry.Lines?.Sum(l => l.Credit) ?? 0)) > 0.01 ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400")">
                                         @(newEntry.Lines?.Sum(l => l.Debit).ToString("C"))
                                     </td>
-                                    <td class="px-3 py-2 text-right text-sm @(Math.Abs((newEntry.Lines?.Sum(l => l.Debit) ?? 0) - (newEntry.Lines?.Sum(l => l.Credit) ?? 0)) > 0.01 ? "text-red-600" : "text-green-600")">
+                                    <td class="px-3 py-2 text-right text-sm @(Math.Abs((newEntry.Lines?.Sum(l => l.Debit) ?? 0) - (newEntry.Lines?.Sum(l => l.Credit) ?? 0)) > 0.01 ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400")">
                                         @(newEntry.Lines?.Sum(l => l.Credit).ToString("C"))
                                     </td>
                                     <td></td>
@@ -245,11 +243,11 @@
                         </table>
                     </div>
                 </div>
-                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                    <button type="button" @onclick="SaveEntry" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">
+                <div class="bg-gray-50 dark:bg-gray-900/50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse border-t border-gray-200 dark:border-gray-700">
+                    <button type="button" @onclick="SaveEntry" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm transition-colors">
                         Save Entry
                     </button>
-                    <button type="button" @onclick="CloseModals" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                    <button type="button" @onclick="CloseModals" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-700 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm transition-colors">
                         Cancel
                     </button>
                 </div>
@@ -264,54 +262,54 @@
     <div class="fixed z-10 inset-0 overflow-y-auto">
         <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
             <div class="fixed inset-0 transition-opacity" aria-hidden="true" @onclick="CloseModals">
-                <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
+                <div class="absolute inset-0 bg-gray-500/75 dark:bg-gray-900/80"></div>
             </div>
-            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-3xl sm:w-full">
-                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                    <h3 class="text-lg leading-6 font-medium text-gray-900">Journal Entry Details</h3>
+            <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-3xl sm:w-full border border-gray-200 dark:border-gray-700">
+                <div class="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white">Journal Entry Details</h3>
                     <div class="mt-2 grid grid-cols-2 gap-4 text-sm">
-                        <div><span class="font-medium">Date:</span> @selectedEntry.TransactionDate</div>
-                        <div><span class="font-medium">Reference:</span> @selectedEntry.ReferenceType #@selectedEntry.ReferenceId</div>
-                        <div class="col-span-2"><span class="font-medium">Description:</span> @selectedEntry.Description</div>
+                        <div class="dark:text-gray-300"><span class="font-medium text-gray-900 dark:text-white">Date:</span> @selectedEntry.TransactionDate</div>
+                        <div class="dark:text-gray-300"><span class="font-medium text-gray-900 dark:text-white">Reference:</span> @selectedEntry.ReferenceType #@selectedEntry.ReferenceId</div>
+                        <div class="col-span-2 dark:text-gray-300"><span class="font-medium text-gray-900 dark:text-white">Description:</span> @selectedEntry.Description</div>
                     </div>
                     
-                    <div class="mt-4 border-t border-gray-200 pt-4">
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gray-50">
+                    <div class="mt-4 border-t border-gray-200 dark:border-gray-700 pt-4">
+                        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                            <thead class="bg-gray-50 dark:bg-gray-900/50">
                                 <tr>
-                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500">Account</th>
-                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500">Description</th>
-                                    <th class="px-4 py-2 text-right text-xs font-medium text-gray-500">Debit</th>
-                                    <th class="px-4 py-2 text-right text-xs font-medium text-gray-500">Credit</th>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Account</th>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Description</th>
+                                    <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400">Debit</th>
+                                    <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400">Credit</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-gray-200">
+                            <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
                                 @if (selectedEntry.Lines != null)
                                 {
                                     @foreach (var line in selectedEntry.Lines)
                                     {
-                                        <tr>
-                                            <td class="px-4 py-2 text-sm text-gray-900">
+                                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                                            <td class="px-4 py-2 text-sm text-gray-900 dark:text-white">
                                                 @(accounts.FirstOrDefault(a => a.Id == line.AccountId)?.Name ?? $"Account #{line.AccountId}")
-                                                <span class="text-gray-500 text-xs block">@(accounts.FirstOrDefault(a => a.Id == line.AccountId)?.Code)</span>
+                                                <span class="text-gray-500 dark:text-gray-400 text-xs block">@(accounts.FirstOrDefault(a => a.Id == line.AccountId)?.Code)</span>
                                             </td>
-                                            <td class="px-4 py-2 text-sm text-gray-500">@line.Description</td>
-                                            <td class="px-4 py-2 text-sm text-right text-gray-900">@(line.Debit > 0 ? line.Debit.ToString("C") : "")</td>
-                                            <td class="px-4 py-2 text-sm text-right text-gray-900">@(line.Credit > 0 ? line.Credit.ToString("C") : "")</td>
+                                            <td class="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">@line.Description</td>
+                                            <td class="px-4 py-2 text-sm text-right text-gray-900 dark:text-white font-mono">@(line.Debit > 0 ? line.Debit.ToString("C") : "")</td>
+                                            <td class="px-4 py-2 text-sm text-right text-gray-900 dark:text-white font-mono">@(line.Credit > 0 ? line.Credit.ToString("C") : "")</td>
                                         </tr>
                                     }
                                 }
-                                <tr class="bg-gray-50 font-bold">
-                                    <td colspan="2" class="px-4 py-2 text-right text-sm">Totals:</td>
-                                    <td class="px-4 py-2 text-right text-sm">@selectedEntry.Lines?.Sum(l => l.Debit).ToString("C")</td>
-                                    <td class="px-4 py-2 text-right text-sm">@selectedEntry.Lines?.Sum(l => l.Credit).ToString("C")</td>
+                                <tr class="bg-gray-50 dark:bg-gray-900/50 font-bold">
+                                    <td colspan="2" class="px-4 py-2 text-right text-sm dark:text-gray-300">Totals:</td>
+                                    <td class="px-4 py-2 text-right text-sm dark:text-gray-300">@selectedEntry.Lines?.Sum(l => l.Debit).ToString("C")</td>
+                                    <td class="px-4 py-2 text-right text-sm dark:text-gray-300">@selectedEntry.Lines?.Sum(l => l.Credit).ToString("C")</td>
                                 </tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
-                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                    <button type="button" @onclick="CloseModals" class="w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">
+                <div class="bg-gray-50 dark:bg-gray-900/50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse border-t border-gray-200 dark:border-gray-700">
+                    <button type="button" @onclick="CloseModals" class="w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-700 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm transition-colors">
                         Close
                     </button>
                 </div>
@@ -386,8 +384,8 @@
     private string GetTabClass(string tab)
     {
         return activeTab == tab
-            ? "border-indigo-500 text-indigo-600"
-            : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300";
+            ? "border-indigo-500 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400"
+            : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300 dark:hover:border-gray-600";
     }
 
     private void OpenAddAccountModal()

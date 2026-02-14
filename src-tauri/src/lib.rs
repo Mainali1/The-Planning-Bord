@@ -6,7 +6,7 @@ pub mod email;
 use tauri::{State, Manager};
 use tokio::sync::RwLock;
 use std::collections::HashMap;
-use models::{Product, Employee, Payment, DashboardStats, Task, Attendance, ReportSummary, ChartDataPoint, Complaint, Tool, Role, Permission, FeatureToggle, ToolAssignment, AuditLog, DashboardConfig, Project, ProjectProfitability, ProjectTask, ProjectAssignment, Account, Invoice, Integration, User, LoginResponse, Invite, BomHeader, BomLine, InventoryBatch, VelocityReport, BomData, Supplier, SupplierOrder, Sale, BusinessConfiguration, Service, Client, TimeEntry, ServiceContract, Quote, QuoteItem, GlAccount, GlEntry, PurchaseOrder, SalesOrder};
+use models::{Product, Employee, Payment, DashboardStats, Task, Attendance, ReportSummary, ChartDataPoint, Complaint, Tool, Role, Permission, FeatureToggle, ToolAssignment, AuditLog, DashboardConfig, Project, ProjectProfitability, ProjectTask, ProjectAssignment, ProjectPhase, ProjectMilestone, ProjectTimeline, Account, Invoice, Integration, User, LoginResponse, Invite, BomHeader, BomLine, InventoryBatch, VelocityReport, BomData, Supplier, SupplierOrder, Sale, BusinessConfiguration, Service, Client, TimeEntry, ServiceContract, Quote, QuoteItem, GlAccount, GlEntry, PurchaseOrder, SalesOrder, FinanceOverview};
 use db::{Database, DbConfig, PostgresDatabase};
 use argon2::{
     password_hash::{
@@ -103,12 +103,7 @@ async fn login(state: State<'_, AppState>, username: String, password_plain: Str
 async fn verify_connection(connection_string: String) -> Result<bool, String> {
     let conn = add_connect_timeout(&connection_string);
     // Attempt to connect/init. init_db handles basic connection check.
-    // Wrap blocking call
-    let conn_clone = conn.clone();
-    tauri::async_runtime::spawn_blocking(move || {
-        db::postgres_init::init_db(&conn_clone)
-    }).await
-    .map_err(|e| format!("Task failed: {}", e))?
+    db::postgres_init::init_db(&conn).await
     .map_err(|e| format!("Connection failed: {:?}", e))?;
     
     Ok(true)
@@ -320,6 +315,12 @@ async fn register_user(state: State<'_, AppState>, mut user: User, password_plai
     let id = db.create_user(user.clone()).await?;
     let _ = db.log_activity(Some(id as i32), "register".to_string(), "UserManagement".to_string(), Some("User".to_string()), Some(id as i32), Some("User registered".to_string()), None, None).await;
     Ok(id)
+}
+
+#[tauri::command]
+async fn get_finance_overview(state: State<'_, AppState>, token: String) -> Result<FinanceOverview, String> {
+    check_auth(&state, &token, vec!["CEO", "Manager", "Finance"]).await?;
+    state.db.read().await.get_finance_overview().await
 }
 
 // --- Product Commands ---
@@ -790,9 +791,9 @@ async fn delete_complaint(state: State<'_, AppState>, id: i32, token: String) ->
 // --- Tool Commands ---
 
 #[tauri::command]
-async fn get_tools(state: State<'_, AppState>, token: String) -> Result<Vec<Tool>, String> {
+async fn get_tools(state: State<'_, AppState>, search: Option<String>, page: Option<i32>, page_size: Option<i32>, token: String) -> Result<serde_json::Value, String> {
     check_auth(&state, &token, vec![]).await?; // Any authenticated
-    state.db.read().await.get_tools().await
+    state.db.read().await.get_tools(search, page, page_size).await
 }
 
 #[tauri::command]
@@ -1393,6 +1394,68 @@ async fn delete_project(state: State<'_, AppState>, id: i32, token: String) -> R
     Ok(())
 }
 
+// --- Project Timeline Commands ---
+
+#[tauri::command]
+async fn get_project_timeline(state: State<'_, AppState>, project_id: i32, token: String) -> Result<ProjectTimeline, String> {
+    check_auth(&state, &token, vec![]).await?; // Any authenticated
+    state.db.read().await.get_project_timeline(project_id).await
+}
+
+#[tauri::command]
+async fn add_project_phase(state: State<'_, AppState>, phase: ProjectPhase, token: String) -> Result<i64, String> {
+    let user = check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    let db = state.db.read().await;
+    let id = db.add_project_phase(phase.clone()).await?;
+    let _ = db.log_activity(user.id, "create".to_string(), "ProjectManagement".to_string(), Some("ProjectPhase".to_string()), Some(id as i32), Some(format!("Added phase: {} to project {}", phase.name, phase.project_id)), None, None).await;
+    Ok(id.into())
+}
+
+#[tauri::command]
+async fn update_project_phase(state: State<'_, AppState>, phase: ProjectPhase, token: String) -> Result<(), String> {
+    let user = check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    let db = state.db.read().await;
+    db.update_project_phase(phase.clone()).await?;
+    let _ = db.log_activity(user.id, "update".to_string(), "ProjectManagement".to_string(), Some("ProjectPhase".to_string()), phase.id, Some(format!("Updated phase: {}", phase.name)), None, None).await;
+    Ok(())
+}
+
+#[tauri::command]
+async fn delete_project_phase(state: State<'_, AppState>, id: i32, token: String) -> Result<(), String> {
+    let user = check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    let db = state.db.read().await;
+    db.delete_project_phase(id).await?;
+    let _ = db.log_activity(user.id, "delete".to_string(), "ProjectManagement".to_string(), Some("ProjectPhase".to_string()), Some(id), Some("Deleted phase".to_string()), None, None).await;
+    Ok(())
+}
+
+#[tauri::command]
+async fn add_project_milestone(state: State<'_, AppState>, milestone: ProjectMilestone, token: String) -> Result<i64, String> {
+    let user = check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    let db = state.db.read().await;
+    let id = db.add_project_milestone(milestone.clone()).await?;
+    let _ = db.log_activity(user.id, "create".to_string(), "ProjectManagement".to_string(), Some("ProjectMilestone".to_string()), Some(id as i32), Some(format!("Added milestone: {} to project {}", milestone.name, milestone.project_id)), None, None).await;
+    Ok(id.into())
+}
+
+#[tauri::command]
+async fn update_project_milestone(state: State<'_, AppState>, milestone: ProjectMilestone, token: String) -> Result<(), String> {
+    let user = check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    let db = state.db.read().await;
+    db.update_project_milestone(milestone.clone()).await?;
+    let _ = db.log_activity(user.id, "update".to_string(), "ProjectManagement".to_string(), Some("ProjectMilestone".to_string()), milestone.id, Some(format!("Updated milestone: {}", milestone.name)), None, None).await;
+    Ok(())
+}
+
+#[tauri::command]
+async fn delete_project_milestone(state: State<'_, AppState>, id: i32, token: String) -> Result<(), String> {
+    let user = check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
+    let db = state.db.read().await;
+    db.delete_project_milestone(id).await?;
+    let _ = db.log_activity(user.id, "delete".to_string(), "ProjectManagement".to_string(), Some("ProjectMilestone".to_string()), Some(id), Some("Deleted milestone".to_string()), None, None).await;
+    Ok(())
+}
+
 #[tauri::command]
 async fn assign_project_employee(state: State<'_, AppState>, project_id: i32, employee_id: i32, role: String, token: String) -> Result<(), String> {
     let user = check_auth(&state, &token, vec!["CEO", "Manager"]).await?;
@@ -1496,27 +1559,32 @@ async fn save_db_config(app: tauri::AppHandle, state: State<'_, AppState>, confi
     let mut cfg = config.clone();
     if let db::config::DbType::Local = cfg.db_type {
         let input = if cfg.connection_string.trim().is_empty() { None } else { Some(cfg.connection_string.clone()) };
-        // ensure_local_db is async, wait for it? No, it's in setup::local, which is sync IO.
-        // We should wrap it.
-        let handle = app.clone();
-        let conn = tauri::async_runtime::spawn_blocking(move || setup::local::ensure_local_db(&handle, input))
-            .await
-            .map_err(|e| e.to_string())??;
+        let conn = setup::local::ensure_local_db(&app, input).await
+            .map_err(|e| e.to_string())?;
         cfg.connection_string = conn;
     }
     cfg.connection_string = add_connect_timeout(&cfg.connection_string);
     cfg.save(&app_dir)?;
 
     let new_db: Box<dyn Database + Send + Sync> = match cfg.db_type {
+        db::config::DbType::Embedded => {
+            println!("Initializing Embedded DB...");
+            let conn = setup::embedded::start_embedded_postgres(&app).await.map_err(|e| e.to_string())?;
+            cfg.connection_string = conn.clone();
+            
+            let conn_clone = conn.clone();
+            db::postgres_init::init_db(&conn_clone).await
+            .map_err(|e| format!("Init DB failed: {:?}", e))?;
+
+            let pg_db = PostgresDatabase::new(&conn).map_err(|e| e.to_string())?;
+            Box::new(pg_db)
+        }
         db::config::DbType::Local | db::config::DbType::Cloud => {
              let conn = add_connect_timeout(&cfg.connection_string);
              println!("Initializing DB connection to: {}", conn);
              
              let conn_clone = conn.clone();
-             tauri::async_runtime::spawn_blocking(move || {
-                db::postgres_init::init_db(&conn_clone)
-             }).await
-             .map_err(|e| format!("Task failed: {}", e))?
+             db::postgres_init::init_db(&conn_clone).await
              .map_err(|e| format!("Init DB failed: {:?}", e))?;
 
              let pg_db = PostgresDatabase::new(&conn).map_err(|e| e.to_string())?;
@@ -1531,10 +1599,7 @@ async fn save_db_config(app: tauri::AppHandle, state: State<'_, AppState>, confi
 
 #[tauri::command]
 async fn ensure_local_db(app: tauri::AppHandle, connection_string: Option<String>) -> Result<String, String> {
-    let handle = app.clone();
-    tauri::async_runtime::spawn_blocking(move || setup::local::ensure_local_db(&handle, connection_string))
-        .await
-        .map_err(|e| e.to_string())?
+    setup::local::ensure_local_db(&app, connection_string).await
 }
 
 #[tauri::command]
@@ -1672,6 +1737,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
+            println!("Starting application setup hook...");
             let app_handle = app.handle();
             let app_data_dir = app_handle.path().app_local_data_dir().expect("failed to get app data dir");
             
@@ -1682,54 +1748,118 @@ pub fn run() {
             let db: Box<dyn Database + Send + Sync>;
             
             // Check if config exists
-            if let Some(config) = DbConfig::load(&app_data_dir) {
+            if let Some(mut config) = DbConfig::load(&app_data_dir) {
                 println!("Loaded DB config: {:?}", config);
-                 // For local DB, we just use the config. If it fails, the UI should handle setup.
-                 // We do NOT block startup to provision DB, as it causes timeouts.
-                 let conn = add_connect_timeout(&config.connection_string);
-                 match db::postgres_init::init_db(&conn) {
-                     Ok(()) => {
-                         match PostgresDatabase::new(&conn) {
-                            Ok(pg_db) => { db = Box::new(pg_db); }
-                            Err(e) => {
-                                println!("Postgres connect error: {}", e);
-                                println!("Critical Error: Failed to connect to configured Postgres database. Application is in Error State.");
-                                db = Box::new(crate::db::NoOpDatabase);
-                            }
+                 
+                 let conn = if config.db_type == db::config::DbType::Embedded {
+                    println!("Starting embedded Postgres...");
+                    let handle = app.handle().clone();
+                    match tauri::async_runtime::block_on(async move {
+                        setup::embedded::start_embedded_postgres(&handle).await
+                    }) {
+                        Ok(c) => {
+                            config.connection_string = c.clone();
+                            let _ = config.save(&app_data_dir);
+                            c
+                        }
+                        Err(e) => {
+                            println!("Failed to start embedded Postgres: {}", e);
+                            add_connect_timeout(&config.connection_string)
                         }
                     }
+                 } else {
+                    add_connect_timeout(&config.connection_string)
+                 };
+
+                let conn_clone = conn.clone();
+                if let Err(e) = tauri::async_runtime::block_on(async move {
+                    db::postgres_init::init_db(&conn_clone).await
+                }) {
+                    println!("Postgres init error: {:?}", e);
+                    println!("Critical Error: Failed to initialize Postgres database. Application is in Error State.");
+                }
+
+                match PostgresDatabase::new(&conn) {
+                    Ok(pg_db) => { 
+                        db = Box::new(pg_db); 
+                        println!("Postgres database object created successfully.");
+                    }
                     Err(e) => {
-                        println!("Postgres init error: {:?}", e);
-                        println!("Critical Error: Failed to initialize Postgres database. Application is in Error State.");
+                        println!("Postgres connect error: {}", e);
+                        println!("Critical Error: Failed to connect to configured Postgres database. Application is in Error State.");
                         db = Box::new(crate::db::NoOpDatabase);
                     }
-                 }
+                }
+            } else if let Ok(pg_url) = std::env::var("DATABASE_URL") {
+                println!("Connecting to PostgreSQL via env var...");
+                let conn = add_connect_timeout(&pg_url);
+                let conn_clone = conn.clone();
+                tauri::async_runtime::block_on(async move {
+                    if let Err(e) = db::postgres_init::init_db(&conn_clone).await {
+                        println!("Postgres init error: {:?}", e);
+                        println!("Critical Error: Failed to initialize Postgres (env var). Application is in Error State.");
+                    }
+                });
+
+                match PostgresDatabase::new(&conn) {
+                    Ok(pg_db) => { 
+                        db = Box::new(pg_db); 
+                        println!("Postgres database object created successfully (env var).");
+                    }
+                    Err(e) => {
+                        println!("Postgres connect error: {:?}", e);
+                        println!("Critical Error: Failed to connect to Postgres (env var). Application is in Error State.");
+                        db = Box::new(crate::db::NoOpDatabase);
+                    }
+                }
             } else {
-                 // Check for Postgres env var as fallback
-                 if let Ok(pg_url) = std::env::var("DATABASE_URL") {
-                    println!("Connecting to PostgreSQL via env var...");
-                    let conn = add_connect_timeout(&pg_url);
-                    match db::postgres_init::init_db(&conn) {
-                        Ok(()) => {
+                println!("No DB config found. Checking for embedded database...");
+                
+                // Auto-initialize embedded database if available
+                if setup::embedded::embedded_available(app.handle()) {
+                    println!("Embedded binaries found! Auto-initializing...");
+                    let handle = app.handle().clone();
+                    match tauri::async_runtime::block_on(async move {
+                        setup::embedded::start_embedded_postgres(&handle).await
+                    }) {
+                        Ok(conn) => {
+                            println!("Embedded Postgres auto-started successfully.");
+                             // Create and save a default config for the next run
+                             let auto_config = DbConfig {
+                                 db_type: db::config::DbType::Embedded,
+                                 connection_string: conn.clone(),
+                             };
+                            let _ = auto_config.save(&app_data_dir);
+                            
+                            // Initialize the database schema
+                            let conn_clone = conn.clone();
+                            tauri::async_runtime::block_on(async move {
+                                if let Err(e) = db::postgres_init::init_db(&conn_clone).await {
+                                    println!("Postgres schema init error after auto-start: {:?}", e);
+                                }
+                            });
+
                             match PostgresDatabase::new(&conn) {
-                                Ok(pg_db) => { db = Box::new(pg_db); }
+                                Ok(pg_db) => { 
+                                    db = Box::new(pg_db); 
+                                    println!("Postgres database object created successfully (auto-init).");
+                                    println!("Auto-initialization complete.");
+                                }
                                 Err(e) => {
-                                    println!("Postgres connect error: {:?}", e);
-                                    println!("Critical Error: Failed to connect to Postgres (env var). Application is in Error State.");
+                                    println!("Postgres connect error after auto-start: {}", e);
                                     db = Box::new(crate::db::NoOpDatabase);
                                 }
                             }
                         }
                         Err(e) => {
-                            println!("Postgres init error: {:?}", e);
-                            println!("Critical Error: Failed to initialize Postgres (env var). Application is in Error State.");
+                            println!("Failed to auto-start embedded Postgres: {}", e);
                             db = Box::new(crate::db::NoOpDatabase);
                         }
                     }
-                 } else {
-                    println!("No DB config found. Starting in Setup Mode (NoOpDatabase).");
+                } else {
+                    println!("No embedded binaries found. Starting in Setup Mode (NoOpDatabase).");
                     db = Box::new(crate::db::NoOpDatabase);
-                 }
+                }
             }
 
             // Load or Generate JWT Secret
@@ -1794,6 +1924,7 @@ pub fn run() {
                 }
             });
 
+            println!("Tauri setup hook finished. Application starting...");
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -1806,7 +1937,7 @@ pub fn run() {
             get_payments, add_payment, update_payment, delete_payment,
             get_tasks, add_task, update_task, delete_task,
             get_attendances, clock_in, clock_out,
-            get_dashboard_stats,
+            get_dashboard_stats, get_finance_overview,
             get_report_summary, get_monthly_cashflow,
             get_complaints, submit_complaint, resolve_complaint, delete_complaint,
             get_tools, add_tool, update_tool, delete_tool,
@@ -1824,6 +1955,7 @@ pub fn run() {
             get_audit_logs, export_audit_logs, update_client_info,
             get_dashboard_configs, save_dashboard_config,
             get_projects, get_project_profitability, add_project, update_project, get_project_tasks, add_project_task, update_project_task, delete_project, assign_project_employee, get_project_assignments, get_all_project_assignments, remove_project_assignment, delete_project_task,
+            get_project_timeline, add_project_phase, update_project_phase, delete_project_phase, add_project_milestone, update_project_milestone, delete_project_milestone,
             get_accounts, add_account, get_invoices, create_invoice,
             get_gl_accounts, add_gl_account, get_gl_entries, add_gl_entry,
             get_purchase_orders, get_purchase_order, create_purchase_order, update_purchase_order_status, receive_purchase_order,

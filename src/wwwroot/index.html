@@ -4,80 +4,49 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>The Planning Bord</title>
-    <base href="/" />
+    <base href="./" />
     <link rel="stylesheet" href="css/app.css" />
   </head>
 
   <body>
-    <div id="app"></div>
-    <script src="_framework/blazor.webassembly.js"></script>
-    <script src="js/app-interop.js"></script>
+    <div id="app">
+        <div style="display: flex; justify-content: center; align-items: center; height: 100vh; font-family: sans-serif;">
+            <div style="text-align: center;">
+                <h2 style="color: #333;">The Planning Bord</h2>
+                <p id="loading-text" style="color: #666;">Initializing application...</p>
+                <div id="loading-spinner" class="spinner" style="border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 30px; height: 30px; animation: spin 2s linear infinite; margin: 20px auto;"></div>
+                <div id="error-message" style="color: #e74c3c; display: none; margin-top: 20px; font-weight: bold;"></div>
+                <style>
+                    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+                </style>
+            </div>
+        </div>
+    </div>
     <script>
-        // Immediate Theme Application to prevent flash
-        (function() {
-            var theme = localStorage.getItem('theme_preference') || 'system';
-            if (theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-                document.documentElement.classList.add('dark');
+        window.onerror = function(msg, url, line, col, error) {
+            var errorDiv = document.getElementById('error-message');
+            if (errorDiv) {
+                errorDiv.style.display = 'block';
+                errorDiv.innerHTML = 'Frontend Error: ' + msg + (line ? ' (Line: ' + line + ')' : '');
+                var spinner = document.getElementById('loading-spinner');
+                if (spinner) spinner.style.display = 'none';
+                var text = document.getElementById('loading-text');
+                if (text) text.style.display = 'none';
             }
-        })();
-
-        // Legacy helpers maintained for compatibility if needed, otherwise delegating to app-interop
-        function saveAsFile(filename, contentBase64, contentType) {
-            var link = document.createElement('a');
-            link.download = filename;
-            link.href = "data:" + (contentType || "application/octet-stream") + ";base64," + contentBase64;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            return false;
+        };
+    </script>
+    <script src="_framework/blazor.webassembly.js" autostart="false"></script>
+    <script src="js/app-interop.js"></script>
+    <script src="js/boot.js"></script>
+    <script>
+      // Theme application in an external-safe inline block (kept minimal)
+      (function() {
+        var theme = localStorage.getItem('theme_preference') || 'system';
+        if (theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+          document.documentElement.classList.add('dark');
         }
-        function getSetting(key) {
-            try { return localStorage.getItem(key) || ""; } catch { return ""; }
-        }
-        function setSetting(key, value) {
-            try { localStorage.setItem(key, value); } catch {}
-        }
-        function notify(title, body) {
-            try {
-                if (!("Notification" in window)) return;
-
-                // Backward compatibility: allow notify("message") and notify("title", "body")
-                var resolvedTitle = title;
-                var resolvedBody = body;
-                if (resolvedBody === undefined || resolvedBody === null) {
-                    resolvedBody = String(title ?? "");
-                    resolvedTitle = "The Planning Bord";
-                }
-
-                if (Notification.permission === "granted") {
-                    new Notification(resolvedTitle, { body: resolvedBody });
-                } else if (Notification.permission !== "denied") {
-                    Notification.requestPermission().then(function (permission) {
-                        if (permission === "granted") {
-                            new Notification(resolvedTitle, { body: resolvedBody });
-                        }
-                    });
-                }
-            } catch {}
-        }
-        function copyToClipboard(text) {
-            navigator.clipboard.writeText(text).then(function() {
-                // Success
-            }, function(err) {
-                console.error('Async: Could not copy text: ', err);
-            });
-        }
-        function getUserAgent() {
-            return navigator.userAgent;
-        }
-        function resetApp() {
-            try {
-                localStorage.clear();
-                sessionStorage.clear();
-                console.log("App storage cleared.");
-            } catch (e) {
-                console.error("Failed to clear storage", e);
-            }
-        }
+      })();
     </script>
   </body>
 </html>

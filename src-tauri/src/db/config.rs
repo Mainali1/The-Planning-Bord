@@ -2,11 +2,12 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub enum DbType {
     Local,
     Embedded,
     Cloud,
+    Embedded,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

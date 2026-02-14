@@ -1,8 +1,17 @@
-use postgres::{Client, NoTls, Error};
+use tokio_postgres::{NoTls, Error};
 
-pub fn init_db(connection_string: &str) -> Result<(), Error> {
-    ensure_database_exists(connection_string)?;
-    let mut client = Client::connect(connection_string, NoTls)?;
+pub async fn init_db(connection_string: &str) -> Result<(), Error> {
+    println!("Initializing database schema...");
+    ensure_database_exists(connection_string).await?;
+    let (client, connection) = tokio_postgres::connect(connection_string, NoTls).await?;
+
+    // The connection object performs the actual communication with the database,
+    // so spawn it off to run on its own.
+    tokio::spawn(async move {
+        if let Err(e) = connection.await {
+            eprintln!("connection error: {}", e);
+        }
+    });
 
     // Helper Functions
     client.execute(
@@ -15,7 +24,7 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
         END;
         $$ LANGUAGE plpgsql;",
         &[],
-    )?;
+    ).await?;
 
     // 0. Core RBAC (Roles & Permissions) - Must be first for FKs
     client.execute(
@@ -26,15 +35,14 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             is_custom BOOLEAN DEFAULT FALSE
         )",
         &[],
-    )?;
-
-
+    ).await?;
 
     // Insert default roles
-    client.execute("INSERT INTO roles (name, description, is_custom) VALUES ('CEO', 'Chief Executive Officer', FALSE) ON CONFLICT (name) DO NOTHING", &[])?;
-    client.execute("INSERT INTO roles (name, description, is_custom) VALUES ('Manager', 'Managerial Role', FALSE) ON CONFLICT (name) DO NOTHING", &[])?;
-    client.execute("INSERT INTO roles (name, description, is_custom) VALUES ('Employee', 'Standard Employee', FALSE) ON CONFLICT (name) DO NOTHING", &[])?;
-    client.execute("INSERT INTO roles (name, description, is_custom) VALUES ('Technical', 'System Admin / Technical Support', FALSE) ON CONFLICT (name) DO NOTHING", &[])?;
+    client.execute("INSERT INTO roles (name, description, is_custom) VALUES ('CEO', 'Chief Executive Officer', FALSE) ON CONFLICT (name) DO NOTHING", &[]).await?;
+    client.execute("INSERT INTO roles (name, description, is_custom) VALUES ('Manager', 'Managerial Role', FALSE) ON CONFLICT (name) DO NOTHING", &[]).await?;
+    client.execute("INSERT INTO roles (name, description, is_custom) VALUES ('HR', 'Human Resources', FALSE) ON CONFLICT (name) DO NOTHING", &[]).await?;
+    client.execute("INSERT INTO roles (name, description, is_custom) VALUES ('Employee', 'Standard Employee', FALSE) ON CONFLICT (name) DO NOTHING", &[]).await?;
+    client.execute("INSERT INTO roles (name, description, is_custom) VALUES ('Technical', 'System Admin / Technical Support', FALSE) ON CONFLICT (name) DO NOTHING", &[]).await?;
 
     client.execute(
         "CREATE TABLE IF NOT EXISTS permissions (
@@ -43,7 +51,7 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             description TEXT
         )",
         &[],
-    )?;
+    ).await?;
     
     // Seed basic permissions
     let permissions = vec![
@@ -59,7 +67,7 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
         ("VIEW_BACKEND_ERRORS", "Can view detailed backend error notifications"),
     ];
     for (code, desc) in permissions {
-        client.execute("INSERT INTO permissions (code, description) VALUES ($1, $2) ON CONFLICT (code) DO NOTHING", &[&code, &desc])?;
+        client.execute("INSERT INTO permissions (code, description) VALUES ($1, $2) ON CONFLICT (code) DO NOTHING", &[&code, &desc]).await?;
     }
 
     client.execute(
@@ -69,7 +77,7 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             PRIMARY KEY (role_id, permission_id)
         )",
         &[],
-    )?;
+    ).await?;
 
     // Assign VIEW_BACKEND_ERRORS to Technical and CEO
     client.execute(
@@ -79,7 +87,7 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
          WHERE r.name IN ('Technical', 'CEO') AND p.code = 'VIEW_BACKEND_ERRORS'
          ON CONFLICT DO NOTHING",
         &[],
-    )?;
+    ).await?;
 
     // 1. User Management
     client.execute(
@@ -99,18 +107,15 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             last_login TIMESTAMP
         )",
         &[],
-    )?;
+    ).await?;
 
     // Patch users
-    let _ = client.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS username TEXT UNIQUE", &[]);
-    let _ = client.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS full_name TEXT", &[]);
-    let _ = client.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'Employee'", &[]);
-    let _ = client.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE", &[]);
+    let _ = client.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS username TEXT UNIQUE", &[]).await;
+    let _ = client.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS full_name TEXT", &[]).await;
+    let _ = client.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'Employee'", &[]).await;
+    let _ = client.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE", &[]).await;
 
     // Patches moved to end of file to ensure tables exist
-    
-    // Patch gl_accounts
-    let _ = client.execute("ALTER TABLE gl_accounts ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP", &[]);
 
     client.execute(
         "CREATE TABLE IF NOT EXISTS sessions (
@@ -119,7 +124,7 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             exp BIGINT
         )",
         &[],
-    )?;
+    ).await?;
 
 
     // Invite Tokens
@@ -135,11 +140,11 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )",
         &[],
-    )?;
+    ).await?;
 
     // Patch user_invites
-    let _ = client.execute("ALTER TABLE user_invites ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE", &[]);
-    let _ = client.execute("ALTER TABLE user_invites ALTER COLUMN expiration DROP NOT NULL", &[]);
+    let _ = client.execute("ALTER TABLE user_invites ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE", &[]).await;
+    let _ = client.execute("ALTER TABLE user_invites ALTER COLUMN expiration DROP NOT NULL", &[]).await;
 
     // 2. Inventory Management
     client.execute(
@@ -162,19 +167,19 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             last_restocked TIMESTAMP
         )",
         &[],
-    )?;
+    ).await?;
 
     // Patch products
-    let _ = client.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS cost_price DOUBLE PRECISION DEFAULT 0.0", &[]);
+    let _ = client.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS cost_price DOUBLE PRECISION DEFAULT 0.0", &[]).await;
 
     // Item Categorization
     client.execute("DO $$ BEGIN
         CREATE TYPE item_type_enum AS ENUM ('goods', 'ingredients', 'assets');
     EXCEPTION
         WHEN duplicate_object THEN null;
-    END $$;", &[]).ok();
+    END $$;", &[]).await.ok();
 
-    let _ = client.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS item_type item_type_enum DEFAULT 'goods'", &[]);
+    let _ = client.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS item_type item_type_enum DEFAULT 'goods'", &[]).await;
 
     client.execute(
         "CREATE TABLE IF NOT EXISTS inventory_logs (
@@ -189,7 +194,7 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )",
         &[],
-    )?;
+    ).await?;
 
     // 2.1 Sales (New)
     client.execute(
@@ -203,7 +208,7 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             user_id INTEGER REFERENCES users(id)
         )",
         &[],
-    )?;
+    ).await?;
 
     // 3. Employee Management
     client.execute(
@@ -212,12 +217,14 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             employee_id TEXT UNIQUE,
             first_name TEXT NOT NULL,
             last_name TEXT NOT NULL,
+            full_name TEXT,
             email TEXT UNIQUE,
             phone TEXT,
             date_of_birth TIMESTAMP,
             role TEXT REFERENCES roles(name),
             department TEXT,
             position TEXT,
+            manager_id INTEGER REFERENCES employees(id),
             hire_date TIMESTAMP,
             salary DOUBLE PRECISION,
             hourly_cost DOUBLE PRECISION DEFAULT 0.0,
@@ -229,10 +236,12 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )",
         &[],
-    )?;
+    ).await?;
 
     // Patch employees
-    let _ = client.execute("ALTER TABLE employees ADD COLUMN IF NOT EXISTS hourly_cost DOUBLE PRECISION DEFAULT 0.0", &[]);
+    let _ = client.execute("ALTER TABLE employees ADD COLUMN IF NOT EXISTS full_name TEXT", &[]).await;
+    let _ = client.execute("ALTER TABLE employees ADD COLUMN IF NOT EXISTS manager_id INTEGER REFERENCES employees(id)", &[]).await;
+    let _ = client.execute("ALTER TABLE employees ADD COLUMN IF NOT EXISTS hourly_cost DOUBLE PRECISION DEFAULT 0.0", &[]).await;
 
     // 4. Finance & Accounting
     client.execute(
@@ -258,7 +267,7 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )",
         &[],
-    )?;
+    ).await?;
 
     client.execute(
         "CREATE TABLE IF NOT EXISTS accounts (
@@ -271,7 +280,7 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )",
         &[],
-    )?;
+    ).await?;
 
     client.execute(
         "CREATE TABLE IF NOT EXISTS invoices (
@@ -289,7 +298,7 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )",
         &[],
-    )?;
+    ).await?;
 
     // 5. Setup & Config
     client.execute(
@@ -303,7 +312,7 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             admin_user_id INTEGER REFERENCES users(id)
         )",
         &[],
-    )?;
+    ).await?;
 
     // 6. Tools Management
     client.execute(
@@ -321,7 +330,7 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )",
         &[],
-    )?;
+    ).await?;
 
     client.execute(
         "CREATE TABLE IF NOT EXISTS tool_assignments (
@@ -335,22 +344,27 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             notes TEXT
         )",
         &[],
-    )?;
+    ).await?;
 
     // Migration for existing databases: rename return_condition to condition_on_return
     client.execute(
-        "ALTER TABLE tool_assignments RENAME COLUMN IF EXISTS return_condition TO condition_on_return",
+        "DO $$
+        BEGIN
+            IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='tool_assignments' AND column_name='return_condition') THEN
+                ALTER TABLE tool_assignments RENAME COLUMN return_condition TO condition_on_return;
+            END IF;
+        END $$;",
         &[],
-    ).ok(); // Ignore error if column doesn't exist
+    ).await.ok(); // Ignore error if column doesn't exist
 
     // Add condition_on_assignment column if it doesn't exist
     client.execute(
         "ALTER TABLE tool_assignments ADD COLUMN IF NOT EXISTS condition_on_assignment TEXT",
         &[],
-    ).ok();
+    ).await.ok();
 
     // Patch tools for asset linking
-    let _ = client.execute("ALTER TABLE tools ADD COLUMN IF NOT EXISTS product_id INTEGER REFERENCES products(id)", &[]);
+    let _ = client.execute("ALTER TABLE tools ADD COLUMN IF NOT EXISTS product_id INTEGER REFERENCES products(id)", &[]).await;
 
     // 7. Project Management
     client.execute(
@@ -368,7 +382,7 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )",
         &[],
-    )?;
+    ).await?;
 
 
     client.execute(
@@ -384,16 +398,24 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )",
         &[],
-    )?;
+    ).await?;
 
     // Add missing columns to project_tasks table to match the Rust model
-    let _ = client.execute("ALTER TABLE project_tasks ADD COLUMN IF NOT EXISTS priority TEXT DEFAULT 'medium'", &[]);
-    let _ = client.execute("ALTER TABLE project_tasks ADD COLUMN IF NOT EXISTS start_date TIMESTAMP", &[]);
-    let _ = client.execute("ALTER TABLE project_tasks ADD COLUMN IF NOT EXISTS parent_task_id INTEGER REFERENCES project_tasks(id)", &[]);
-    let _ = client.execute("ALTER TABLE project_tasks ADD COLUMN IF NOT EXISTS dependencies_json TEXT", &[]);
+    let _ = client.execute("ALTER TABLE project_tasks ADD COLUMN IF NOT EXISTS priority TEXT DEFAULT 'medium'", &[]).await;
+    let _ = client.execute("ALTER TABLE project_tasks ADD COLUMN IF NOT EXISTS start_date TIMESTAMP", &[]).await;
+    let _ = client.execute("ALTER TABLE project_tasks ADD COLUMN IF NOT EXISTS parent_task_id INTEGER REFERENCES project_tasks(id)", &[]).await;
+    let _ = client.execute("ALTER TABLE project_tasks ADD COLUMN IF NOT EXISTS dependencies_json TEXT", &[]).await;
     
     // Rename assigned_to_employee_id to assigned_to to match Rust model
-    let _ = client.execute("ALTER TABLE project_tasks RENAME COLUMN assigned_to_employee_id TO assigned_to", &[]);
+    let _ = client.execute(
+        "DO $$
+        BEGIN
+            IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='project_tasks' AND column_name='assigned_to_employee_id') THEN
+                ALTER TABLE project_tasks RENAME COLUMN assigned_to_employee_id TO assigned_to;
+            END IF;
+        END $$;",
+        &[],
+    ).await;
 
     client.execute(
         "CREATE TABLE IF NOT EXISTS project_assignments (
@@ -404,7 +426,39 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )",
         &[],
-    )?;
+    ).await?;
+
+    client.execute(
+        "CREATE TABLE IF NOT EXISTS project_phases (
+            id SERIAL PRIMARY KEY,
+            project_id INTEGER REFERENCES projects(id) ON DELETE CASCADE,
+            name TEXT NOT NULL,
+            description TEXT,
+            start_date TIMESTAMP NOT NULL,
+            end_date TIMESTAMP NOT NULL,
+            status TEXT DEFAULT 'planned',
+            color TEXT,
+            sort_order INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )",
+        &[],
+    ).await?;
+
+    client.execute(
+        "CREATE TABLE IF NOT EXISTS project_milestones (
+            id SERIAL PRIMARY KEY,
+            project_id INTEGER REFERENCES projects(id) ON DELETE CASCADE,
+            name TEXT NOT NULL,
+            description TEXT,
+            date TIMESTAMP NOT NULL,
+            status TEXT DEFAULT 'pending',
+            is_critical BOOLEAN DEFAULT FALSE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )",
+        &[],
+    ).await?;
 
     // 8. Complaints & Feedback
     client.execute(
@@ -422,16 +476,32 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             is_anonymous BOOLEAN DEFAULT FALSE
         )",
         &[],
-    )?;
+    ).await?;
 
     // Patch complaints for legacy schema
-    let _ = client.execute("ALTER TABLE complaints ADD COLUMN IF NOT EXISTS title TEXT DEFAULT 'Complaint'", &[]);
-    let _ = client.execute("ALTER TABLE complaints RENAME COLUMN content TO description", &[]); // Ignore error if content doesn't exist
-    let _ = client.execute("ALTER TABLE complaints ADD COLUMN IF NOT EXISTS description TEXT", &[]); // Ensure description exists
-    let _ = client.execute("ALTER TABLE complaints ADD COLUMN IF NOT EXISTS submitted_by_employee_id INTEGER REFERENCES employees(id)", &[]);
-    let _ = client.execute("ALTER TABLE complaints RENAME COLUMN created_at TO submitted_at", &[]);
-    let _ = client.execute("ALTER TABLE complaints ADD COLUMN IF NOT EXISTS resolved_by_user_id INTEGER REFERENCES users(id)", &[]);
-    let _ = client.execute("ALTER TABLE complaints ADD COLUMN IF NOT EXISTS is_anonymous BOOLEAN DEFAULT FALSE", &[]);
+    let _ = client.execute("ALTER TABLE complaints ADD COLUMN IF NOT EXISTS title TEXT DEFAULT 'Complaint'", &[]).await;
+    let _ = client.execute(
+        "DO $$
+        BEGIN
+            IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='complaints' AND column_name='content') THEN
+                ALTER TABLE complaints RENAME COLUMN content TO description;
+            END IF;
+        END $$;",
+        &[],
+    ).await; // Use PL/pgSQL for conditional rename
+    let _ = client.execute("ALTER TABLE complaints ADD COLUMN IF NOT EXISTS description TEXT", &[]).await; // Ensure description exists
+    let _ = client.execute("ALTER TABLE complaints ADD COLUMN IF NOT EXISTS submitted_by_employee_id INTEGER REFERENCES employees(id)", &[]).await;
+    let _ = client.execute(
+        "DO $$
+        BEGIN
+            IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='complaints' AND column_name='created_at') THEN
+                ALTER TABLE complaints RENAME COLUMN created_at TO submitted_at;
+            END IF;
+        END $$;",
+        &[],
+    ).await;
+    let _ = client.execute("ALTER TABLE complaints ADD COLUMN IF NOT EXISTS resolved_by_user_id INTEGER REFERENCES users(id)", &[]).await;
+    let _ = client.execute("ALTER TABLE complaints ADD COLUMN IF NOT EXISTS is_anonymous BOOLEAN DEFAULT FALSE", &[]).await;
 
 
     // 9. Attendance
@@ -446,14 +516,30 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             location TEXT
         )",
         &[],
-    )?;
+    ).await?;
     // Patch legacy/mismatched columns
-    let _ = client.execute("ALTER TABLE attendance RENAME COLUMN clock_in TO check_in", &[]);
-    let _ = client.execute("ALTER TABLE attendance RENAME COLUMN clock_out TO check_out", &[]);
-    let _ = client.execute("ALTER TABLE attendance DROP COLUMN IF EXISTS date", &[]);
-    let _ = client.execute("ALTER TABLE attendance ADD COLUMN IF NOT EXISTS status TEXT", &[]);
-    let _ = client.execute("ALTER TABLE attendance ADD COLUMN IF NOT EXISTS notes TEXT", &[]);
-    let _ = client.execute("ALTER TABLE attendance ADD COLUMN IF NOT EXISTS location TEXT", &[]);
+    let _ = client.execute(
+        "DO $$
+        BEGIN
+            IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='attendance' AND column_name='clock_in') THEN
+                ALTER TABLE attendance RENAME COLUMN clock_in TO check_in;
+            END IF;
+        END $$;",
+        &[],
+    ).await;
+    let _ = client.execute(
+        "DO $$
+        BEGIN
+            IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='attendance' AND column_name='clock_out') THEN
+                ALTER TABLE attendance RENAME COLUMN clock_out TO check_out;
+            END IF;
+        END $$;",
+        &[],
+    ).await;
+    let _ = client.execute("ALTER TABLE attendance DROP COLUMN IF EXISTS date", &[]).await;
+    let _ = client.execute("ALTER TABLE attendance ADD COLUMN IF NOT EXISTS status TEXT", &[]).await;
+    let _ = client.execute("ALTER TABLE attendance ADD COLUMN IF NOT EXISTS notes TEXT", &[]).await;
+    let _ = client.execute("ALTER TABLE attendance ADD COLUMN IF NOT EXISTS location TEXT", &[]).await;
 
     // 10. Audit Logs
     client.execute(
@@ -470,12 +556,12 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )",
         &[],
-    )?;
+    ).await?;
 
     // Ensure columns exist (for migration)
-    let _ = client.execute("ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS category TEXT", &[]);
-    let _ = client.execute("ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS ip_address TEXT", &[]);
-    let _ = client.execute("ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS user_agent TEXT", &[]);
+    let _ = client.execute("ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS category TEXT", &[]).await;
+    let _ = client.execute("ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS ip_address TEXT", &[]).await;
+    let _ = client.execute("ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS user_agent TEXT", &[]).await;
 
     // 11. Feature Toggles
     client.execute(
@@ -484,7 +570,7 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             is_enabled BOOLEAN DEFAULT FALSE
         )",
         &[],
-    )?;
+    ).await?;
     
     // Seed default feature toggles
     let toggles = vec![
@@ -497,7 +583,7 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
         ("attendance_module", true),
     ];
     for (key, enabled) in toggles {
-        client.execute("INSERT INTO feature_toggles (key, is_enabled) VALUES ($1, $2) ON CONFLICT (key) DO NOTHING", &[&key, &enabled])?;
+        client.execute("INSERT INTO feature_toggles (key, is_enabled) VALUES ($1, $2) ON CONFLICT (key) DO NOTHING", &[&key, &enabled]).await?;
     }
 
     // 12. Integrations
@@ -511,7 +597,7 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             connected_at TIMESTAMP
         )",
         &[],
-    )?;
+    ).await?;
     
     // Seed integrations
     let integrations = vec![
@@ -525,7 +611,7 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
         ("Typeform", false),
     ];
     for (name, connected) in integrations {
-        client.execute("INSERT INTO integrations (name, is_connected) VALUES ($1, $2) ON CONFLICT (name) DO NOTHING", &[&name, &connected])?;
+        client.execute("INSERT INTO integrations (name, is_connected) VALUES ($1, $2) ON CONFLICT (name) DO NOTHING", &[&name, &connected]).await?;
     }
 
     // 13. Supply Chain (BOM & Batches)
@@ -540,7 +626,7 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )",
         &[],
-    )?;
+    ).await?;
 
     client.execute(
         "CREATE TABLE IF NOT EXISTS bom_lines (
@@ -553,7 +639,7 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             notes TEXT
         )",
         &[],
-    )?;
+    ).await?;
 
     client.execute(
         "CREATE TABLE IF NOT EXISTS inventory_batches (
@@ -571,7 +657,7 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )",
         &[],
-    )?;
+    ).await?;
 
     client.execute(
         "CREATE TABLE IF NOT EXISTS inventory_movements (
@@ -587,10 +673,10 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )",
         &[],
-    )?;
+    ).await?;
 
     // Indexes
-    let _ = client.execute("CREATE INDEX IF NOT EXISTS idx_inventory_movements_product_date ON inventory_movements(product_id, created_at)", &[]);
+    let _ = client.execute("CREATE INDEX IF NOT EXISTS idx_inventory_movements_product_date ON inventory_movements(product_id, created_at)", &[]).await;
 
     // 14. Generic Tasks
     client.execute(
@@ -606,7 +692,7 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             completed_date TIMESTAMP
         )",
         &[],
-    )?;
+    ).await?;
 
     // 15. Supplier Management
     client.execute(
@@ -623,11 +709,11 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )",
         &[],
-    )?;
+    ).await?;
 
     // Patch inventory_batches
-    let _ = client.execute("ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS order_email TEXT", &[]);
-    let _ = client.execute("ALTER TABLE inventory_batches ADD COLUMN IF NOT EXISTS supplier_id INTEGER REFERENCES suppliers(id)", &[]);
+    let _ = client.execute("ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS order_email TEXT", &[]).await;
+    let _ = client.execute("ALTER TABLE inventory_batches ADD COLUMN IF NOT EXISTS supplier_id INTEGER REFERENCES suppliers(id)", &[]).await;
 
     // 16. Supplier Orders
     client.execute(
@@ -643,7 +729,7 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )",
         &[],
-    )?;
+    ).await?;
 
     // 17. Business Type & Service Management
     client.execute(
@@ -659,26 +745,38 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             is_active BOOLEAN DEFAULT TRUE
         )",
         &[],
-    )?;
+    ).await?;
 
     // Patch business_configurations
-    let _ = client.execute("ALTER TABLE business_configurations ADD COLUMN IF NOT EXISTS tax_rate DOUBLE PRECISION DEFAULT 0.0", &[]);
+    let _ = client.execute("ALTER TABLE business_configurations ADD COLUMN IF NOT EXISTS tax_rate DOUBLE PRECISION DEFAULT 0.0", &[]).await;
 
     client.execute(
         "CREATE TABLE IF NOT EXISTS services (
             id SERIAL PRIMARY KEY,
+            service_code TEXT UNIQUE,
             name TEXT NOT NULL,
             description TEXT,
             category TEXT,
             unit_price DOUBLE PRECISION DEFAULT 0.0,
+            flat_price DOUBLE PRECISION DEFAULT 0.0,
             billing_type TEXT DEFAULT 'hourly' CHECK (billing_type IN ('hourly', 'fixed', 'retainer', 'milestone')),
             estimated_hours DOUBLE PRECISION,
+            typical_duration TEXT,
+            duration_unit TEXT DEFAULT 'days' CHECK (duration_unit IN ('days', 'hours')),
+            sla_terms TEXT,
             is_active BOOLEAN DEFAULT TRUE,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )",
         &[],
-    )?;
+    ).await?;
+
+    // Patch services
+    let _ = client.execute("ALTER TABLE services ADD COLUMN IF NOT EXISTS service_code TEXT UNIQUE", &[]).await;
+    let _ = client.execute("ALTER TABLE services ADD COLUMN IF NOT EXISTS flat_price DOUBLE PRECISION DEFAULT 0.0", &[]).await;
+    let _ = client.execute("ALTER TABLE services ADD COLUMN IF NOT EXISTS typical_duration TEXT", &[]).await;
+    let _ = client.execute("ALTER TABLE services ADD COLUMN IF NOT EXISTS duration_unit TEXT DEFAULT 'days'", &[]).await;
+    let _ = client.execute("ALTER TABLE services ADD COLUMN IF NOT EXISTS sla_terms TEXT", &[]).await;
 
     client.execute(
         "CREATE TABLE IF NOT EXISTS clients (
@@ -694,19 +792,28 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             credit_limit DOUBLE PRECISION,
             tax_id TEXT,
             notes TEXT,
+            annual_contract_value DOUBLE PRECISION DEFAULT 0.0,
+            primary_products_purchased TEXT,
             is_active BOOLEAN DEFAULT TRUE,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )",
         &[],
-    )?;
+    ).await?;
 
-    // Patch clients (for existing tables)
-    let _ = client.execute("ALTER TABLE clients ADD COLUMN IF NOT EXISTS payment_terms TEXT", &[]);
-    let _ = client.execute("ALTER TABLE clients ADD COLUMN IF NOT EXISTS credit_limit DOUBLE PRECISION", &[]);
-    let _ = client.execute("ALTER TABLE clients ADD COLUMN IF NOT EXISTS tax_id TEXT", &[]);
-    let _ = client.execute("ALTER TABLE clients ADD COLUMN IF NOT EXISTS notes TEXT", &[]);
-    let _ = client.execute("ALTER TABLE clients ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE", &[]);
+    // Patch clients
+    let _ = client.execute("ALTER TABLE clients ADD COLUMN IF NOT EXISTS annual_contract_value DOUBLE PRECISION DEFAULT 0.0", &[]).await;
+    let _ = client.execute("ALTER TABLE clients ADD COLUMN IF NOT EXISTS primary_products_purchased TEXT", &[]).await;
+
+    // Client Services Junction Table
+    client.execute(
+        "CREATE TABLE IF NOT EXISTS client_services (
+            client_id INTEGER REFERENCES clients(id) ON DELETE CASCADE,
+            service_id INTEGER REFERENCES services(id) ON DELETE CASCADE,
+            PRIMARY KEY (client_id, service_id)
+        )",
+        &[],
+    ).await?;
 
     client.execute(
         "CREATE TABLE IF NOT EXISTS time_entries (
@@ -728,7 +835,7 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )",
         &[],
-    )?;
+    ).await?;
 
     client.execute(
         "CREATE TABLE IF NOT EXISTS service_contracts (
@@ -747,7 +854,7 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )",
         &[],
-    )?;
+    ).await?;
 
     client.execute(
         "CREATE TABLE IF NOT EXISTS contract_services (
@@ -760,7 +867,7 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             notes TEXT
         )",
         &[],
-    )?;
+    ).await?;
 
     client.execute(
         "CREATE TABLE IF NOT EXISTS quotes (
@@ -778,7 +885,7 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )",
         &[],
-    )?;
+    ).await?;
 
     client.execute(
         "CREATE TABLE IF NOT EXISTS quote_items (
@@ -792,15 +899,15 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             sort_order INTEGER
         )",
         &[],
-    )?;
+    ).await?;
 
     // Seed default business configuration if empty
-    let count: i64 = client.query_one("SELECT COUNT(*) FROM business_configurations", &[])?.get(0);
+    let count: i64 = client.query_one("SELECT COUNT(*) FROM business_configurations", &[]).await?.get(0);
     if count == 0 {
         client.execute(
             "INSERT INTO business_configurations (business_type, company_name, industry, is_active, tax_rate) VALUES ($1, $2, $3, $4, $5)",
             &[&"both", &"Mainali Services", &"Manufacturing", &true, &0.0],
-        )?;
+        ).await?;
     }
 
     // 18. ERP Standardization (GL & Purchase Orders)
@@ -816,7 +923,7 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )",
         &[],
-    )?;
+    ).await?;
 
     client.execute(
         "CREATE TABLE IF NOT EXISTS gl_entries (
@@ -829,7 +936,7 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )",
         &[],
-    )?;
+    ).await?;
 
     client.execute(
         "CREATE TABLE IF NOT EXISTS gl_entry_lines (
@@ -841,7 +948,7 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             description TEXT
         )",
         &[],
-    )?;
+    ).await?;
 
     client.execute(
         "CREATE TABLE IF NOT EXISTS purchase_orders (
@@ -857,7 +964,7 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )",
         &[],
-    )?;
+    ).await?;
 
     client.execute(
         "CREATE TABLE IF NOT EXISTS purchase_order_lines (
@@ -871,7 +978,7 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             notes TEXT
         )",
         &[],
-    )?;
+    ).await?;
 
     // 19. Sales Orders (Order-to-Cash)
     client.execute(
@@ -889,7 +996,7 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )",
         &[],
-    )?;
+    ).await?;
 
     client.execute(
         "CREATE TABLE IF NOT EXISTS sales_order_lines (
@@ -902,36 +1009,36 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             notes TEXT
         )",
         &[],
-    )?;
+    ).await?;
 
     // Patch sales_order_lines for Service Support
-    let _ = client.execute("ALTER TABLE sales_order_lines ADD COLUMN IF NOT EXISTS service_id INTEGER REFERENCES services(id)", &[]);
-    let _ = client.execute("ALTER TABLE sales_order_lines ALTER COLUMN product_id DROP NOT NULL", &[]);
+    let _ = client.execute("ALTER TABLE sales_order_lines ADD COLUMN IF NOT EXISTS service_id INTEGER REFERENCES services(id)", &[]).await;
+    let _ = client.execute("ALTER TABLE sales_order_lines ALTER COLUMN product_id DROP NOT NULL", &[]).await;
     // Drop existing constraint if it exists to avoid error on repeated runs or re-definitions
-    let _ = client.execute("ALTER TABLE sales_order_lines DROP CONSTRAINT IF EXISTS chk_so_line_item_type", &[]);
+    let _ = client.execute("ALTER TABLE sales_order_lines DROP CONSTRAINT IF EXISTS chk_so_line_item_type", &[]).await;
     let _ = client.execute("ALTER TABLE sales_order_lines ADD CONSTRAINT chk_so_line_item_type CHECK (
         (product_id IS NOT NULL AND service_id IS NULL) OR
         (product_id IS NULL AND service_id IS NOT NULL)
-    )", &[]);
+    )", &[]).await;
 
     // Patch payments table
-    let _ = client.execute("ALTER TABLE payments ADD COLUMN IF NOT EXISTS project_id INTEGER REFERENCES projects(id)", &[]);
+    let _ = client.execute("ALTER TABLE payments ADD COLUMN IF NOT EXISTS project_id INTEGER REFERENCES projects(id)", &[]).await;
 
     // Patch sales_orders table
-    let _ = client.execute("ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS project_id INTEGER REFERENCES projects(id)", &[]);
+    let _ = client.execute("ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS project_id INTEGER REFERENCES projects(id)", &[]).await;
 
     // Indexes
-    let _ = client.execute("CREATE INDEX IF NOT EXISTS idx_sales_orders_client ON sales_orders(client_id)", &[]);
-    let _ = client.execute("CREATE INDEX IF NOT EXISTS idx_sales_orders_status ON sales_orders(status)", &[]);
+    let _ = client.execute("CREATE INDEX IF NOT EXISTS idx_sales_orders_client ON sales_orders(client_id)", &[]).await;
+    let _ = client.execute("CREATE INDEX IF NOT EXISTS idx_sales_orders_status ON sales_orders(status)", &[]).await;
     
     // Indexes
-    let _ = client.execute("CREATE INDEX IF NOT EXISTS idx_gl_entries_date ON gl_entries(transaction_date)", &[]);
-    let _ = client.execute("CREATE INDEX IF NOT EXISTS idx_gl_entry_lines_account ON gl_entry_lines(account_id)", &[]);
-    let _ = client.execute("CREATE INDEX IF NOT EXISTS idx_purchase_orders_supplier ON purchase_orders(supplier_id)", &[]);
-    let _ = client.execute("CREATE INDEX IF NOT EXISTS idx_purchase_orders_status ON purchase_orders(status)", &[]);
+    let _ = client.execute("CREATE INDEX IF NOT EXISTS idx_gl_entries_date ON gl_entries(transaction_date)", &[]).await;
+    let _ = client.execute("CREATE INDEX IF NOT EXISTS idx_gl_entry_lines_account ON gl_entry_lines(account_id)", &[]).await;
+    let _ = client.execute("CREATE INDEX IF NOT EXISTS idx_purchase_orders_supplier ON purchase_orders(supplier_id)", &[]).await;
+    let _ = client.execute("CREATE INDEX IF NOT EXISTS idx_purchase_orders_status ON purchase_orders(status)", &[]).await;
 
     // Seed Default GL Accounts
-    let gl_count: i64 = client.query_one("SELECT COUNT(*) FROM gl_accounts", &[])?.get(0);
+    let gl_count: i64 = client.query_one("SELECT COUNT(*) FROM gl_accounts", &[]).await?.get(0);
     if gl_count == 0 {
         let accounts = vec![
             ("1000", "Bank", "Asset"),
@@ -948,7 +1055,7 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
             client.execute(
                 "INSERT INTO gl_accounts (code, name, account_type, is_active) VALUES ($1, $2, $3, $4)",
                 &[&code, &name, &type_, &true],
-            )?;
+            ).await?;
         }
     }
 
@@ -956,30 +1063,35 @@ pub fn init_db(connection_string: &str) -> Result<(), Error> {
     // Moved here to ensure all tables exist before applying constraints
     println!("DEBUG: Applying post-initialization patches and constraints...");
     
+    // GL Accounts patch
+    let _ = client.execute("ALTER TABLE gl_accounts ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP", &[]).await;
+
     // 1. Projects Patches
-    let _ = client.execute("ALTER TABLE projects ADD COLUMN IF NOT EXISTS manager_id INTEGER REFERENCES employees(id)", &[]);
+    let _ = client.execute("ALTER TABLE projects ADD COLUMN IF NOT EXISTS manager_id INTEGER REFERENCES employees(id)", &[]).await;
     // Ensure client_id column exists (legacy)
-    let _ = client.execute("ALTER TABLE projects ADD COLUMN IF NOT EXISTS client_id INTEGER REFERENCES clients(id)", &[]);
+    let _ = client.execute("ALTER TABLE projects ADD COLUMN IF NOT EXISTS client_id INTEGER REFERENCES clients(id)", &[]).await;
     // Apply FK constraint for fresh installs (where column exists but no FK)
-    // Ignore error if constraint already exists
-    let _ = client.execute("ALTER TABLE projects ADD CONSTRAINT fk_projects_client FOREIGN KEY (client_id) REFERENCES clients(id)", &[]);
+    // Ignore error if constraint already exists by dropping it first
+    let _ = client.execute("ALTER TABLE projects DROP CONSTRAINT IF EXISTS fk_projects_client", &[]).await;
+    let _ = client.execute("ALTER TABLE projects ADD CONSTRAINT fk_projects_client FOREIGN KEY (client_id) REFERENCES clients(id)", &[]).await;
 
     // 2. Payments Patches
-    let _ = client.execute("ALTER TABLE payments ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'USD'", &[]);
-    let _ = client.execute("ALTER TABLE payments ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'pending'", &[]);
-    let _ = client.execute("ALTER TABLE payments ADD COLUMN IF NOT EXISTS payment_type TEXT DEFAULT 'expense'", &[]);
-    let _ = client.execute("ALTER TABLE payments ADD COLUMN IF NOT EXISTS payment_date TIMESTAMP", &[]);
-    let _ = client.execute("ALTER TABLE payments ALTER COLUMN date DROP NOT NULL", &[]);
+    let _ = client.execute("ALTER TABLE payments ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'USD'", &[]).await;
+    let _ = client.execute("ALTER TABLE payments ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'pending'", &[]).await;
+    let _ = client.execute("ALTER TABLE payments ADD COLUMN IF NOT EXISTS payment_type TEXT DEFAULT 'expense'", &[]).await;
+    let _ = client.execute("ALTER TABLE payments ADD COLUMN IF NOT EXISTS payment_date TIMESTAMP", &[]).await;
+    let _ = client.execute("ALTER TABLE payments ALTER COLUMN date DROP NOT NULL", &[]).await;
     
     // Ensure project_id column exists (legacy)
-    let _ = client.execute("ALTER TABLE payments ADD COLUMN IF NOT EXISTS project_id INTEGER REFERENCES projects(id)", &[]);
+    let _ = client.execute("ALTER TABLE payments ADD COLUMN IF NOT EXISTS project_id INTEGER REFERENCES projects(id)", &[]).await;
     // Apply FK constraint for fresh installs (where column exists but no FK)
-    let _ = client.execute("ALTER TABLE payments ADD CONSTRAINT fk_payments_project FOREIGN KEY (project_id) REFERENCES projects(id)", &[]);
+    let _ = client.execute("ALTER TABLE payments DROP CONSTRAINT IF EXISTS fk_payments_project", &[]).await;
+    let _ = client.execute("ALTER TABLE payments ADD CONSTRAINT fk_payments_project FOREIGN KEY (project_id) REFERENCES projects(id)", &[]).await;
 
     Ok(())
 }
 
-fn ensure_database_exists(connection_string: &str) -> Result<(), Error> {
+async fn ensure_database_exists(connection_string: &str) -> Result<(), Error> {
     // Parse the connection string to separate the base URL and the database name.
     // We connect to the default 'postgres' database to check/create the target database.
     
@@ -1003,20 +1115,23 @@ fn ensure_database_exists(connection_string: &str) -> Result<(), Error> {
         let postgres_conn_str = format!("{}/postgres{}", base_url, params);
         
         // Attempt to connect to the maintenance database
-        // We use a match here to handle cases where 'postgres' db might not be accessible, 
-        // though strictly speaking if we can't connect to maintenance DB, we probably can't ensure existence.
-        // However, we'll propagate the error if connection fails.
-        let mut client = Client::connect(&postgres_conn_str, NoTls)?;
+        let (client, connection) = tokio_postgres::connect(&postgres_conn_str, NoTls).await?;
+        
+        tokio::spawn(async move {
+            if let Err(e) = connection.await {
+                eprintln!("maintenance connection error: {}", e);
+            }
+        });
         
         // Check if database exists
-        let exists: bool = client.query_opt("SELECT 1 FROM pg_database WHERE datname = $1", &[&db_name_clean])?
-            .is_some();
+        let rows = client.query("SELECT 1 FROM pg_database WHERE datname = $1", &[&db_name_clean]).await?;
+        let exists = !rows.is_empty();
 
         if !exists {
             // CREATE DATABASE cannot take parameters for the DB name, so we must format the string.
             // We wrap the name in double quotes to handle special characters safely.
             let query = format!("CREATE DATABASE \"{}\"", db_name_clean);
-            client.execute(&query, &[])?;
+            client.execute(&query, &[]).await?;
         }
     }
     Ok(())

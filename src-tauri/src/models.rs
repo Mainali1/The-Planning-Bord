@@ -293,6 +293,15 @@ pub struct PurchaseOrderLine {
 // --- Finance & Business ---
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct FinanceOverview {
+    pub net_income: f64,
+    pub total_revenue: f64,
+    pub outstanding_invoices: f64,
+    pub revenue_trend: Vec<ChartDataPoint>,
+    pub expense_allocation: Vec<ChartDataPoint>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Payment {
     pub id: Option<i32>,
     pub payment_type: String,
@@ -363,12 +372,17 @@ pub struct BusinessConfiguration {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Service {
     pub id: Option<i32>,
+    pub service_code: Option<String>,
     pub name: String,
     pub description: Option<String>,
     pub category: String,
     pub unit_price: f64,
+    pub flat_price: Option<f64>,
     pub billing_type: String,
     pub estimated_hours: Option<f64>,
+    pub typical_duration: Option<String>,
+    pub duration_unit: Option<String>, // 'days' or 'hours'
+    pub sla_terms: Option<String>,
     pub is_active: bool,
     pub created_at: Option<String>,
     pub updated_at: Option<String>,
@@ -388,6 +402,9 @@ pub struct Client {
     pub credit_limit: Option<f64>,
     pub tax_id: Option<String>,
     pub notes: Option<String>,
+    pub annual_contract_value: Option<f64>,
+    pub primary_products_purchased: Option<String>,
+    pub subscribed_service_ids: Option<Vec<i32>>,
     pub is_active: bool,
     pub created_at: Option<String>,
     pub updated_at: Option<String>,
@@ -468,14 +485,19 @@ pub struct Employee {
     pub employee_id: Option<String>,
     pub first_name: String,
     pub last_name: String,
+    pub full_name: Option<String>,
     pub email: Option<String>,
     pub phone: Option<String>,
     pub role: String,
     pub department: Option<String>,
     pub position: Option<String>,
+    pub manager_id: Option<i32>,
+    pub hire_date: Option<String>,
     pub salary: Option<f64>,
     pub hourly_cost: Option<f64>, // Added for Project Profitability
     pub status: String,
+    pub created_at: Option<String>,
+    pub updated_at: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -630,6 +652,38 @@ pub struct ProjectTask {
     pub due_date: Option<String>,
     pub parent_task_id: Option<i32>,
     pub dependencies_json: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ProjectPhase {
+    pub id: Option<i32>,
+    pub project_id: i32,
+    pub name: String,
+    pub description: Option<String>,
+    pub start_date: String,
+    pub end_date: String,
+    pub status: String,
+    pub color: Option<String>,
+    pub sort_order: i32,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ProjectMilestone {
+    pub id: Option<i32>,
+    pub project_id: i32,
+    pub name: String,
+    pub description: Option<String>,
+    pub date: String,
+    pub status: String,
+    pub is_critical: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ProjectTimeline {
+    pub project_id: i32,
+    pub project_name: String,
+    pub phases: Vec<ProjectPhase>,
+    pub milestones: Vec<ProjectMilestone>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

@@ -149,6 +149,96 @@ namespace ThePlanningBord.Models
         public string? DependenciesJson { get; set; }
     }
 
+    public class ProjectPhase
+    {
+        [JsonPropertyName("id")]
+        public int? Id { get; set; }
+
+        [JsonPropertyName("project_id")]
+        public int ProjectId { get; set; }
+
+        [JsonPropertyName("name")]
+        public string Name { get; set; } = string.Empty;
+
+        [JsonPropertyName("description")]
+        public string? Description { get; set; }
+
+        [JsonPropertyName("start_date")]
+        public string StartDate { get; set; } = string.Empty;
+
+        [JsonIgnore]
+        public DateTime StartDateValue
+        {
+            get => DateTime.TryParse(StartDate, out var dt) ? dt : DateTime.Today;
+            set => StartDate = value.ToString("yyyy-MM-dd");
+        }
+
+        [JsonPropertyName("end_date")]
+        public string EndDate { get; set; } = string.Empty;
+
+        [JsonIgnore]
+        public DateTime EndDateValue
+        {
+            get => DateTime.TryParse(EndDate, out var dt) ? dt : DateTime.Today;
+            set => EndDate = value.ToString("yyyy-MM-dd");
+        }
+
+        [JsonPropertyName("status")]
+        public string Status { get; set; } = "planned";
+
+        [JsonPropertyName("color")]
+        public string? Color { get; set; }
+
+        [JsonPropertyName("sort_order")]
+        public int SortOrder { get; set; }
+    }
+
+    public class ProjectMilestone
+    {
+        [JsonPropertyName("id")]
+        public int? Id { get; set; }
+
+        [JsonPropertyName("project_id")]
+        public int ProjectId { get; set; }
+
+        [JsonPropertyName("name")]
+        public string Name { get; set; } = string.Empty;
+
+        [JsonPropertyName("description")]
+        public string? Description { get; set; }
+
+        [JsonPropertyName("date")]
+        public string Date { get; set; } = string.Empty;
+
+        [JsonIgnore]
+        public DateTime DateValue
+        {
+            get => DateTime.TryParse(Date, out var dt) ? dt : DateTime.Today;
+            set => Date = value.ToString("yyyy-MM-dd");
+        }
+
+        [JsonPropertyName("status")]
+        public string Status { get; set; } = "pending";
+
+        [JsonPropertyName("is_critical")]
+        public bool IsCritical { get; set; }
+    }
+
+    public class ProjectTimeline
+    {
+        [JsonPropertyName("project_id")]
+        public int ProjectId { get; set; }
+
+        [JsonPropertyName("project_name")]
+        public string ProjectName { get; set; } = string.Empty;
+
+        [JsonPropertyName("phases")]
+        public List<ProjectPhase> Phases { get; set; } = new();
+
+        [JsonPropertyName("milestones")]
+        public List<ProjectMilestone> Milestones { get; set; } = new();
+    }
+
     public class ProjectAssignment
     {
         [JsonPropertyName("id")]

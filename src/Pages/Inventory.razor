@@ -12,16 +12,26 @@
 
 <div class="flex flex-col h-full relative">
     <div class="flex justify-between items-center mb-6">
-        <h3 class="text-lg font-medium leading-6 text-gray-900">Inventory Management</h3>
-        <div class="flex space-x-4">
+        <h3 class="text-lg font-medium leading-6 text-gray-900 dark:text-white">Inventory Management</h3>
+        <div class="flex items-center space-x-4">
             <!-- Search & Export (Common) -->
             <div class="relative rounded-md shadow-sm">
                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <span class="text-gray-500 sm:text-sm">🔍</span>
+                    <span class="text-gray-500 dark:text-gray-400 sm:text-sm">🔍</span>
                 </div>
-                <input type="text" @bind="searchTerm" @bind:event="oninput" @bind:after="OnSearchChanged" placeholder="Search..." class="focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md" />
+                <input type="text" @bind="searchTerm" @bind:event="oninput" @bind:after="OnSearchChanged" placeholder="Search..." class="focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
             </div>
-            <button @onclick="ExportToExcel" class="flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+            
+            <div class="flex bg-gray-100 dark:bg-gray-900 p-1 rounded-md">
+                <button @onclick='() => viewMode = "grid"' class="px-3 py-1 text-sm font-medium rounded-md @(viewMode == "grid" ? "bg-white dark:bg-gray-700 shadow text-blue-600 dark:text-blue-400" : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200")">
+                    <i class="fas fa-th-large"></i>
+                </button>
+                <button @onclick='() => viewMode = "list"' class="px-3 py-1 text-sm font-medium rounded-md @(viewMode == "list" ? "bg-white dark:bg-gray-700 shadow text-blue-600 dark:text-blue-400" : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200")">
+                    <i class="fas fa-list"></i>
+                </button>
+            </div>
+
+            <button @onclick="ExportToExcel" class="flex items-center justify-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
                 📥 Export to Excel
             </button>
             <button @onclick="OpenAddModal" class="flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
@@ -31,21 +41,21 @@
     </div>
 
     <!-- Tabs -->
-    <div class="mb-4 border-b border-gray-200">
+    <div class="mb-4 border-b border-gray-200 dark:border-gray-700">
         <nav class="-mb-px flex space-x-8" aria-label="Tabs">
-            <button @onclick='() => SwitchTab("products")' class="@(activeTab == "products" ? "border-blue-500 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300") whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+            <button @onclick='() => SwitchTab("products")' class="@(activeTab == "products" ? "border-blue-500 text-blue-600 dark:text-blue-400" : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-600") whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
                 Products
             </button>
-            <button @onclick='() => SwitchTab("tools")' class="@(activeTab == "tools" ? "border-blue-500 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300") whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+            <button @onclick='() => SwitchTab("tools")' class="@(activeTab == "tools" ? "border-blue-500 text-blue-600 dark:text-blue-400" : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-600") whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
                 Tools
             </button>
-            <button @onclick='() => SwitchTab("velocity")' class="@(activeTab == "velocity" ? "border-blue-500 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300") whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+            <button @onclick='() => SwitchTab("velocity")' class="@(activeTab == "velocity" ? "border-blue-500 text-blue-600 dark:text-blue-400" : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-600") whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
                 Velocity Report
             </button>
         </nav>
     </div>
 
-    <div class="flex-1 overflow-auto bg-white shadow rounded-lg flex flex-col">
+    <div class="flex-1 overflow-auto bg-white dark:bg-gray-800 shadow rounded-lg flex flex-col border border-gray-200 dark:border-gray-700">
         @if (activeTab == "velocity")
         {
             <div class="flex-1 p-4">
@@ -54,71 +64,145 @@
         }
         else if (activeTab == "products")
         {
-            <div class="flex-1 overflow-auto">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50 sticky top-0">
-                        <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                            <th class="relative px-6 py-3"><span class="sr-only">Actions</span></th>
-                        </tr>
-                    </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
-                        @if (isLoading) { <tr><td colspan="6" class="px-6 py-4 text-center">Loading...</td></tr> }
-                        else if (products == null || !products.Any()) { <tr><td colspan="6" class="px-6 py-4 text-center">No products found.</td></tr> }
+            <div class="flex-1 overflow-auto p-4">
+                @if (viewMode == "grid")
+                {
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                        @if (isLoading)
+                        {
+                            @for (int i = 0; i < 8; i++)
+                            {
+                                <div class="animate-pulse bg-gray-50 dark:bg-gray-900 rounded-lg p-6 border border-gray-100 dark:border-gray-800">
+                                    <div class="h-32 bg-gray-200 dark:bg-gray-700 rounded mb-4"></div>
+                                    <div class="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-2"></div>
+                                    <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+                                </div>
+                            }
+                        }
+                        else if (products == null || !products.Any())
+                        {
+                            <div class="col-span-full py-12 text-center text-gray-500 dark:text-gray-400">No products found.</div>
+                        }
                         else
                         {
-                            <Virtualize Items="@products" Context="p" ItemSize="56">
-                                <tr>
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <div class="text-sm font-medium text-gray-900">@p.Name</div>
-                                        <div class="text-sm text-gray-500">@p.Sku</div>
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">@p.ItemType</span>
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">@p.Category</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">@p.CurrentQuantity / @p.MinimumQuantity</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">@p.UnitPrice.ToString("C")</td>
-                                    <td class="px-6 py-4 whitespace-nowrap">    
-                                        @if (p.CurrentQuantity <= 0) { <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Out of Stock</span> }
-                                        else if (p.CurrentQuantity <= p.MinimumQuantity) { <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Low Stock</span> }
-                                        else { <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">In Stock</span> }
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                        <button @onclick="() => OpenSaleModal(p)" class="text-green-600 hover:text-green-900 mr-3">Sell</button>
-                                        <button @onclick="() => OpenBomModal(p.Id ?? 0)" class="text-indigo-600 hover:text-indigo-900 mr-3">Recipe</button>
-                                        <button @onclick="() => OpenBatchModal(p.Id ?? 0)" class="text-teal-600 hover:text-teal-900 mr-3">Batches</button>
-                                        <button @onclick="() => EditProduct(p)" class="text-blue-600 hover:text-blue-900 mr-3">Edit</button>
-                                        <button @onclick="() => DeleteProduct(p.Id ?? 0)" class="text-red-600 hover:text-red-900">Delete</button>
-                                    </td>
-                                </tr>
-                            </Virtualize>
+                            @foreach (var p in products)
+                            {
+                                <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md transition-shadow flex flex-col group">
+                                    <div class="p-4 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded-t-lg flex justify-between items-start">
+                                        <div>
+                                            <h4 class="text-sm font-semibold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">@p.Name</h4>
+                                            <p class="text-xs text-gray-500 dark:text-gray-400 font-mono">@p.Sku</p>
+                                        </div>
+                                        @if (p.CurrentQuantity <= 0) { <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-100 uppercase">Out</span> }
+                                        else if (p.CurrentQuantity <= p.MinimumQuantity) { <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-100 uppercase">Low</span> }
+                                        else { <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-100 uppercase">OK</span> }
+                                    </div>
+                                    <div class="p-4 flex-1 space-y-4">
+                                        <div class="flex justify-between items-end">
+                                            <div>
+                                                <p class="text-xs text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider">Price</p>
+                                                <p class="text-lg font-bold text-gray-900 dark:text-white">@p.UnitPrice.ToString("C")</p>
+                                            </div>
+                                            <div class="text-right">
+                                                <p class="text-xs text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider">Category</p>
+                                                <p class="text-sm font-medium text-gray-700 dark:text-gray-300">@p.Category</p>
+                                            </div>
+                                        </div>
+                                        
+                                        <div>
+                                            <div class="flex justify-between items-center mb-1">
+                                                <span class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Stock Level</span>
+                                                <span class="text-xs font-bold @(p.CurrentQuantity <= p.MinimumQuantity ? "text-red-600 dark:text-red-400" : "text-gray-900 dark:text-white")">@p.CurrentQuantity / @p.MinimumQuantity</span>
+                                            </div>
+                                            @{
+                                                var percentage = Math.Min(100, (p.CurrentQuantity * 100) / (p.MinimumQuantity * 2 > 0 ? p.MinimumQuantity * 2 : 1));
+                                                var barColor = p.CurrentQuantity <= 0 ? "bg-red-500" : (p.CurrentQuantity <= p.MinimumQuantity ? "bg-yellow-500" : "bg-green-500");
+                                            }
+                                            <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
+                                                <div class="@barColor h-1.5 rounded-full transition-all duration-500" style="width: @(percentage)%"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="p-3 bg-gray-50 dark:bg-gray-900 rounded-b-lg border-t border-gray-100 dark:border-gray-700 grid grid-cols-2 gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button @onclick="() => OpenSaleModal(p)" class="px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center justify-center">
+                                            <i class="fas fa-shopping-cart mr-1"></i> Sell
+                                        </button>
+                                        <button @onclick="() => EditProduct(p)" class="px-3 py-1.5 text-xs font-medium bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center justify-center">
+                                            <i class="fas fa-edit mr-1"></i> Edit
+                                        </button>
+                                    </div>
+                                </div>
+                            }
                         }
-                    </tbody>
-                </table>
+                    </div>
+                }
+                else
+                {
+                    <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                            <thead class="bg-gray-50 dark:bg-gray-900 sticky top-0">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Name</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Type</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Category</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Stock</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Price</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                                    <th class="relative px-6 py-3"><span class="sr-only">Actions</span></th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                                @if (isLoading) { <tr><td colspan="7" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">Loading...</td></tr> }
+                                else if (products == null || !products.Any()) { <tr><td colspan="7" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">No products found.</td></tr> }
+                                else
+                                {
+                                    <Virtualize Items="@products" Context="p" ItemSize="56">
+                                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                <div class="text-sm font-medium text-gray-900 dark:text-white">@p.Name</div>
+                                                <div class="text-sm text-gray-500 dark:text-gray-400">@p.Sku</div>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">@p.ItemType</span>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">@p.Category</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">@p.CurrentQuantity / @p.MinimumQuantity</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">@p.UnitPrice.ToString("C")</td>
+                                            <td class="px-6 py-4 whitespace-nowrap">    
+                                                @if (p.CurrentQuantity <= 0) { <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-100">Out of Stock</span> }
+                                                else if (p.CurrentQuantity <= p.MinimumQuantity) { <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-100">Low Stock</span> }
+                                                else { <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-100">In Stock</span> }
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                <button @onclick="() => OpenSaleModal(p)" class="text-green-600 dark:text-green-400 hover:text-green-900 dark:hover:text-green-300 mr-3">Sell</button>
+                                                <button @onclick="() => EditProduct(p)" class="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 mr-3">Edit</button>
+                                                <button @onclick="() => DeleteProduct(p.Id ?? 0)" class="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300">Delete</button>
+                                            </td>
+                                        </tr>
+                                    </Virtualize>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
             </div>
             
             <!-- Pagination for Products -->
-            <div class="bg-white px-4 py-3 border-t border-gray-200 sm:px-6">
+            <div class="bg-white dark:bg-gray-800 px-4 py-3 border-t border-gray-200 dark:border-gray-700 sm:px-6">
                 <div class="flex items-center justify-between">
                     <div class="flex-1 flex justify-between sm:hidden">
-                        <button @onclick="PreviousPage" disabled="@(!CanPreviousPage)" class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"> Previous </button>
-                        <button @onclick="NextPage" disabled="@(!CanNextPage)" class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"> Next </button>
+                        <button @onclick="PreviousPage" disabled="@(!CanPreviousPage)" class="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"> Previous </button>
+                        <button @onclick="NextPage" disabled="@(!CanNextPage)" class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"> Next </button>
                     </div>
                     <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
                         <div>
-                            <p class="text-sm text-gray-700">
+                            <p class="text-sm text-gray-700 dark:text-gray-300">
                                 Showing <span class="font-medium">@((currentPage - 1) * pageSize + 1)</span> to <span class="font-medium">@(Math.Min(currentPage * pageSize, totalItems))</span> of <span class="font-medium">@totalItems</span> results
                             </p>
                         </div>
                         <div>
                             <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                                <button @onclick="PreviousPage" disabled="@(!CanPreviousPage)" class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50">
+                                <button @onclick="PreviousPage" disabled="@(!CanPreviousPage)" class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50">
                                     <span class="sr-only">Previous</span>
                                     <span>&larr;</span>
                                 </button>
@@ -128,17 +212,17 @@
                                     var pageNumber = i;
                                     if (i == 1 || i == TotalPages || (i >= currentPage - 2 && i <= currentPage + 2))
                                     {
-                                        <button @onclick="() => GoToPage(pageNumber)" class="@(currentPage == pageNumber ? "bg-blue-50 border-blue-500 text-blue-600" : "bg-white border-gray-300 text-gray-500 hover:bg-gray-50") relative inline-flex items-center px-4 py-2 border text-sm font-medium">
+                                        <button @onclick="() => GoToPage(pageNumber)" class="@(currentPage == pageNumber ? "bg-blue-50 dark:bg-blue-900 border-blue-500 text-blue-600 dark:text-blue-300" : "bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700") relative inline-flex items-center px-4 py-2 border text-sm font-medium">
                                             @i
                                         </button>
                                     }
                                     else if (i == currentPage - 3 || i == currentPage + 3)
                                     {
-                                        <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">...</span>
+                                        <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300">...</span>
                                     }
                                 }
 
-                                <button @onclick="NextPage" disabled="@(!CanNextPage)" class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50">
+                                <button @onclick="NextPage" disabled="@(!CanNextPage)" class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50">
                                     <span class="sr-only">Next</span>
                                     <span>&rarr;</span>
                                 </button>
@@ -152,36 +236,36 @@
         {
             <!-- Tools Tab Content -->
             <div class="flex-1 overflow-auto">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50 sticky top-0">
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead class="bg-gray-50 dark:bg-gray-900 sticky top-0">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Condition</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assigned To</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Name</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Type</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Condition</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Assigned To</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
                             <th class="relative px-6 py-3"><span class="sr-only">Actions</span></th>
                         </tr>
                     </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
-                        @if (isLoading) { <tr><td colspan="6" class="px-6 py-4 text-center">Loading...</td></tr> }
-                        else if (tools == null || !tools.Any()) { <tr><td colspan="6" class="px-6 py-4 text-center">No tools found.</td></tr> }
+                    <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                        @if (isLoading) { <tr><td colspan="6" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">Loading...</td></tr> }
+                        else if (tools == null || !tools.Any()) { <tr><td colspan="6" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">No tools found.</td></tr> }
                         else
                         {
                             <Virtualize Items="@FilteredTools.ToList()" Context="t" ItemSize="56">
-                                <tr>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">@t.Name</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">@t.TypeName</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">@t.Condition</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">@t.Name</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">@t.TypeName</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">@t.Condition</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
                                         @(t.AssignedToEmployeeId.HasValue ? GetEmployeeName(t.AssignedToEmployeeId.Value) : "-")
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap">
-                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full @(t.Status == "available" ? "bg-green-100 text-green-800" : "bg-blue-100 text-blue-800")">@t.Status</span>
+                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full @(t.Status == "available" ? "bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-100" : "bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-100")">@t.Status</span>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                        <button @onclick="() => EditTool(t)" class="text-blue-600 hover:text-blue-900 mr-3">Edit</button>
-                                        <button type="button" @onclick:preventDefault @onclick:stopPropagation @onclick="() => QuickDeleteTool(t)" class="text-red-600 hover:text-red-900" title="Delete Tool">
+                                        <button @onclick="() => EditTool(t)" class="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 mr-3">Edit</button>
+                                        <button type="button" @onclick:preventDefault @onclick:stopPropagation @onclick="() => QuickDeleteTool(t)" class="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300" title="Delete Tool">
                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3m-7 4h16" />
                                             </svg>
@@ -199,60 +283,65 @@
 
 @if (showAddModal)
 {
-    <div class="fixed z-10 inset-0 overflow-y-auto">
+    <div class="fixed z-10 inset-0 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="modal-title-add">
         <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div class="fixed inset-0 transition-opacity" aria-hidden="true"><div class="absolute inset-0 bg-gray-500 opacity-75"></div></div>
-            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                    <h3 class="text-lg leading-6 font-medium text-gray-900">@((activeTab == "products" ? (newProduct.Id.HasValue ? "Edit" : "Add") + " Product" : (newTool.Id.HasValue ? "Edit" : "Add") + " Tool"))</h3>
+            <div class="fixed inset-0 transition-opacity" aria-hidden="true" @onclick="() => showAddModal = false">
+                <div class="absolute inset-0 bg-gray-500/75 dark:bg-gray-900/80"></div>
+            </div>
+
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+            <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full border border-gray-200 dark:border-gray-700">
+                <div class="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white" id="modal-title-add">@((activeTab == "products" ? (newProduct.Id.HasValue ? "Edit" : "Add") + " Product" : (newTool.Id.HasValue ? "Edit" : "Add") + " Tool"))</h3>
                     
                     @if (activeTab == "products")
                     {
                         <div class="mt-4 grid grid-cols-1 gap-y-4">
-                            <input type="text" @bind="newProduct.Name" placeholder="Name" class="block w-full border-gray-300 rounded-md shadow-sm" />
-                            <input type="text" @bind="newProduct.Sku" placeholder="SKU" class="block w-full border-gray-300 rounded-md shadow-sm" />
-                            <input type="text" @bind="newProduct.Category" placeholder="Category" class="block w-full border-gray-300 rounded-md shadow-sm" />
+                            <input type="text" @bind="newProduct.Name" placeholder="Name" class="block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2" />
+                            <input type="text" @bind="newProduct.Sku" placeholder="SKU" class="block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2" />
+                            <input type="text" @bind="newProduct.Category" placeholder="Category" class="block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2" />
                             <div class="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label class="block text-xs font-medium text-gray-700 mb-1">Item Type</label>
-                                    <select @bind="newProduct.ItemType" class="block w-full border-gray-300 rounded-md shadow-sm">
+                                    <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Item Type</label>
+                                    <select @bind="newProduct.ItemType" class="block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2">
                                         <option value="goods">Goods (Sellable)</option>
                                         <option value="ingredients">Ingredient (Raw Material)</option>
                                         <option value="assets">Asset (Equipment)</option>
                                     </select>
                                 </div>
                                 <div>
-                                    <label class="block text-xs font-medium text-gray-700 mb-1">Cost Price</label>
-                                    <input type="number" @bind="newProduct.CostPrice" step="0.01" placeholder="Cost" class="block w-full border-gray-300 rounded-md shadow-sm" />
+                                    <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Cost Price</label>
+                                    <input type="number" @bind="newProduct.CostPrice" step="0.01" placeholder="Cost" class="block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2" />
                                 </div>
                             </div>
                             <div class="grid grid-cols-2 gap-4">
-                                <input type="number" @bind="newProduct.CurrentQuantity" placeholder="Qty" class="block w-full border-gray-300 rounded-md shadow-sm" />
-                                <input type="number" @bind="newProduct.MinimumQuantity" placeholder="Min Qty" class="block w-full border-gray-300 rounded-md shadow-sm" />
+                                <input type="number" @bind="newProduct.CurrentQuantity" placeholder="Qty" class="block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2" />
+                                <input type="number" @bind="newProduct.MinimumQuantity" placeholder="Min Qty" class="block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2" />
                             </div>
                             <div class="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label class="block text-xs font-medium text-gray-700 mb-1">Reorder Amount</label>
-                                    <input type="number" @bind="newProduct.ReorderQuantity" placeholder="Reorder Qty" class="block w-full border-gray-300 rounded-md shadow-sm" />
+                                    <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Reorder Amount</label>
+                                    <input type="number" @bind="newProduct.ReorderQuantity" placeholder="Reorder Qty" class="block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2" />
                                 </div>
                                 <div>
-                                    <label class="block text-xs font-medium text-gray-700 mb-1">Supplier Name</label>
-                                    <input type="text" @bind="newProduct.SupplierName" placeholder="Supplier" class="block w-full border-gray-300 rounded-md shadow-sm" />
+                                    <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Supplier Name</label>
+                                    <input type="text" @bind="newProduct.SupplierName" placeholder="Supplier" class="block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2" />
                                 </div>
                             </div>
                             <div>
-                                <label class="block text-xs font-medium text-gray-700 mb-1">Selling Price</label>
-                                <input type="number" @bind="newProduct.UnitPrice" step="0.01" placeholder="Selling Price" class="block w-full border-gray-300 rounded-md shadow-sm" />
+                                <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Selling Price</label>
+                                <input type="number" @bind="newProduct.UnitPrice" step="0.01" placeholder="Selling Price" class="block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2" />
                             </div>
                         </div>
                     }
                     else
                     {
                         <div class="mt-4 grid grid-cols-1 gap-y-4">
-                            <input type="text" @bind="newTool.Name" placeholder="Tool Name" class="block w-full border-gray-300 rounded-md shadow-sm" />
-                            <input type="text" @bind="newTool.TypeName" placeholder="Type" class="block w-full border-gray-300 rounded-md shadow-sm" />
-                            <input type="text" @bind="newTool.Condition" placeholder="Condition (e.g. New, Good, Fair)" class="block w-full border-gray-300 rounded-md shadow-sm" />
-                            <select @bind="newTool.Status" class="block w-full border-gray-300 rounded-md shadow-sm">
+                            <input type="text" @bind="newTool.Name" placeholder="Tool Name" class="block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2" />
+                            <input type="text" @bind="newTool.TypeName" placeholder="Type" class="block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2" />
+                            <input type="text" @bind="newTool.Condition" placeholder="Condition (e.g. New, Good, Fair)" class="block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2" />
+                            <select @bind="newTool.Status" class="block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2">
                                 <option value="available">Available</option>
                                 <option value="assigned">Assigned</option>
                                 <option value="maintenance">Maintenance</option>
@@ -260,8 +349,8 @@
                             
                             @if (newTool.Status == "assigned")
                             {
-                                <label class="block text-sm font-medium text-gray-700">Assign To:</label>
-                                <select @bind="newTool.AssignedToEmployeeId" class="block w-full border-gray-300 rounded-md shadow-sm">
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Assign To:</label>
+                                <select @bind="newTool.AssignedToEmployeeId" class="block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2">
                                     <option value="">-- Select Employee --</option>
                                     @if (employees != null)
                                     {
@@ -275,9 +364,9 @@
                         </div>
                     }
                 </div>
-                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <div class="bg-gray-50 dark:bg-gray-900 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
                     <button type="button" @onclick="SaveItem" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 sm:ml-3 sm:w-auto sm:text-sm">Save</button>
-                    <button type="button" @onclick="() => showAddModal = false" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">Cancel</button>
+                    <button type="button" @onclick="() => showAddModal = false" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-700 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">Cancel</button>
                 </div>
             </div>
         </div>
@@ -286,31 +375,36 @@
 
 @if (showSaleModal)
 {
-    <div class="fixed z-10 inset-0 overflow-y-auto">
+    <div class="fixed z-10 inset-0 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="modal-title-sale">
         <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div class="fixed inset-0 transition-opacity" aria-hidden="true"><div class="absolute inset-0 bg-gray-500 opacity-75"></div></div>
-            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                    <h3 class="text-lg leading-6 font-medium text-gray-900">Record Sale: @newSale.ProductName</h3>
+            <div class="fixed inset-0 transition-opacity" aria-hidden="true" @onclick="() => showSaleModal = false">
+                <div class="absolute inset-0 bg-gray-500/75 dark:bg-gray-900/80"></div>
+            </div>
+
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+            <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full border border-gray-200 dark:border-gray-700">
+                <div class="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white" id="modal-title-sale">Record Sale: @newSale.ProductName</h3>
                     <div class="mt-4 grid grid-cols-1 gap-y-4">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">Quantity</label>
-                            <input type="number" @bind="newSale.Quantity" class="block w-full border-gray-300 rounded-md shadow-sm" min="1" />
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Quantity</label>
+                            <input type="number" @bind="newSale.Quantity" class="block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2" min="1" />
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">Total Price (Optional Override)</label>
-                            <input type="number" @bind="newSale.TotalPrice" step="0.01" class="block w-full border-gray-300 rounded-md shadow-sm" placeholder="Leave 0 to calculate from unit price" />
-                            <p class="text-xs text-gray-500">Default total: @((newSale.Quantity * (products?.FirstOrDefault(p => p.Id == newSale.ProductId)?.UnitPrice ?? 0)).ToString("C"))</p>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Total Price (Optional Override)</label>
+                            <input type="number" @bind="newSale.TotalPrice" step="0.01" class="block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2" placeholder="Leave 0 to calculate from unit price" />
+                            <p class="text-xs text-gray-500 dark:text-gray-400">Default total: @((newSale.Quantity * (products?.FirstOrDefault(p => p.Id == newSale.ProductId)?.UnitPrice ?? 0)).ToString("C"))</p>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">Notes</label>
-                            <textarea @bind="newSale.Notes" class="block w-full border-gray-300 rounded-md shadow-sm"></textarea>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Notes</label>
+                            <textarea @bind="newSale.Notes" class="block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2"></textarea>
                         </div>
                     </div>
                 </div>
-                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <div class="bg-gray-50 dark:bg-gray-900 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
                     <button type="button" @onclick="SubmitSale" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 sm:ml-3 sm:w-auto sm:text-sm">Record Sale</button>
-                    <button type="button" @onclick="() => showSaleModal = false" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">Cancel</button>
+                    <button type="button" @onclick="() => showSaleModal = false" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-700 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">Cancel</button>
                 </div>
             </div>
         </div>
@@ -335,6 +429,7 @@
     private Tool newTool = new Tool();
     private Sale newSale = new Sale();
     private string searchTerm = "";
+    private string viewMode = "grid";
     private int currentPage = 1;
     private int pageSize = 10;
     private int totalItems = 0;
@@ -345,12 +440,7 @@
     private bool CanPreviousPage => currentPage > 1;
     private bool CanNextPage => currentPage < TotalPages;
 
-    private IEnumerable<Tool> FilteredTools => 
-        string.IsNullOrWhiteSpace(searchTerm) 
-            ? (tools ?? Enumerable.Empty<Tool>()) 
-            : (tools ?? Enumerable.Empty<Tool>())
-                .Where(t => (t.Name?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) || 
-                            (t.TypeName?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false));
+    private IEnumerable<Tool> FilteredTools => tools ?? Enumerable.Empty<Tool>();
 
     protected override async Task OnInitializedAsync()
     {
@@ -468,11 +558,12 @@
                 totalItems = result.Total;
                 currentPage = result.Page;
             }
-            else
+            else if (activeTab == "tools")
             {
-                // Tools don't have pagination on backend yet, so we load all
-                tools = await InventoryService.GetToolsAsync() ?? new List<Tool>();
-                // Client-side filtering is done in FilteredTools property
+                var result = await InventoryService.GetToolsAsync(searchTerm, currentPage, pageSize);
+                tools = result.Items ?? new List<Tool>();
+                totalItems = result.Total;
+                currentPage = result.Page;
             }
         }
         catch (TauriValidationException ex)
@@ -548,7 +639,8 @@
             }
             else
             {
-                if (tools == null || !tools.Any()) 
+                var allTools = await InventoryService.GetToolsAsync(searchTerm, 1, 100000);
+                if (allTools?.Items == null || !allTools.Items.Any()) 
                 {
                     NotificationService.ShowInfo("No tools to export.");
                     return;
@@ -557,7 +649,7 @@
                 var csvBuilder = new System.Text.StringBuilder();
                 csvBuilder.AppendLine("Name,Type,Condition,Assigned To,Status");
 
-                foreach (var t in tools)
+                foreach (var t in allTools.Items)
                 {
                     var assignedTo = t.AssignedToEmployeeId.HasValue ? GetEmployeeName(t.AssignedToEmployeeId.Value) : "-";
                     csvBuilder.AppendLine($"\"{t.Name}\",\"{t.TypeName}\",\"{t.Condition}\",\"{assignedTo}\",\"{t.Status}\"");

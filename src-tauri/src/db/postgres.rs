@@ -33,6 +33,7 @@ use deadpool_postgres::{Pool, Manager, ManagerConfig, RecyclingMethod};
 use tokio_postgres::NoTls;
 use tokio_postgres::error::SqlState;
 use std::str::FromStr;
+use csv;
 use chrono::{NaiveDateTime, NaiveDate, DateTime};
 use argon2::{
     password_hash::{
@@ -42,8 +43,6 @@ use argon2::{
     Argon2
 };
 use async_trait::async_trait;
-
-use std::error::Error;
 
 pub struct PostgresDatabase {
     pub pool: Pool,
@@ -582,6 +581,11 @@ impl Database for PostgresDatabase {
             if stock_to_use > 0 {
                 tx.execute("UPDATE products SET current_quantity = current_quantity - $1 WHERE id = $2", &[&stock_to_use, &sale.product_id])
                     .await.map_err(|e| format!("Failed to update stock: {}", e))?;
+                
+                tx.execute(
+                    "INSERT INTO inventory_logs (product_id, quantity_changed, change_type, notes) VALUES ($1, $2, 'sale', $3)",
+                    &[&sale.product_id, &(-stock_to_use), &format!("Direct Sale (from stock)")]
+                ).await.map_err(|e| format!("Failed to log direct sale: {}", e))?;
             }
 
             // Deduct ingredients if needed (Auto-Manufacturing)
@@ -613,7 +617,19 @@ impl Database for PostgresDatabase {
                         // Deduct component
                         tx.execute("UPDATE products SET current_quantity = current_quantity - $1 WHERE id = $2", &[&total_needed, &comp_id])
                             .await.map_err(|e| format!("Failed to deduct ingredient {}: {}", comp_name, e))?;
+
+                        // Log ingredient usage
+                        tx.execute(
+                            "INSERT INTO inventory_logs (product_id, quantity_changed, change_type, notes) VALUES ($1, $2, 'production_out', $3)",
+                            &[&comp_id, &(-total_needed), &format!("Auto-manufactured direct sale for product #{}", sale.product_id)]
+                        ).await.map_err(|e| format!("Failed to log ingredient usage: {}", e))?;
                     }
+
+                    // Log the "sale" part of the auto-manufactured quantity
+                    tx.execute(
+                        "INSERT INTO inventory_logs (product_id, quantity_changed, change_type, notes) VALUES ($1, $2, 'sale', $3)",
+                        &[&sale.product_id, &(-make_qty), &format!("Direct Sale (auto-manufactured)")]
+                    ).await.map_err(|e| format!("Failed to log direct sale (auto): {}", e))?;
                 }
             }
 
@@ -637,23 +653,28 @@ impl Database for PostgresDatabase {
     // --- Employee Commands ---
     async fn get_employees(&self) -> Result<Vec<Employee>, String> {
         let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
-        let rows = client.query("SELECT id, employee_id, first_name, last_name, email, phone, role, department, position, salary, status, hourly_cost FROM employees", &[]).await.map_err(|e| format!("Failed to fetch employees: {}", e))?;
+        let rows = client.query("SELECT id, employee_id, first_name, last_name, full_name, email, phone, role, department, position, manager_id, format_timestamp(hire_date) as hire_date, salary, hourly_cost, status, format_timestamp(created_at) as created_at, format_timestamp(updated_at) as updated_at FROM employees", &[]).await.map_err(|e| format!("Failed to fetch employees: {}", e))?;
         
         let mut employees = Vec::new();
         for row in rows {
             employees.push(Employee {
-                id: Some(row.get(0)),
-                employee_id: row.get(1),
-                first_name: row.get(2),
-                last_name: row.get(3),
-                email: row.get(4),
-                phone: row.get(5),
-                role: row.get(6),
-                department: row.get(7),
-                position: row.get(8),
-                salary: row.get(9),
-                status: row.get(10),
-                hourly_cost: row.get(11),
+                id: Some(row.get("id")),
+                employee_id: row.get("employee_id"),
+                first_name: row.get("first_name"),
+                last_name: row.get("last_name"),
+                full_name: row.get("full_name"),
+                email: row.get("email"),
+                phone: row.get("phone"),
+                role: row.get("role"),
+                department: row.get("department"),
+                position: row.get("position"),
+                manager_id: row.get("manager_id"),
+                hire_date: row.get("hire_date"),
+                salary: row.get("salary"),
+                hourly_cost: row.get("hourly_cost"),
+                status: row.get("status"),
+                created_at: row.get("created_at"),
+                updated_at: row.get("updated_at"),
             });
         }
         Ok(employees)
@@ -661,7 +682,7 @@ impl Database for PostgresDatabase {
 
     async fn get_employee_by_email(&self, email: String) -> Result<Option<Employee>, String> {
         let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
-        let rows = client.query("SELECT id, employee_id, first_name, last_name, email, phone, role, department, position, salary, status, hourly_cost FROM employees WHERE email = $1", &[&email]).await.map_err(|e| format!("Failed to fetch employee by email: {}", e))?;
+        let rows = client.query("SELECT id, employee_id, first_name, last_name, full_name, email, phone, role, department, position, manager_id, format_timestamp(hire_date) as hire_date, salary, hourly_cost, status, format_timestamp(created_at) as created_at, format_timestamp(updated_at) as updated_at FROM employees WHERE email = $1", &[&email]).await.map_err(|e| format!("Failed to fetch employee by email: {}", e))?;
         
         if rows.is_empty() {
             return Ok(None);
@@ -669,18 +690,23 @@ impl Database for PostgresDatabase {
 
         let row = &rows[0];
         Ok(Some(Employee {
-            id: Some(row.get(0)),
-            employee_id: row.get(1),
-            first_name: row.get(2),
-            last_name: row.get(3),
-            email: row.get(4),
-            phone: row.get(5),
-            role: row.get(6),
-            department: row.get(7),
-            position: row.get(8),
-            salary: row.get(9),
-            status: row.get(10),
-            hourly_cost: row.get(11),
+            id: Some(row.get("id")),
+            employee_id: row.get("employee_id"),
+            first_name: row.get("first_name"),
+            last_name: row.get("last_name"),
+            full_name: row.get("full_name"),
+            email: row.get("email"),
+            phone: row.get("phone"),
+            role: row.get("role"),
+            department: row.get("department"),
+            position: row.get("position"),
+            manager_id: row.get("manager_id"),
+            hire_date: row.get("hire_date"),
+            salary: row.get("salary"),
+            hourly_cost: row.get("hourly_cost"),
+            status: row.get("status"),
+            created_at: row.get("created_at"),
+            updated_at: row.get("updated_at"),
         }))
     }
 
@@ -694,11 +720,11 @@ impl Database for PostgresDatabase {
         }
 
         let row = client.query_one(
-            "INSERT INTO employees (employee_id, first_name, last_name, email, phone, role, department, position, salary, status, hourly_cost)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id",
+            "INSERT INTO employees (employee_id, first_name, last_name, full_name, email, phone, role, department, position, manager_id, hire_date, salary, hourly_cost, status)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, COALESCE($11::text::timestamp, CURRENT_TIMESTAMP), $12, $13, $14) RETURNING id",
             &[
-                &employee.employee_id, &employee.first_name, &employee.last_name, &employee.email, &employee.phone,
-                &employee.role, &employee.department, &employee.position, &employee.salary, &employee.status, &hourly_cost
+                &employee.employee_id, &employee.first_name, &employee.last_name, &employee.full_name, &employee.email, &employee.phone,
+                &employee.role, &employee.department, &employee.position, &employee.manager_id, &employee.hire_date, &employee.salary, &hourly_cost, &employee.status
             ]
         ).await.map_err(|e| {
              if let Some(db_err) = e.as_db_error() {
@@ -725,10 +751,10 @@ impl Database for PostgresDatabase {
         let hourly_cost = employee.hourly_cost.unwrap_or(0.0);
         if let Some(id) = employee.id {
             client.execute(
-                "UPDATE employees SET employee_id = $1, first_name = $2, last_name = $3, email = $4, phone = $5, role = $6, department = $7, position = $8, salary = $9, status = $10, hourly_cost = $11 WHERE id = $12",
+                "UPDATE employees SET employee_id = $1, first_name = $2, last_name = $3, full_name = $4, email = $5, phone = $6, role = $7, department = $8, position = $9, manager_id = $10, hire_date = COALESCE($11::text::timestamp, hire_date), salary = $12, hourly_cost = $13, status = $14, updated_at = CURRENT_TIMESTAMP WHERE id = $15",
                 &[
-                    &employee.employee_id, &employee.first_name, &employee.last_name, &employee.email, &employee.phone,
-                    &employee.role, &employee.department, &employee.position, &employee.salary, &employee.status, &hourly_cost, &id
+                    &employee.employee_id, &employee.first_name, &employee.last_name, &employee.full_name, &employee.email, &employee.phone,
+                    &employee.role, &employee.department, &employee.position, &employee.manager_id, &employee.hire_date, &employee.salary, &hourly_cost, &employee.status, &id
                 ]
             ).await.map_err(|e| format!("Failed to update employee: {}", e))?;
             Ok(())
@@ -1172,6 +1198,126 @@ impl Database for PostgresDatabase {
         })
     }
 
+    async fn get_project_timeline(&self, project_id: i32) -> Result<ProjectTimeline, String> {
+        let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
+        
+        // Fetch project name
+        let project_row = client.query_one("SELECT name FROM projects WHERE id = $1", &[&project_id])
+            .await.map_err(|e| format!("Project not found: {}", e))?;
+        let project_name: String = project_row.get(0);
+
+        // Fetch phases
+        let phase_rows = client.query(
+            "SELECT id, project_id, name, description, start_date, end_date, status, color, sort_order FROM project_phases WHERE project_id = $1 ORDER BY sort_order, start_date",
+            &[&project_id]
+        ).await.map_err(|e| format!("Failed to fetch phases: {}", e))?;
+        
+        let mut phases = Vec::new();
+        for row in phase_rows {
+            phases.push(ProjectPhase {
+                id: Some(row.get(0)),
+                project_id: row.get(1),
+                name: row.get(2),
+                description: row.get(3),
+                start_date: format_timestamp(row.get(4)).unwrap_or_default(),
+                end_date: format_timestamp(row.get(5)).unwrap_or_default(),
+                status: row.get(6),
+                color: row.get(7),
+                sort_order: row.get(8),
+            });
+        }
+
+        // Fetch milestones
+        let milestone_rows = client.query(
+            "SELECT id, project_id, name, description, date, status, is_critical FROM project_milestones WHERE project_id = $1 ORDER BY date",
+            &[&project_id]
+        ).await.map_err(|e| format!("Failed to fetch milestones: {}", e))?;
+        
+        let mut milestones = Vec::new();
+        for row in milestone_rows {
+            milestones.push(ProjectMilestone {
+                id: Some(row.get(0)),
+                project_id: row.get(1),
+                name: row.get(2),
+                description: row.get(3),
+                date: format_timestamp(row.get(4)).unwrap_or_default(),
+                status: row.get(5),
+                is_critical: row.get(6),
+            });
+        }
+
+        Ok(ProjectTimeline {
+            project_id,
+            project_name,
+            phases,
+            milestones,
+        })
+    }
+
+    async fn add_project_phase(&self, phase: ProjectPhase) -> Result<i32, String> {
+        let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
+        let start_date = parse_timestamp(Some(phase.start_date));
+        let end_date = parse_timestamp(Some(phase.end_date));
+        
+        let row = client.query_one(
+            "INSERT INTO project_phases (project_id, name, description, start_date, end_date, status, color, sort_order) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
+            &[&phase.project_id, &phase.name, &phase.description, &start_date, &end_date, &phase.status, &phase.color, &phase.sort_order]
+        ).await.map_err(|e| format!("Failed to add project phase: {}", e))?;
+        
+        Ok(row.get(0))
+    }
+
+    async fn update_project_phase(&self, phase: ProjectPhase) -> Result<(), String> {
+        let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
+        let start_date = parse_timestamp(Some(phase.start_date));
+        let end_date = parse_timestamp(Some(phase.end_date));
+        let id = phase.id.ok_or("Phase ID is required for update")?;
+        
+        client.execute(
+            "UPDATE project_phases SET project_id = $1, name = $2, description = $3, start_date = $4, end_date = $5, status = $6, color = $7, sort_order = $8, updated_at = CURRENT_TIMESTAMP WHERE id = $9",
+            &[&phase.project_id, &phase.name, &phase.description, &start_date, &end_date, &phase.status, &phase.color, &phase.sort_order, &id]
+        ).await.map_err(|e| format!("Failed to update project phase: {}", e))?;
+        
+        Ok(())
+    }
+
+    async fn delete_project_phase(&self, id: i32) -> Result<(), String> {
+        let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
+        client.execute("DELETE FROM project_phases WHERE id = $1", &[&id]).await.map_err(|e| e.to_string())?;
+        Ok(())
+    }
+
+    async fn add_project_milestone(&self, milestone: ProjectMilestone) -> Result<i32, String> {
+        let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
+        let date = parse_timestamp(Some(milestone.date));
+        
+        let row = client.query_one(
+            "INSERT INTO project_milestones (project_id, name, description, date, status, is_critical) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
+            &[&milestone.project_id, &milestone.name, &milestone.description, &date, &milestone.status, &milestone.is_critical]
+        ).await.map_err(|e| format!("Failed to add project milestone: {}", e))?;
+        
+        Ok(row.get(0))
+    }
+
+    async fn update_project_milestone(&self, milestone: ProjectMilestone) -> Result<(), String> {
+        let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
+        let date = parse_timestamp(Some(milestone.date));
+        let id = milestone.id.ok_or("Milestone ID is required for update")?;
+        
+        client.execute(
+            "UPDATE project_milestones SET project_id = $1, name = $2, description = $3, date = $4, status = $5, is_critical = $6, updated_at = CURRENT_TIMESTAMP WHERE id = $7",
+            &[&milestone.project_id, &milestone.name, &milestone.description, &date, &milestone.status, &milestone.is_critical, &id]
+        ).await.map_err(|e| format!("Failed to update project milestone: {}", e))?;
+        
+        Ok(())
+    }
+
+    async fn delete_project_milestone(&self, id: i32) -> Result<(), String> {
+        let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
+        client.execute("DELETE FROM project_milestones WHERE id = $1", &[&id]).await.map_err(|e| e.to_string())?;
+        Ok(())
+    }
+
     // --- Dashboard & Reports ---
     async fn get_dashboard_stats(&self) -> Result<DashboardStats, String> {
         let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
@@ -1236,6 +1382,72 @@ impl Database for PostgresDatabase {
         })
     }
 
+    async fn get_finance_overview(&self) -> Result<FinanceOverview, String> {
+        let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
+        
+        let total_revenue: f64 = client.query_one(
+            "SELECT (COALESCE(SUM(amount), 0.0) + (SELECT COALESCE(SUM(total_price), 0.0) FROM sales))::float8 FROM payments WHERE payment_type = 'income' AND status = 'completed'", 
+            &[]
+        ).await.map_err(|e| format!("Failed to fetch total revenue: {}", e))?.get(0);
+
+        let total_expenses: f64 = client.query_one(
+            "SELECT COALESCE(SUM(amount), 0.0)::float8 FROM payments WHERE payment_type = 'expense' AND status = 'completed'", 
+            &[]
+        ).await.map_err(|e| format!("Failed to fetch total expenses: {}", e))?.get(0);
+
+        let outstanding_invoices: f64 = client.query_one(
+            "SELECT COALESCE(SUM(total_amount), 0.0)::float8 FROM invoices WHERE status != 'paid' AND status != 'cancelled'", 
+            &[]
+        ).await.map_err(|e| format!("Failed to fetch outstanding invoices: {}", e))?.get(0);
+
+        // Monthly revenue trend (last 6 months)
+        let trend_rows = client.query(
+            "SELECT TO_CHAR(date, 'Mon') as month, SUM(amount)::float8 as value 
+             FROM (
+                SELECT date, amount FROM payments WHERE payment_type = 'income' AND status = 'completed'
+                UNION ALL
+                SELECT sale_date as date, total_price as amount FROM sales
+             ) combined
+             WHERE date >= CURRENT_DATE - INTERVAL '6 months'
+             GROUP BY TO_CHAR(date, 'Mon'), EXTRACT(MONTH FROM date)
+             ORDER BY EXTRACT(MONTH FROM date)",
+            &[]
+        ).await.map_err(|e| format!("Failed to fetch revenue trend: {}", e))?;
+
+        let mut revenue_trend = Vec::new();
+        for row in trend_rows {
+            revenue_trend.push(ChartDataPoint {
+                label: row.get(0),
+                value: row.get::<usize, f64>(1),
+            });
+        }
+
+        // Expense allocation by category (payment_method as proxy)
+        let allocation_rows = client.query(
+            "SELECT COALESCE(payment_method, 'Other'), SUM(amount)::float8 as value 
+             FROM payments 
+             WHERE payment_type = 'expense' AND status = 'completed'
+             GROUP BY payment_method",
+            &[]
+        ).await.map_err(|e| format!("Failed to fetch expense allocation: {}", e))?;
+
+        let mut expense_allocation = Vec::new();
+        for row in allocation_rows {
+            expense_allocation.push(ChartDataPoint {
+                label: row.get(0),
+                value: row.get::<usize, f64>(1),
+            });
+        }
+
+        Ok(FinanceOverview {
+            net_income: total_revenue - total_expenses,
+            total_revenue,
+            outstanding_invoices,
+            revenue_trend,
+            expense_allocation,
+        })
+    }
+
     async fn get_report_summary(&self) -> Result<ReportSummary, String> {
         let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
         
@@ -1277,11 +1489,11 @@ impl Database for PostgresDatabase {
         let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
         
         let rows = client.query("
-            SELECT TO_CHAR(d, 'Mon') as month, SUM(amount) as total, MIN(d) as sort_date
+            SELECT TO_CHAR(d, 'Mon') as month, SUM(amount)::float8 as total, MIN(d) as sort_date
             FROM (
                 SELECT sale_date as d, total_price as amount FROM sales WHERE sale_date >= NOW() - INTERVAL '6 months'
                 UNION ALL
-                SELECT payment_date as d, amount FROM payments WHERE payment_type = 'income' AND status = 'completed' AND payment_date >= NOW() - INTERVAL '6 months'
+                SELECT date as d, amount FROM payments WHERE payment_type = 'income' AND status = 'completed' AND date >= NOW() - INTERVAL '6 months'
             ) as combined
             GROUP BY 1
             ORDER BY 3
@@ -1291,7 +1503,7 @@ impl Database for PostgresDatabase {
         for row in rows {
             points.push(ChartDataPoint {
                 label: row.get(0),
-                value: row.get(1),
+                value: row.get::<usize, f64>(1),
             });
         }
         Ok(points)
@@ -1356,21 +1568,34 @@ impl Database for PostgresDatabase {
     }
 
     // --- Tools ---
-    async fn get_tools(&self) -> Result<Vec<Tool>, String> {
-        println!("postgres.get_tools: Fetching all tools from database");
+    async fn get_tools(&self, search: Option<String>, page: Option<i32>, page_size: Option<i32>) -> Result<serde_json::Value, String> {
+        println!("postgres.get_tools: Fetching tools from database with search: {:?}, page: {:?}, size: {:?}", search, page, page_size);
         let client = self.pool.get().await.map_err(|e| {
             let err = format!("Failed to get db connection: {}", e);
             println!("postgres.get_tools: Connection error - {}", err);
             err
         })?;
-        // Check if product_id column exists (for backward compatibility if migration failed)
-        // But since we control migrations, we assume it's there.
-        let rows = client.query("SELECT id, name, type_name, status, assigned_to_employee_id, purchase_date, condition, product_id FROM tools", &[])
-            .await.map_err(|e| {
-                let err = format!("Failed to fetch tools: {}", e);
-                println!("postgres.get_tools: Query error - {}", err);
-                err
-            })?;
+
+        let search_term = search.unwrap_or_default();
+        let limit = page_size.unwrap_or(50) as i64;
+        let offset = ((page.unwrap_or(1) - 1) as i64) * limit;
+        let search_pattern = format!("%{}%", search_term);
+
+        // Count total
+        let total: i64 = client.query_one(
+            "SELECT COUNT(*) FROM tools WHERE name ILIKE $1 OR type_name ILIKE $1",
+            &[&search_pattern]
+        ).await.map_err(|e| format!("Failed to count tools: {}", e))?.get(0);
+
+        let rows = client.query(
+            "SELECT id, name, type_name, status, assigned_to_employee_id, purchase_date, condition, product_id FROM tools WHERE name ILIKE $1 OR type_name ILIKE $1 LIMIT $2 OFFSET $3", 
+            &[&search_pattern, &limit, &offset]
+        ).await.map_err(|e| {
+            let err = format!("Failed to fetch tools: {}", e);
+            println!("postgres.get_tools: Query error - {}", err);
+            err
+        })?;
+
         println!("postgres.get_tools: Found {} tool rows", rows.len());
         let mut tools = Vec::new();
         for row in rows {
@@ -1384,12 +1609,15 @@ impl Database for PostgresDatabase {
                 condition: row.get(6),
                 product_id: row.get(7),
             };
-            println!("postgres.get_tools: Found tool - ID: {:?}, Name: '{}', Type: '{}', Status: '{}'", 
-                     tool.id, tool.name, tool.type_name, tool.status);
             tools.push(tool);
         }
-        println!("postgres.get_tools: Returning {} tools", tools.len());
-        Ok(tools)
+
+        Ok(serde_json::json!({
+            "items": tools,
+            "total": total,
+            "page": page.unwrap_or(1),
+            "page_size": limit
+        }))
     }
 
     async fn add_tool(&self, tool: Tool) -> Result<i64, String> {
@@ -1913,6 +2141,247 @@ impl Database for PostgresDatabase {
     }
 
     async fn seed_demo_data(&self) -> Result<(), String> {
+        println!("Seeding demo data from CSV files...");
+        
+        // 0. Clear existing data to avoid unique constraint violations
+        let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection for clearing: {}", e))?;
+        println!("Clearing existing services, clients, employees, and products (cascading)...");
+        client.batch_execute("
+            TRUNCATE TABLE services, clients, employees, products CASCADE;
+        ").await.map_err(|e| format!("Failed to clear existing data: {}", e))?;
+
+        if let Ok(cwd) = std::env::current_dir() {
+            println!("Current working directory: {:?}", cwd);
+        }
+
+        // Try to find the seed directory
+        let mut seed_dir = std::path::PathBuf::from("seed");
+        if !seed_dir.exists() {
+            seed_dir = std::path::PathBuf::from("../seed");
+        }
+        if !seed_dir.exists() {
+            seed_dir = std::path::PathBuf::from("The-Planning-Bord/seed");
+        }
+        if !seed_dir.exists() {
+            // Check current executable directory if running in production
+            if let Ok(exe_path) = std::env::current_exe() {
+                if let Some(exe_dir) = exe_path.parent() {
+                    let exe_seed = exe_dir.join("seed");
+                    if exe_seed.exists() {
+                        seed_dir = exe_seed;
+                    }
+                }
+            }
+        }
+        if !seed_dir.exists() {
+            // Fallback to absolute path provided by user if others fail
+            seed_dir = std::path::PathBuf::from(r"d:\Projects\The planning bord collection\The-Planning-Bord\seed");
+        }
+
+        println!("Using seed directory: {:?}", seed_dir);
+
+        if !seed_dir.exists() {
+            return Err(format!("Could not find seed directory. Tried 'seed', '../seed', and absolute path. CWD: {:?}", std::env::current_dir().ok()));
+        }
+
+        // 1. Seed Services
+        let services_path = seed_dir.join("services.csv");
+        if let Ok(mut reader) = csv::Reader::from_path(&services_path) {
+            println!("Reading services from {:?}", services_path);
+            for result in reader.records() {
+                if let Ok(record) = result {
+                    let service_code = record.get(0).unwrap_or("").trim().to_string();
+                    let name = record.get(1).unwrap_or("").trim().to_string();
+                    let category = record.get(2).unwrap_or("").trim().to_string();
+
+                    if name.is_empty() {
+                        println!("Skipping service record: Name is required (record: {:?})", record);
+                        continue;
+                    }
+
+                    let service = Service {
+                        id: None,
+                        service_code: if service_code.is_empty() { None } else { Some(service_code) },
+                        name,
+                        description: None,
+                        category,
+                        unit_price: record.get(3).unwrap_or("0").parse().unwrap_or(0.0),
+                        flat_price: record.get(4).and_then(|s| s.parse().ok()),
+                        billing_type: "hourly".to_string(),
+                        estimated_hours: None,
+                        typical_duration: record.get(5).map(|s| s.trim().to_string()),
+                        duration_unit: Some("days".to_string()),
+                        sla_terms: record.get(6).map(|s| s.to_string()),
+                        is_active: true,
+                        created_at: None,
+                        updated_at: None,
+                    };
+                    println!("Adding service: {:?}", service);
+                    if let Err(e) = self.add_service(service).await {
+                        println!("Error adding service: {}", e);
+                    }
+                }
+            }
+        } else {
+            println!("Failed to open {:?}", services_path);
+        }
+
+        // 2. Seed Clients
+        let clients_path = seed_dir.join("clients.csv");
+        if let Ok(mut reader) = csv::Reader::from_path(&clients_path) {
+            println!("Reading clients from {:?}", clients_path);
+            for result in reader.records() {
+                if let Ok(record) = result {
+                    let company_name = record.get(1).unwrap_or("").trim().to_string();
+                    let contact_name = record.get(3).unwrap_or("").trim().to_string();
+                    let email = record.get(4).unwrap_or("").trim().to_string();
+
+                    if company_name.is_empty() || contact_name.is_empty() || email.is_empty() {
+                        println!("Skipping client record: Company name, Contact name, and Email are required");
+                        continue;
+                    }
+
+                    let client = Client {
+                        id: None,
+                        company_name,
+                        contact_name,
+                        email,
+                        phone: None,
+                        address: None,
+                        industry: record.get(2).map(|s| s.to_string()),
+                        status: "active".to_string(),
+                        payment_terms: None,
+                        credit_limit: None,
+                        tax_id: None,
+                        notes: None,
+                        annual_contract_value: record.get(5).and_then(|s| s.parse().ok()),
+                        primary_products_purchased: record.get(7).map(|s| s.to_string()),
+                        subscribed_service_ids: None,
+                        is_active: true,
+                        created_at: None,
+                        updated_at: None,
+                    };
+                    if let Err(e) = self.add_client(client).await {
+                        println!("Error adding client: {}", e);
+                    }
+                }
+            }
+        } else {
+            println!("Failed to open {:?}", clients_path);
+        }
+
+        // 3. Seed Employees
+        let employees_path = seed_dir.join("employees.csv");
+        if let Ok(mut reader) = csv::Reader::from_path(&employees_path) {
+            println!("Reading employees from {:?}", employees_path);
+            
+            // First, ensure all roles exist
+            let mut roles = std::collections::HashSet::new();
+            for result in reader.records() {
+                if let Ok(record) = result {
+                    let role = record.get(2).unwrap_or("").trim().to_string();
+                    if !role.is_empty() {
+                        roles.insert(role);
+                    }
+                }
+            }
+            
+            for role_name in roles {
+                let _ = client.execute("INSERT INTO roles (name, description, is_custom) VALUES ($1, $2, TRUE) ON CONFLICT (name) DO NOTHING", &[&role_name, &format!("{} role", role_name)]).await;
+            }
+
+            // Re-open reader for second pass
+            let mut reader = csv::Reader::from_path(&employees_path).map_err(|e| e.to_string())?;
+            for result in reader.records() {
+                if let Ok(record) = result {
+                    let full_name_raw = record.get(1).unwrap_or("").trim().to_string();
+                    if full_name_raw.is_empty() {
+                        println!("Skipping employee record: Full name is required");
+                        continue;
+                    }
+
+                    let names: Vec<&str> = full_name_raw.split_whitespace().collect();
+                    let first_name = names.first().unwrap_or(&"").to_string();
+                    let last_name = if names.len() > 1 { 
+                        names[1..].join(" ") 
+                    } else { 
+                        "---".to_string() // Fallback for NOT NULL last_name
+                    };
+
+                    if first_name.is_empty() {
+                         println!("Skipping employee record: First name could not be parsed from '{}'", full_name_raw);
+                         continue;
+                    }
+
+                    let hire_date_raw = record.get(6).unwrap_or("").trim().to_string();
+                    let employee = Employee {
+                        id: None,
+                        employee_id: record.get(0).map(|s| s.trim().to_string()),
+                        first_name,
+                        last_name,
+                        full_name: Some(full_name_raw),
+                        email: record.get(5).map(|s| s.trim().to_string()),
+                        phone: None,
+                        role: record.get(2).unwrap_or("").trim().to_string(),
+                        department: record.get(3).map(|s| s.trim().to_string()),
+                        position: record.get(2).map(|s| s.trim().to_string()),
+                        manager_id: None,
+                        hire_date: if hire_date_raw.is_empty() { None } else { Some(hire_date_raw) },
+                        salary: record.get(7).and_then(|s| s.trim().parse().ok()),
+                        hourly_cost: None,
+                        status: "active".to_string(),
+                        created_at: None,
+                        updated_at: None,
+                    };
+                    println!("Adding employee: {:?}", employee);
+                    if let Err(e) = self.add_employee(employee).await {
+                        println!("Error adding employee: {}", e);
+                    }
+                }
+            }
+        } else {
+            println!("Failed to open {:?}", employees_path);
+        }
+
+        // 4. Seed Products
+        let products_path = seed_dir.join("products.csv");
+        if let Ok(mut reader) = csv::Reader::from_path(&products_path) {
+            println!("Reading products from {:?}", products_path);
+            for result in reader.records() {
+                if let Ok(record) = result {
+                    let name = record.get(1).unwrap_or("").trim().to_string();
+                    if name.is_empty() {
+                        println!("Skipping product record: Name is required");
+                        continue;
+                    }
+
+                    let product = Product {
+                        id: None,
+                        name,
+                        description: None,
+                        category: record.get(2).unwrap_or("").trim().to_string(),
+                        sku: record.get(0).map(|s| s.trim().to_string()),
+                        current_quantity: record.get(5).unwrap_or("0").trim().parse().unwrap_or(0),
+                        minimum_quantity: record.get(6).unwrap_or("0").trim().parse().unwrap_or(0),
+                        reorder_quantity: record.get(6).unwrap_or("0").trim().parse().unwrap_or(0),
+                        unit_price: record.get(3).unwrap_or("0").trim().parse().unwrap_or(0.0),
+                        cost_price: record.get(4).and_then(|s| s.trim().parse().ok()),
+                        item_type: "goods".to_string(),
+                        supplier_name: None,
+                        is_active: true,
+                        created_at: None,
+                        updated_at: None,
+                    };
+                    if let Err(e) = self.add_product(product).await {
+                        println!("Error adding product: {}", e);
+                    }
+                }
+            }
+        } else {
+            println!("Failed to open {:?}", products_path);
+        }
+
+
         Ok(())
     }
 
@@ -1928,11 +2397,9 @@ impl Database for PostgresDatabase {
         
         transaction.commit().await.map_err(|e| e.to_string())?;
         
-        // Re-initialize using synchronous init_db
+        // Re-initialize using async init_db
         let conn_str = self.connection_string.clone();
-        tokio::task::spawn_blocking(move || {
-            crate::db::postgres_init::init_db(&conn_str).map_err(|e| e.to_string())
-        }).await.map_err(|e| e.to_string())??;
+        crate::db::postgres_init::init_db(&conn_str).await.map_err(|e| e.to_string())?;
         
         Ok(())
     }
@@ -2822,31 +3289,36 @@ impl Database for PostgresDatabase {
     async fn get_services(&self) -> Result<Vec<Service>, String> {
         let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
         let rows = client.query(
-            "SELECT id, name, description, category, unit_price, billing_type, estimated_hours, is_active, created_at, updated_at 
+            "SELECT id, service_code, name, description, category, unit_price, flat_price, billing_type, estimated_hours, typical_duration, duration_unit, sla_terms, is_active, format_timestamp(created_at) as created_at, format_timestamp(updated_at) as updated_at 
              FROM services WHERE is_active = true ORDER BY name",
             &[]
         ).await.map_err(|e| format!("Failed to fetch services: {}", e))?;
 
         Ok(rows.into_iter().map(|row| Service {
-            id: Some(row.get(0)),
-            name: row.get(1),
-            description: row.get(2),
-            category: row.get(3),
-            unit_price: row.get(4),
-            billing_type: row.get(5),
-            estimated_hours: row.get(6),
-            is_active: row.get(7),
-            created_at: format_timestamp(row.get(8)),
-            updated_at: format_timestamp(row.get(9)),
+            id: Some(row.get("id")),
+            service_code: row.get("service_code"),
+            name: row.get("name"),
+            description: row.get("description"),
+            category: row.get("category"),
+            unit_price: row.get("unit_price"),
+            flat_price: row.get("flat_price"),
+            billing_type: row.get("billing_type"),
+            estimated_hours: row.get("estimated_hours"),
+            typical_duration: row.get("typical_duration"),
+            duration_unit: row.get("duration_unit"),
+            sla_terms: row.get("sla_terms"),
+            is_active: row.get("is_active"),
+            created_at: row.get("created_at"),
+            updated_at: row.get("updated_at"),
         }).collect())
     }
 
     async fn add_service(&self, service: Service) -> Result<i64, String> {
         let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
         let row = client.query_one(
-            "INSERT INTO services (name, description, category, unit_price, billing_type, estimated_hours, is_active) 
-             VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id",
-            &[&service.name, &service.description, &service.category, &service.unit_price, &service.billing_type, &service.estimated_hours, &service.is_active]
+            "INSERT INTO services (service_code, name, description, category, unit_price, flat_price, billing_type, estimated_hours, typical_duration, duration_unit, sla_terms, is_active) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id",
+            &[&service.service_code, &service.name, &service.description, &service.category, &service.unit_price, &service.flat_price, &service.billing_type, &service.estimated_hours, &service.typical_duration, &service.duration_unit, &service.sla_terms, &service.is_active]
         ).await.map_err(|e| format!("Failed to add service: {}", e))?;
         Ok(row.get::<_, i32>(0) as i64)
     }
@@ -2856,9 +3328,9 @@ impl Database for PostgresDatabase {
         let service_id = service.id.ok_or("Service ID is required for update")?;
         
         client.execute(
-            "UPDATE services SET name = $1, description = $2, category = $3, unit_price = $4, billing_type = $5, estimated_hours = $6, 
-             is_active = $7, updated_at = CURRENT_TIMESTAMP WHERE id = $8",
-            &[&service.name, &service.description, &service.category, &service.unit_price, &service.billing_type, &service.estimated_hours, &service.is_active, &service_id]
+            "UPDATE services SET service_code = $1, name = $2, description = $3, category = $4, unit_price = $5, flat_price = $6, billing_type = $7, estimated_hours = $8, 
+             typical_duration = $9, duration_unit = $10, sla_terms = $11, is_active = $12, updated_at = CURRENT_TIMESTAMP WHERE id = $13",
+            &[&service.service_code, &service.name, &service.description, &service.category, &service.unit_price, &service.flat_price, &service.billing_type, &service.estimated_hours, &service.typical_duration, &service.duration_unit, &service.sla_terms, &service.is_active, &service_id]
         ).await.map_err(|e| format!("Failed to update service: {}", e))?;
         Ok(())
     }
@@ -2877,7 +3349,7 @@ impl Database for PostgresDatabase {
     async fn get_clients(&self) -> Result<Vec<Client>, String> {
         let client = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
         let rows = client.query(
-            "SELECT id, company_name, contact_name, email, phone, address, industry, status, payment_terms, credit_limit, tax_id, notes, is_active, created_at, updated_at 
+            "SELECT id, company_name, contact_name, email, phone, address, industry, status, payment_terms, credit_limit, tax_id, notes, annual_contract_value, primary_products_purchased, is_active, created_at, updated_at 
              FROM clients WHERE is_active = true ORDER BY company_name",
             &[]
         ).await.map_err(|e| format!("Failed to fetch clients: {}", e))?;
@@ -2895,19 +3367,21 @@ impl Database for PostgresDatabase {
             credit_limit: row.get(9),
             tax_id: row.get(10),
             notes: row.get(11),
-            is_active: row.get(12),
-            created_at: format_timestamp(row.get(13)),
-            updated_at: format_timestamp(row.get(14)),
+            annual_contract_value: row.get(12),
+            primary_products_purchased: row.get(13),
+            subscribed_service_ids: None,
+            is_active: row.get(14),
+            created_at: format_timestamp(row.get(15)),
+            updated_at: format_timestamp(row.get(16)),
         }).collect())
     }
 
     async fn add_client(&self, client: Client) -> Result<i64, String> {
-        // println!("DEBUG: add_client called with: {:?}", client);
         let client_conn = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
         let row = client_conn.query_one(
-            "INSERT INTO clients (company_name, contact_name, email, phone, address, industry, status, payment_terms, credit_limit, tax_id, notes, is_active) 
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id",
-            &[&client.company_name, &client.contact_name, &client.email, &client.phone, &client.address, &client.industry, &client.status, &client.payment_terms, &client.credit_limit, &client.tax_id, &client.notes, &client.is_active]
+            "INSERT INTO clients (company_name, contact_name, email, phone, address, industry, status, payment_terms, credit_limit, tax_id, notes, annual_contract_value, primary_products_purchased, is_active) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id",
+            &[&client.company_name, &client.contact_name, &client.email, &client.phone, &client.address, &client.industry, &client.status, &client.payment_terms, &client.credit_limit, &client.tax_id, &client.notes, &client.annual_contract_value, &client.primary_products_purchased, &client.is_active]
         ).await.map_err(|e| {
             if let Some(db_err) = e.as_db_error() {
                 if db_err.code() == &SqlState::UNIQUE_VIOLATION {
@@ -2919,13 +3393,9 @@ impl Database for PostgresDatabase {
                     return "Duplicate client entry detected.".to_string();
                 }
             }
-            let err_msg = format!("Failed to add client: {} (Source: {:?})", e, e.source());
-            eprintln!("ERROR: {}", err_msg);
-            err_msg
+            format!("Failed to add client: {}", e)
         })?;
-        let id: i32 = row.get(0);
-        // println!("DEBUG: add_client success, new ID: {}", id);
-        Ok(id as i64)
+        Ok(row.get::<_, i32>(0) as i64)
     }
 
     async fn update_client(&self, client: Client) -> Result<(), String> {
@@ -2935,8 +3405,8 @@ impl Database for PostgresDatabase {
         client_conn.execute(
             "UPDATE clients SET company_name = $1, contact_name = $2, email = $3, phone = $4, 
              address = $5, industry = $6, status = $7, payment_terms = $8, credit_limit = $9, tax_id = $10, notes = $11, 
-             is_active = $12, updated_at = CURRENT_TIMESTAMP WHERE id = $13",
-            &[&client.company_name, &client.contact_name, &client.email, &client.phone, &client.address, &client.industry, &client.status, &client.payment_terms, &client.credit_limit, &client.tax_id, &client.notes, &client.is_active, &client_id]
+             annual_contract_value = $12, primary_products_purchased = $13, is_active = $14, updated_at = CURRENT_TIMESTAMP WHERE id = $15",
+            &[&client.company_name, &client.contact_name, &client.email, &client.phone, &client.address, &client.industry, &client.status, &client.payment_terms, &client.credit_limit, &client.tax_id, &client.notes, &client.annual_contract_value, &client.primary_products_purchased, &client.is_active, &client_id]
         ).await.map_err(|e| format!("Failed to update client: {}", e))?;
         Ok(())
     }
@@ -2953,7 +3423,7 @@ impl Database for PostgresDatabase {
     async fn get_client_by_id(&self, id: i32) -> Result<Option<Client>, String> {
         let client_conn = self.pool.get().await.map_err(|e| format!("Failed to get db connection: {}", e))?;
         let row_opt = client_conn.query_opt(
-            "SELECT id, company_name, contact_name, email, phone, address, industry, status, payment_terms, credit_limit, tax_id, notes, is_active, created_at, updated_at 
+            "SELECT id, company_name, contact_name, email, phone, address, industry, status, payment_terms, credit_limit, tax_id, notes, annual_contract_value, primary_products_purchased, is_active, created_at, updated_at 
              FROM clients WHERE id = $1",
             &[&id]
         ).await.map_err(|e| format!("Failed to fetch client: {}", e))?;
@@ -2972,9 +3442,12 @@ impl Database for PostgresDatabase {
                 credit_limit: row.get(9),
                 tax_id: row.get(10),
                 notes: row.get(11),
-                is_active: row.get(12),
-                created_at: format_timestamp(row.get(13)),
-                updated_at: format_timestamp(row.get(14)),
+                annual_contract_value: row.get(12),
+                primary_products_purchased: row.get(13),
+                subscribed_service_ids: None,
+                is_active: row.get(14),
+                created_at: format_timestamp(row.get(15)),
+                updated_at: format_timestamp(row.get(16)),
             }))
         } else {
             Ok(None)
@@ -3871,6 +4344,12 @@ impl Database for PostgresDatabase {
                     "UPDATE products SET current_quantity = current_quantity - $1 WHERE id = $2",
                     &[&quantity_int, &pid]
                 ).await.map_err(|e| format!("Failed to update inventory for product {}: {}", pid, e))?;
+
+                // Log movement to inventory_logs for Velocity Report
+                tx.execute(
+                    "INSERT INTO inventory_logs (product_id, change_type, quantity_changed, notes) VALUES ($1, 'sale', $2, $3)",
+                    &[&pid, &-quantity_int, &format!("Sales Order #{} shipment", id)]
+                ).await.map_err(|e| format!("Failed to log inventory for product {}: {}", pid, e))?;
             } else if let Some(sid) = service_id {
                 // Services typically don't have COGS in the same way, or it's tracked via time entries.
                 // For now, we assume 0 COGS for services in this shipment context, 

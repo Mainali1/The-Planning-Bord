@@ -12,7 +12,7 @@
 
 <div class="flex flex-col h-full relative">
     <div class="flex justify-between items-center mb-6">
-        <h3 class="text-lg font-medium leading-6 text-gray-900">Supplier Management</h3>
+        <h3 class="text-lg font-medium leading-6 text-gray-900 dark:text-white">Supplier Management</h3>
         <div class="flex space-x-4">
              <button @onclick="OpenAddSupplierModal" class="flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
                 ➕ Add Supplier
@@ -24,40 +24,40 @@
     </div>
 
     <!-- Tabs -->
-    <div class="mb-4 border-b border-gray-200">
+    <div class="mb-4 border-b border-gray-200 dark:border-gray-700">
         <nav class="-mb-px flex space-x-8" aria-label="Tabs">
-            <button @onclick='() => SwitchTab("list")' class="@(activeTab == "list" ? "border-blue-500 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300") whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+            <button @onclick='() => SwitchTab("list")' class="@(activeTab == "list" ? "border-blue-500 text-blue-600 dark:text-blue-400" : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600") whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
                 Supplier List
             </button>
-            <button @onclick='() => SwitchTab("orders")' class="@(activeTab == "orders" ? "border-blue-500 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300") whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+            <button @onclick='() => SwitchTab("orders")' class="@(activeTab == "orders" ? "border-blue-500 text-blue-600 dark:text-blue-400" : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600") whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
                 Orders
             </button>
         </nav>
     </div>
 
-    <div class="flex-1 overflow-auto bg-white shadow rounded-lg">
+    <div class="flex-1 overflow-auto bg-white dark:bg-gray-800 shadow rounded-lg">
         @if (activeTab == "list")
         {
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-900">
                     <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Name</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Contact</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Phone</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Email</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
                         <th class="relative px-6 py-3"><span class="sr-only">Actions</span></th>
                     </tr>
                 </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
-                    @if (isLoading) { <tr><td colspan="6" class="px-6 py-4 text-center">Loading...</td></tr> }
+                <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    @if (isLoading) { <tr><td colspan="6" class="px-6 py-4 text-center dark:text-gray-400">Loading...</td></tr> }
                     else if (!suppliers.Any()) 
                     { 
                         <tr>
                             <td colspan="6" class="px-6 py-4 text-center">
                                 <div class="flex flex-col items-center justify-center space-y-2">
-                                    <p class="text-gray-500">No suppliers found.</p>
-                                    <button @onclick="OpenAddSupplierModal" class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                    <p class="text-gray-500 dark:text-gray-400">No suppliers found.</p>
+                                    <button @onclick="OpenAddSupplierModal" class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-indigo-700 dark:text-indigo-300 bg-indigo-100 dark:bg-indigo-900/50 hover:bg-indigo-200 dark:hover:bg-indigo-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
                                         Add New Supplier
                                     </button>
                                 </div>
@@ -69,18 +69,18 @@
                         @foreach (var s in suppliers)
                         {
                             <tr>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">@s.Name</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">@s.ContactPerson</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">@s.Phone</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">@s.Email</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">@s.Name</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">@s.ContactPerson</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">@s.Phone</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">@s.Email</td>
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full @(s.IsActive ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800")">
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full @(s.IsActive ? "bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-100" : "bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-100")">
                                         @(s.IsActive ? "Active" : "Inactive")
                                     </span>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <button @onclick="() => EditSupplier(s)" class="text-blue-600 hover:text-blue-900 mr-3">Edit</button>
-                                    <button @onclick="() => DeleteSupplier(s)" class="text-red-600 hover:text-red-900">Delete</button>
+                                    <button @onclick="() => EditSupplier(s)" class="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 mr-3">Edit</button>
+                                    <button @onclick="() => DeleteSupplier(s)" class="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300">Delete</button>
                                 </td>
                             </tr>
                         }
@@ -90,45 +90,45 @@
         }
         else
         {
-             <div class="flex flex-col space-y-4">
+             <div class="flex flex-col space-y-4 p-4">
                 <div class="flex justify-end">
                     <button @onclick="OpenAddOrderModal" class="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700">
                         ➕ Add Order
                     </button>
                 </div>
                 
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead class="bg-gray-50 dark:bg-gray-900">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order Date</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Supplier</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notes</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Order Date</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Supplier</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Amount</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Notes</th>
                             <th class="relative px-6 py-3"><span class="sr-only">Actions</span></th>
                         </tr>
                     </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
-                        @if (orders == null || !orders.Any()) { <tr><td colspan="6" class="px-6 py-4 text-center">No orders found.</td></tr> }
+                    <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                        @if (orders == null || !orders.Any()) { <tr><td colspan="6" class="px-6 py-4 text-center dark:text-gray-400">No orders found.</td></tr> }
                         else
                         {
                             @foreach (var o in orders)
                             {
                                 <tr>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">@o.OrderDate</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">@o.OrderDate</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                                         @(suppliers.FirstOrDefault(s => s.Id == o.SupplierId)?.Name ?? "Unknown")
                                     </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">@o.TotalAmount.ToString("C")</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">@o.TotalAmount.ToString("C")</td>
                                     <td class="px-6 py-4 whitespace-nowrap">
-                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full @(o.Status == "completed" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800")">
+                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full @(o.Status == "completed" ? "bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-100" : "bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-100")">
                                             @o.Status
                                         </span>
                                     </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 truncate max-w-xs">@o.Notes</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 truncate max-w-xs">@o.Notes</td>
                                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                        <button @onclick="() => EditOrder(o)" class="text-blue-600 hover:text-blue-900 mr-3">Edit</button>
-                                        <button @onclick="() => DeleteOrder(o)" class="text-red-600 hover:text-red-900">Delete</button>
+                                        <button @onclick="() => EditOrder(o)" class="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 mr-3">Edit</button>
+                                        <button @onclick="() => DeleteOrder(o)" class="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300">Delete</button>
                                     </td>
                                 </tr>
                             }
@@ -142,47 +142,50 @@
 
 @if (showModal)
 {
-    <div class="fixed z-10 inset-0 overflow-y-auto">
+    <div class="fixed z-10 inset-0 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="modal-title-supplier">
         <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
             <div class="fixed inset-0 transition-opacity" aria-hidden="true" @onclick="CloseModal">
-                <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
+                <div class="absolute inset-0 bg-gray-500/75 dark:bg-gray-900/80"></div>
             </div>
-            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                    <h3 class="text-lg leading-6 font-medium text-gray-900">@((editingSupplier.Id.HasValue ? "Edit" : "Add")) Supplier</h3>
+
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+            <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full border border-gray-200 dark:border-gray-700">
+                <div class="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white" id="modal-title-supplier">@((editingSupplier.Id.HasValue ? "Edit" : "Add")) Supplier</h3>
                     <div class="mt-4 grid grid-cols-1 gap-y-4">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">Name *</label>
-                            <input type="text" @bind="editingSupplier.Name" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm" />
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Name *</label>
+                            <input type="text" @bind="editingSupplier.Name" class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm px-3 py-2 transition-colors" />
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">Email</label>
-                            <input type="email" @bind="editingSupplier.Email" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm" />
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Email</label>
+                            <input type="email" @bind="editingSupplier.Email" class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm px-3 py-2 transition-colors" />
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">Order Email (for Auto-Orders)</label>
-                            <input type="email" @bind="editingSupplier.OrderEmail" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm" placeholder="e.g. orders@supplier.com" />
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Order Email (for Auto-Orders)</label>
+                            <input type="email" @bind="editingSupplier.OrderEmail" class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm px-3 py-2 transition-colors" placeholder="e.g. orders@supplier.com" />
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">Phone</label>
-                            <input type="text" @bind="editingSupplier.Phone" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm" />
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Phone</label>
+                            <input type="text" @bind="editingSupplier.Phone" class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm px-3 py-2 transition-colors" />
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">Address</label>
-                            <textarea @bind="editingSupplier.Address" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm"></textarea>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Address</label>
+                            <textarea @bind="editingSupplier.Address" class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm px-3 py-2 transition-colors"></textarea>
                         </div>
                         <div class="flex items-center">
-                            <input type="checkbox" @bind="editingSupplier.IsActive" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" />
-                            <label class="ml-2 block text-sm text-gray-900">Active</label>
+                            <input type="checkbox" @bind="editingSupplier.IsActive" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded transition-colors" />
+                            <label class="ml-2 block text-sm text-gray-900 dark:text-gray-300">Active</label>
                         </div>
 
                         <!-- Product Assignment -->
-                        <div class="border-t border-gray-200 pt-4 mt-4">
-                            <h4 class="text-sm font-medium text-gray-900 mb-2">Assigned Products</h4>
-                            <div class="max-h-40 overflow-y-auto border border-gray-200 rounded-md p-2">
+                        <div class="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
+                            <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-2">Assigned Products</h4>
+                            <div class="max-h-40 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-md p-2">
                                 @if (products == null || !products.Any())
                                 {
-                                    <p class="text-xs text-gray-500">No products found.</p>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400">No products found.</p>
                                 }
                                 else
                                 {
@@ -192,9 +195,9 @@
                                             <input type="checkbox" 
                                                    checked="@selectedProductIds.Contains(p.Id ?? 0)"
                                                    @onchange="@(e => ToggleProductSelection(p.Id ?? 0, e.Value))"
-                                                   class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" />
-                                            <label class="ml-2 block text-sm text-gray-700">
-                                                @p.Name <span class="text-xs text-gray-500">(@(string.IsNullOrEmpty(p.SupplierName) ? "Unassigned" : p.SupplierName))</span>
+                                                   class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded transition-colors" />
+                                            <label class="ml-2 block text-sm text-gray-700 dark:text-gray-300">
+                                                @p.Name <span class="text-xs text-gray-500 dark:text-gray-400">(@(string.IsNullOrEmpty(p.SupplierName) ? "Unassigned" : p.SupplierName))</span>
                                             </label>
                                         </div>
                                     }
@@ -203,9 +206,9 @@
                         </div>
                     </div>
                 </div>
-                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                    <button type="button" @onclick="SaveSupplier" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 sm:ml-3 sm:w-auto sm:text-sm">Save</button>
-                    <button type="button" @onclick="CloseModal" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">Cancel</button>
+                <div class="bg-gray-50 dark:bg-gray-900 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse border-t border-gray-200 dark:border-gray-700">
+                    <button type="button" @onclick="SaveSupplier" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 sm:ml-3 sm:w-auto sm:text-sm transition-colors">Save</button>
+                    <button type="button" @onclick="CloseModal" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-700 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm transition-colors">Cancel</button>
                 </div>
             </div>
         </div>
@@ -214,19 +217,22 @@
 
 @if (showOrderModal)
 {
-    <div class="fixed z-10 inset-0 overflow-y-auto">
+    <div class="fixed z-10 inset-0 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="modal-title-order">
         <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
             <div class="fixed inset-0 transition-opacity" aria-hidden="true" @onclick="CloseOrderModal">
-                <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
+                <div class="absolute inset-0 bg-gray-500/75 dark:bg-gray-900/80"></div>
             </div>
-            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                    <h3 class="text-lg leading-6 font-medium text-gray-900">@((editingOrder.Id.HasValue ? "Edit" : "Add")) Supplier Order</h3>
+
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+            <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full border border-gray-200 dark:border-gray-700">
+                <div class="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white" id="modal-title-order">@((editingOrder.Id.HasValue ? "Edit" : "Add")) Supplier Order</h3>
                     <div class="mt-4 grid grid-cols-1 gap-y-4">
                         <!-- Supplier Selection -->
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">Supplier *</label>
-                            <select @bind="editingOrder.SupplierId" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Supplier *</label>
+                            <select @bind="editingOrder.SupplierId" class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm px-3 py-2 transition-colors">
                                 <option value="0">-- Select Supplier --</option>
                                 @foreach (var s in suppliers.Where(x => x.IsActive))
                                 {
@@ -236,10 +242,10 @@
                         </div>
                         
                         <!-- Items Section -->
-                        <div class="border-t border-b border-gray-200 py-4">
-                            <h4 class="text-sm font-medium text-gray-900 mb-2">Order Items</h4>
+                        <div class="border-t border-b border-gray-200 dark:border-gray-700 py-4">
+                            <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-2">Order Items</h4>
                             <div class="flex space-x-2 mb-2">
-                                <select @bind="newOrderItem.ProductId" class="block w-full border-gray-300 rounded-md shadow-sm text-sm">
+                                <select @bind="newOrderItem.ProductId" class="block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm text-sm px-3 py-2 transition-colors">
                                     <option value="0">Select Product...</option>
                                     @if (products != null)
                                     {
@@ -249,30 +255,30 @@
                                         }
                                     }
                                 </select>
-                                <input type="number" @bind="newOrderItem.Quantity" placeholder="Qty" class="block w-20 border-gray-300 rounded-md shadow-sm text-sm" />
-                                <button type="button" @onclick="AddItem" class="px-3 py-2 bg-blue-600 text-white rounded-md text-sm">Add</button>
+                                <input type="number" @bind="newOrderItem.Quantity" placeholder="Qty" class="block w-20 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm text-sm px-3 py-2 transition-colors" />
+                                <button type="button" @onclick="AddItem" class="px-3 py-2 bg-blue-600 text-white rounded-md text-sm transition-colors">Add</button>
                             </div>
                             
                             @if (currentOrderItems.Any())
                             {
-                                <table class="min-w-full divide-y divide-gray-200">
-                                    <thead class="bg-gray-50">
+                                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                                    <thead class="bg-gray-50 dark:bg-gray-900">
                                         <tr>
-                                            <th class="px-2 py-1 text-left text-xs font-medium text-gray-500">Product</th>
-                                            <th class="px-2 py-1 text-left text-xs font-medium text-gray-500">Qty</th>
-                                            <th class="px-2 py-1 text-right text-xs font-medium text-gray-500">Total</th>
+                                            <th class="px-2 py-1 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Product</th>
+                                            <th class="px-2 py-1 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Qty</th>
+                                            <th class="px-2 py-1 text-right text-xs font-medium text-gray-500 dark:text-gray-400">Total</th>
                                             <th></th>
                                         </tr>
                                     </thead>
-                                    <tbody>
+                                    <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                                         @foreach (var item in currentOrderItems)
                                         {
                                             <tr>
-                                                <td class="px-2 py-1 text-sm">@item.ProductName</td>
-                                                <td class="px-2 py-1 text-sm">@item.Quantity</td>
-                                                <td class="px-2 py-1 text-sm text-right">@item.TotalPrice.ToString("C")</td>
+                                                <td class="px-2 py-1 text-sm text-gray-900 dark:text-white">@item.ProductName</td>
+                                                <td class="px-2 py-1 text-sm text-gray-500 dark:text-gray-400">@item.Quantity</td>
+                                                <td class="px-2 py-1 text-sm text-right text-gray-900 dark:text-white">@item.TotalPrice.ToString("C")</td>
                                                 <td class="px-2 py-1 text-right">
-                                                    <button type="button" @onclick="() => RemoveItem(item)" class="text-red-600 hover:text-red-900 text-xs">Remove</button>
+                                                    <button type="button" @onclick="() => RemoveItem(item)" class="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300 text-xs transition-colors">Remove</button>
                                                 </td>
                                             </tr>
                                         }
@@ -282,13 +288,13 @@
                         </div>
 
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">Total Amount</label>
-                            <input type="number" step="0.01" @bind="editingOrder.TotalAmount" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm" />
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Total Amount</label>
+                            <input type="number" step="0.01" @bind="editingOrder.TotalAmount" class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm px-3 py-2 transition-colors" />
                         </div>
                         
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">Status</label>
-                            <select @bind="editingOrder.Status" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
+                            <select @bind="editingOrder.Status" class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm px-3 py-2 transition-colors">
                                 <option value="pending">Pending</option>
                                 <option value="sent">Sent</option>
                                 <option value="received">Received</option>
@@ -296,18 +302,18 @@
                             </select>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">Notes</label>
-                            <textarea @bind="editingOrder.Notes" rows="2" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm" placeholder="Additional notes..."></textarea>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Notes</label>
+                            <textarea @bind="editingOrder.Notes" rows="2" class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm px-3 py-2 transition-colors" placeholder="Additional notes..."></textarea>
                         </div>
                     </div>
                 </div>
-                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                    <button type="button" @onclick="SaveOrder" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 sm:ml-3 sm:w-auto sm:text-sm">Save</button>
+                <div class="bg-gray-50 dark:bg-gray-900 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse border-t border-gray-200 dark:border-gray-700">
+                    <button type="button" @onclick="SaveOrder" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 sm:ml-3 sm:w-auto sm:text-sm transition-colors">Save</button>
                     @if (editingOrder.Id.HasValue && editingOrder.Status != "received" && editingOrder.Status != "cancelled")
                     {
-                        <button type="button" @onclick="ReceiveOrder" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 sm:ml-3 sm:w-auto sm:text-sm">Receive Inventory</button>
+                        <button type="button" @onclick="ReceiveOrder" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 sm:ml-3 sm:w-auto sm:text-sm transition-colors">Receive Inventory</button>
                     }
-                    <button type="button" @onclick="CloseOrderModal" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">Cancel</button>
+                    <button type="button" @onclick="CloseOrderModal" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-700 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm transition-colors">Cancel</button>
                 </div>
             </div>
         </div>

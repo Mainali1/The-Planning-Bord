@@ -69,6 +69,9 @@ namespace ThePlanningBord.Models
         [JsonPropertyName("id")]
         public int? Id { get; set; }
 
+        [JsonPropertyName("service_code")]
+        public string? ServiceCode { get; set; }
+
         [JsonPropertyName("name")]
         public string Name { get; set; } = string.Empty;
 
@@ -81,14 +84,32 @@ namespace ThePlanningBord.Models
         [JsonPropertyName("unit_price")]
         public double UnitPrice { get; set; } = 0.0;
 
+        [JsonPropertyName("flat_price")]
+        public double? FlatPrice { get; set; }
+
         [JsonPropertyName("billing_type")]
         public string BillingType { get; set; } = "hourly"; // 'hourly', 'fixed', 'retainer'
 
         [JsonPropertyName("estimated_hours")]
         public double? EstimatedHours { get; set; }
 
+        [JsonPropertyName("typical_duration")]
+        public string? TypicalDuration { get; set; }
+
+        [JsonPropertyName("duration_unit")]
+        public string? DurationUnit { get; set; } // 'days' or 'hours'
+
+        [JsonPropertyName("sla_terms")]
+        public string? SlaTerms { get; set; }
+
         [JsonPropertyName("is_active")]
         public bool IsActive { get; set; } = true;
+
+        [JsonPropertyName("created_at")]
+        public string? CreatedAt { get; set; }
+
+        [JsonPropertyName("updated_at")]
+        public string? UpdatedAt { get; set; }
     }
 
     public class Client
@@ -128,6 +149,15 @@ namespace ThePlanningBord.Models
 
         [JsonPropertyName("notes")]
         public string? Notes { get; set; }
+
+        [JsonPropertyName("annual_contract_value")]
+        public double? AnnualContractValue { get; set; }
+
+        [JsonPropertyName("primary_products_purchased")]
+        public string? PrimaryProductsPurchased { get; set; }
+
+        [JsonPropertyName("subscribed_service_ids")]
+        public List<int>? SubscribedServiceIds { get; set; }
 
         [JsonPropertyName("is_active")]
         public bool IsActive { get; set; } = true;

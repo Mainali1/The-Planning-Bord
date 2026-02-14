@@ -16,6 +16,9 @@ namespace ThePlanningBord.Models
         [JsonPropertyName("last_name")]
         public string LastName { get; set; } = string.Empty;
 
+        [JsonPropertyName("full_name")]
+        public string? FullName { get; set; }
+
         [JsonPropertyName("email")]
         public string? Email { get; set; }
 
@@ -31,11 +34,26 @@ namespace ThePlanningBord.Models
         [JsonPropertyName("position")]
         public string? Position { get; set; }
 
+        [JsonPropertyName("manager_id")]
+        public int? ManagerId { get; set; }
+
+        [JsonPropertyName("hire_date")]
+        public string? HireDate { get; set; }
+
         [JsonPropertyName("salary")]
         public double? Salary { get; set; }
 
+        [JsonPropertyName("hourly_cost")]
+        public double? HourlyCost { get; set; }
+
         [JsonPropertyName("status")]
         public string Status { get; set; } = "active";
+
+        [JsonPropertyName("created_at")]
+        public string? CreatedAt { get; set; }
+
+        [JsonPropertyName("updated_at")]
+        public string? UpdatedAt { get; set; }
     }
 
     public class AttendanceModel

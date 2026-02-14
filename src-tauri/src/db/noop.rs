@@ -40,6 +40,7 @@ impl Database for NoOpDatabase {
 
     // Dashboard & Reports
     async fn get_dashboard_stats(&self) -> Result<DashboardStats, String> { Err("DB not configured".into()) }
+    async fn get_finance_overview(&self) -> Result<FinanceOverview, String> { Err("DB not configured".into()) }
     async fn get_report_summary(&self) -> Result<ReportSummary, String> { Err("DB not configured".into()) }
     async fn get_monthly_cashflow(&self) -> Result<Vec<ChartDataPoint>, String> { Err("DB not configured".into()) }
 
@@ -50,7 +51,7 @@ impl Database for NoOpDatabase {
     async fn delete_complaint(&self, _id: i32) -> Result<(), String> { Err("DB not configured".into()) }
 
     // Tools
-    async fn get_tools(&self) -> Result<Vec<Tool>, String> { Err("DB not configured".into()) }
+    async fn get_tools(&self, _search: Option<String>, _page: Option<i32>, _page_size: Option<i32>) -> Result<serde_json::Value, String> { Err("DB not configured".into()) }
     async fn add_tool(&self, _tool: Tool) -> Result<i64, String> { Err("DB not configured".into()) }
     async fn update_tool(&self, _tool: Tool) -> Result<(), String> { Err("DB not configured".into()) }
     async fn delete_tool(&self, _id: i32) -> Result<(), String> { Err("DB not configured".into()) }
@@ -216,4 +217,13 @@ impl Database for NoOpDatabase {
     async fn create_purchase_order(&self, _po: PurchaseOrder) -> Result<i64, String> { Err("DB not configured".into()) }
     async fn update_purchase_order_status(&self, _id: i32, _status: String) -> Result<(), String> { Err("DB not configured".into()) }
     async fn receive_purchase_order(&self, _id: i32) -> Result<(), String> { Err("DB not configured".into()) }
+
+    // Project Timeline
+    async fn get_project_timeline(&self, _project_id: i32) -> Result<ProjectTimeline, String> { Err("DB not configured".into()) }
+    async fn add_project_phase(&self, _phase: ProjectPhase) -> Result<i32, String> { Err("DB not configured".into()) }
+    async fn update_project_phase(&self, _phase: ProjectPhase) -> Result<(), String> { Err("DB not configured".into()) }
+    async fn delete_project_phase(&self, _id: i32) -> Result<(), String> { Err("DB not configured".into()) }
+    async fn add_project_milestone(&self, _milestone: ProjectMilestone) -> Result<i32, String> { Err("DB not configured".into()) }
+    async fn update_project_milestone(&self, _milestone: ProjectMilestone) -> Result<(), String> { Err("DB not configured".into()) }
+    async fn delete_project_milestone(&self, _id: i32) -> Result<(), String> { Err("DB not configured".into()) }
 }

@@ -182,7 +182,8 @@ namespace ThePlanningBord.Models
     public enum DbType
     {
         Local,
-        Cloud
+        Cloud,
+        Embedded
     }
 
     public class DbConfig
