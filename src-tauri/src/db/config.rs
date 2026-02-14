@@ -5,6 +5,7 @@ use std::path::PathBuf;
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum DbType {
     Local,
+    Embedded,
     Cloud,
 }
 

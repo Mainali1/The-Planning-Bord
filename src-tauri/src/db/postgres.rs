@@ -1107,11 +1107,12 @@ impl Database for PostgresDatabase {
         
         // 1. Project Info
         let project_row = client.query_one(
-            "SELECT p.name, c.name FROM projects p JOIN clients c ON p.client_id = c.id WHERE p.id = $1",
+            "SELECT p.name, c.company_name FROM projects p LEFT JOIN clients c ON p.client_id = c.id WHERE p.id = $1",
             &[&project_id]
         ).await.map_err(|e| format!("Project not found: {}", e))?;
         let project_name: String = project_row.get(0);
-        let client_name: String = project_row.get(1);
+        let client_name: Option<String> = project_row.get(1);
+        let client_name = client_name.unwrap_or_else(|| "Unassigned Client".to_string());
 
         // 2. Revenue (Billable Time + Sales Orders)
         let time_revenue: f64 = client.query_one(
@@ -3823,13 +3824,18 @@ impl Database for PostgresDatabase {
         let tx = client.transaction().await.map_err(|e| format!("Failed to start transaction: {}", e))?;
 
         // 1. Get SO Header
-        let so_row = tx.query_opt("SELECT total_amount, client_id FROM sales_orders WHERE id = $1", &[&id])
+        let so_row = tx.query_opt("SELECT total_amount, client_id, status FROM sales_orders WHERE id = $1", &[&id])
             .await.map_err(|e| format!("Failed to fetch SO: {}", e))?;
-        
-        let (total_amount, _client_id) = match so_row {
-            Some(row) => (row.get::<_, f64>(0), row.get::<_, i32>(1)),
+
+        let (total_amount, _client_id, so_status) = match so_row {
+            Some(row) => (row.get::<_, f64>(0), row.get::<_, i32>(1), row.get::<_, String>(2)),
             None => return Err("Sales Order not found".to_string()),
         };
+
+        let normalized_status = so_status.to_lowercase();
+        if normalized_status != "confirmed" {
+            return Err(format!("Sales Order must be Confirmed before shipping (current status: {})", so_status));
+        }
 
         // 2. Get SO Lines
         let lines = tx.query("SELECT product_id, service_id, quantity FROM sales_order_lines WHERE so_id = $1", &[&id])
@@ -3843,15 +3849,24 @@ impl Database for PostgresDatabase {
             let quantity: f64 = line.get(2);
             
             if let Some(pid) = product_id {
-                // Fetch cost price
-                let prod_row = tx.query_one("SELECT cost_price FROM products WHERE id = $1", &[&pid])
-                    .await.map_err(|e| format!("Failed to fetch product cost: {}", e))?;
+                // Fetch cost price and current stock
+                let prod_row = tx.query_one("SELECT cost_price, current_quantity FROM products WHERE id = $1", &[&pid])
+                    .await.map_err(|e| format!("Failed to fetch product details: {}", e))?;
                 let cost_price: f64 = prod_row.get::<_, Option<f64>>(0).unwrap_or(0.0);
-                
+                let current_quantity: i32 = prod_row.get(1);
+
                 total_cogs += quantity * cost_price;
 
-                // Decrement stock
+                // Prevent negative inventory on shipment
                 let quantity_int = quantity as i32;
+                if current_quantity < quantity_int {
+                    return Err(format!(
+                        "Insufficient stock for product {}: available {}, required {}",
+                        pid, current_quantity, quantity_int
+                    ));
+                }
+
+                // Decrement stock
                 tx.execute(
                     "UPDATE products SET current_quantity = current_quantity - $1 WHERE id = $2",
                     &[&quantity_int, &pid]
