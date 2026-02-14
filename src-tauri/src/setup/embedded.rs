@@ -90,13 +90,10 @@ fn pick_port() -> i32 {
 async fn wait_ready(conn: &str) -> bool {
     // Retry for up to 30 seconds (60 * 500ms)
     for i in 0..60 {
-        let conn_clone = conn.to_string();
-        let res = crate::db::postgres_init::init_db(&conn_clone).await;
-        match res {
+        match tokio_postgres::connect(conn, tokio_postgres::NoTls).await {
             Ok(_) => return true,
             Err(_) => {
                 if i == 59 {
-                    // Last attempt failed
                     return false;
                 }
                 tokio::time::sleep(Duration::from_millis(500)).await;

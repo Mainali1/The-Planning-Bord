@@ -1,6 +1,7 @@
 use tokio_postgres::{NoTls, Error};
 
 pub async fn init_db(connection_string: &str) -> Result<(), Error> {
+    println!("Initializing database schema...");
     ensure_database_exists(connection_string).await?;
     let (client, connection) = tokio_postgres::connect(connection_string, NoTls).await?;
 
@@ -115,9 +116,6 @@ pub async fn init_db(connection_string: &str) -> Result<(), Error> {
     let _ = client.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE", &[]).await;
 
     // Patches moved to end of file to ensure tables exist
-    
-    // Patch gl_accounts
-    let _ = client.execute("ALTER TABLE gl_accounts ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP", &[]).await;
 
     client.execute(
         "CREATE TABLE IF NOT EXISTS sessions (
@@ -1065,6 +1063,9 @@ pub async fn init_db(connection_string: &str) -> Result<(), Error> {
     // Moved here to ensure all tables exist before applying constraints
     println!("DEBUG: Applying post-initialization patches and constraints...");
     
+    // GL Accounts patch
+    let _ = client.execute("ALTER TABLE gl_accounts ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP", &[]).await;
+
     // 1. Projects Patches
     let _ = client.execute("ALTER TABLE projects ADD COLUMN IF NOT EXISTS manager_id INTEGER REFERENCES employees(id)", &[]).await;
     // Ensure client_id column exists (legacy)

@@ -1,7 +1,7 @@
 {
   "mainAssemblyName": "ThePlanningBord",
   "resources": {
-    "hash": "sha256-esXFwoy+QsnBbFVDsto5EnkIIADI7NPKYB4C3eDH8c8=",
+    "hash": "sha256-AOfX+TANBFD9WcZGtl/tmwvmv7TcjnfwFs2BzFAtRbQ=",
     "jsModuleNative": {
       "dotnet.native.js": "sha256-4g0GzvOXSwZvTLca4PrWJkoeltz+V9IF/hEFDcnVros="
     },
@@ -95,7 +95,7 @@
       "System.wasm": "sha256-YSihFa+YInKtLQNBZCK8pNPmas5a97BeIhBK9Cl2Qx8=",
       "netstandard.wasm": "sha256-XqWMJlmFZfXDhpVZImoKsTm4bQ1QUjZ+DX+FrAPPuEU=",
       "System.Private.CoreLib.wasm": "sha256-VPpDTGEGuAtqoCtuuVxJJV3ivLR/jeuwS6WDa5ks34k=",
-      "ThePlanningBord.wasm": "sha256-Y/hPFBItUcwaXeUCLwPuLXD08beGRsa2Wv4eqzInTLc="
+      "ThePlanningBord.wasm": "sha256-0NSRwP1F9C/5eTxM0F8jZ6lF78Nbx3AVT0ywmKYqI7g="
     }
   },
   "cacheBootResources": true,

@@ -1737,6 +1737,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
+            println!("Starting application setup hook...");
             let app_handle = app.handle();
             let app_data_dir = app_handle.path().app_local_data_dir().expect("failed to get app data dir");
             
@@ -1779,7 +1780,10 @@ pub fn run() {
                 }
 
                 match PostgresDatabase::new(&conn) {
-                    Ok(pg_db) => { db = Box::new(pg_db); }
+                    Ok(pg_db) => { 
+                        db = Box::new(pg_db); 
+                        println!("Postgres database object created successfully.");
+                    }
                     Err(e) => {
                         println!("Postgres connect error: {}", e);
                         println!("Critical Error: Failed to connect to configured Postgres database. Application is in Error State.");
@@ -1798,7 +1802,10 @@ pub fn run() {
                 });
 
                 match PostgresDatabase::new(&conn) {
-                    Ok(pg_db) => { db = Box::new(pg_db); }
+                    Ok(pg_db) => { 
+                        db = Box::new(pg_db); 
+                        println!("Postgres database object created successfully (env var).");
+                    }
                     Err(e) => {
                         println!("Postgres connect error: {:?}", e);
                         println!("Critical Error: Failed to connect to Postgres (env var). Application is in Error State.");
@@ -1835,6 +1842,7 @@ pub fn run() {
                             match PostgresDatabase::new(&conn) {
                                 Ok(pg_db) => { 
                                     db = Box::new(pg_db); 
+                                    println!("Postgres database object created successfully (auto-init).");
                                     println!("Auto-initialization complete.");
                                 }
                                 Err(e) => {
@@ -1916,6 +1924,7 @@ pub fn run() {
                 }
             });
 
+            println!("Tauri setup hook finished. Application starting...");
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

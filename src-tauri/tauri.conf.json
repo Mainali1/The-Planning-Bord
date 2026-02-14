@@ -6,7 +6,7 @@
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "npx tailwindcss -i ./src/styles.css -o ./src/wwwroot/css/app.css && dotnet publish -c Release src/ThePlanningBord.csproj -o dist",
+    "beforeBuildCommand": "npm run build:css && dotnet publish -c Release src/ThePlanningBord.csproj -o dist",
     "frontendDist": "../dist/wwwroot"
   },
   "app": {
@@ -21,7 +21,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self';",
+      "csp": "default-src 'self' blob: data:; script-src 'self' 'wasm-unsafe-eval' 'unsafe-inline' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' blob:; media-src 'self' blob:; worker-src 'self' blob:; frame-src 'self';",
       "capabilities": ["default"]
     }
   },
